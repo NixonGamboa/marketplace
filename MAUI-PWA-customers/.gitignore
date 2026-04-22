@@ -1,0 +1,59 @@
+# ─── Dependencies ────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Build outputs ───────────────────────────────────────────────
+dist/
+dist-ssr/
+dev-dist/
+build/
+out/
+
+# ─── Vite / bundler cache ────────────────────────────────────────
+.vite/
+*.tsbuildinfo
+
+# ─── AWS SAM / Lambda (backend, future) ─────────────────────────
+.aws-sam/
+server/.aws-sam/
+samconfig.toml.local
+
+# ─── Environment variables ───────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Keep the example files tracked
+!.env.example
+!.env.*.example
+
+# ─── Logs ────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── OS / Editor ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── Test coverage ───────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Misc ────────────────────────────────────────────────────────
+*.local

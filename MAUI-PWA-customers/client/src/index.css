@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variables globales */
+:root {
+  --maui-font-sans: 'Inter', 'Roboto', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: var(--maui-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  @apply bg-brand-bg text-brand-dark min-h-screen;
+}
+
+a {
+  @apply text-brand-primary hover:underline underline-offset-2;
+}
+
+/* Ocultar scrollbar (usado en carruseles/chips) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Tipografía base */
+@layer base {
+  h1, h2, h3, h4 { @apply font-semibold text-brand-dark; }
+  h1 { @apply text-3xl md:text-4xl; }
+  h2 { @apply text-2xl md:text-3xl; }
+  h3 { @apply text-xl md:text-2xl; }
+  h4 { @apply text-lg; }
+}
+
+/* Scrollbar estilizado (Chromium) */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: rgba(47, 125, 50, 0.06); }
+*::-webkit-scrollbar-thumb { background: rgba(47, 125, 50, 0.30); border-radius: 9999px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(47, 125, 50, 0.50); }

@@ -1,0 +1,53 @@
+Equipo, esta es la estructura final de navegación. El objetivo es Cero Fricción y Máxima Confianza. No diseñen para "expertos digitales"; diseñen para la gente de Dolores que necesita hacer mercado rápido y bajo el sol.
+
+1. Vista de Acceso (Auth) — [ESTADO: APROBADA]
+Foco: Login via WhatsApp (Magic Link). Solo número de celular y botón de acción.
+
+2. Vista Home (Mercado Rápido) — [ESTADO: APROBADA]
+Foco: Estado de tienda, carrusel "Lo que no puede faltar" y pasillos (categorías) sin botones de compra directos.
+
+3. Vista de Listado de Productos (Catálogo)
+Propósito: Navegación masiva por pasillo.
+
+Elementos clave: * Tarjetas con Skeleton Loaders (evitar saltos de layout).
+
+Botón + de ancho completo en la base del card (fácil de tocar).
+
+Badge de Peso: Alerta visual en frescos: "Peso y precio final se ajustan en tienda".
+
+Barra Flotante de Canasta: Resumen inferior persistente con total estimado y botón "Ver mi canasta".
+
+4. Vista de Cierre (Fusión: Canasta + Checkout)
+Propósito: Revisión final y logística en una sola pantalla. (PASO CRÍTICO).
+
+Elementos clave:
+
+Lista de items con selectores [-] 1 [+].
+
+Selector Dual: Botones grandes para "Recoger en Tienda" vs "Domicilio".
+
+Módulo de Sustitución (Mandatorio): Tres opciones visuales con iconos (Llamada, Similar, Quitar). Bloquear avance hasta elegir una.
+
+Perfil Silencioso: Si es el primer pedido, pedir "Nombre" justo aquí.
+
+Botón Final: "Pedir mi Mercado" (Evitar la palabra "Pagar").
+
+5. Vista de Confirmación (Éxito y Educación)
+Propósito: Confirmar recepción y gestionar expectativas.
+
+Elementos clave: * Check de éxito visual.
+
+Texto educativo: "Recibido. En Leche y Miel estamos pesando tus productos. Te enviaremos el total exacto por WhatsApp".
+
+Botón "Ir a mis pedidos".
+
+6. Vista Monitor de Pedido (Seguimiento)
+Propósito: Transparencia post-venta.
+
+Elementos clave:
+
+Stepper de 3 estados: Recibido ⮕ Preparando ⮕ En camino.
+
+Visor de Foto de Calidad: Espacio para la foto del mercado empacado.
+
+Botón directo de WhatsApp para soporte
