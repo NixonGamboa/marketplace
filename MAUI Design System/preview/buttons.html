@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Buttons</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_base.css">
+<style>
+body { gap:14px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:var(--maui-font-sans); font-weight:600; border-radius:12px; border:none; cursor:pointer; transition:background var(--maui-dur-fast) var(--maui-ease); }
+.btn.lg { height:48px; padding:0 20px; font-size:15px; border-radius:12px; }
+.btn.md { height:40px; padding:0 16px; font-size:14px; border-radius:10px; }
+.btn.sm { height:32px; padding:0 12px; font-size:13px; border-radius:8px; }
+.btn.primary { background:var(--maui-primary); color:#fff; }
+.btn.primary:hover { background:var(--maui-primary-dark); }
+.btn.secondary { background:#fff; color:var(--maui-primary); border:1px solid var(--maui-primary); }
+.btn.ghost { background:transparent; color:var(--maui-fg); }
+.btn.ghost:hover { background:rgba(214,207,196,.35); }
+.btn.whatsapp { background:var(--maui-whatsapp); color:#fff; }
+.btn.whatsapp:hover { background:var(--maui-whatsapp-dark); }
+.btn.disabled { opacity:.5; cursor:not-allowed; }
+svg { width:18px; height:18px; }
+</style></head><body>
+<div class="col">
+  <div class="row">
+    <button class="btn lg primary">Pedir mi Mercado</button>
+    <button class="btn lg whatsapp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.297-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>Recibir Acceso por WhatsApp</button>
+  </div>
+  <div class="row">
+    <button class="btn md primary">Ver mi canasta</button>
+    <button class="btn md secondary">Recoger en Tienda</button>
+    <button class="btn md ghost">Cancelar</button>
+    <button class="btn md primary disabled">Pedir mi Mercado</button>
+  </div>
+  <div class="row">
+    <button class="btn sm primary">+ Agregar</button>
+    <button class="btn sm secondary">En carrito</button>
+    <span class="mono">hover → primary-dark · focus-ring 2px · disabled 50%</span>
+  </div>
+</div>
+</body></html>

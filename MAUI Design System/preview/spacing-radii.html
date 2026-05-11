@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Spacing & radii</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_base.css">
+<style>
+.sp { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.sp .box { background:var(--maui-primary); border-radius:4px; }
+.r { display:flex; flex-direction:column; gap:6px; align-items:center;}
+.r .demo { width:56px; height:56px; background:var(--maui-surface); border:1px solid var(--maui-border); }
+</style></head><body>
+<div class="col" style="gap:18px;">
+  <div class="row">
+    <div class="sp"><div class="box" style="width:4px;height:20px;"></div><span class="mono">4</span></div>
+    <div class="sp"><div class="box" style="width:8px;height:20px;"></div><span class="mono">8</span></div>
+    <div class="sp"><div class="box" style="width:12px;height:20px;"></div><span class="mono">12</span></div>
+    <div class="sp"><div class="box" style="width:16px;height:20px;"></div><span class="mono">16</span></div>
+    <div class="sp"><div class="box" style="width:20px;height:20px;"></div><span class="mono">20</span></div>
+    <div class="sp"><div class="box" style="width:24px;height:20px;"></div><span class="mono">24</span></div>
+    <div class="sp"><div class="box" style="width:32px;height:20px;"></div><span class="mono">32</span></div>
+    <div class="sp"><div class="box" style="width:40px;height:20px;"></div><span class="mono">40</span></div>
+    <div class="sp"><div class="box" style="width:48px;height:20px;"></div><span class="mono">48</span></div>
+  </div>
+  <div class="row" style="gap:16px;">
+    <div class="r"><div class="demo" style="border-radius:6px;"></div><span class="mono">6 · sm</span></div>
+    <div class="r"><div class="demo" style="border-radius:8px;"></div><span class="mono">8 · md</span></div>
+    <div class="r"><div class="demo" style="border-radius:12px;"></div><span class="mono">12 · lg · cards</span></div>
+    <div class="r"><div class="demo" style="border-radius:16px;"></div><span class="mono">16 · xl · modals</span></div>
+    <div class="r"><div class="demo" style="border-radius:9999px;"></div><span class="mono">pill · chips</span></div>
+    <div class="r"><div class="demo" style="width:44px;height:44px;border:2px dashed var(--maui-primary);border-radius:8px;"></div><span class="mono">tap · 44×44</span></div>
+  </div>
+</div>
+</body></html>

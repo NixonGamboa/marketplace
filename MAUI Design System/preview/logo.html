@@ -1,0 +1,178 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>MAUI · Logo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo+Black&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_base.css">
+<style>
+  body { background: var(--maui-bg); padding: 28px; font-family: var(--maui-font-sans); color: var(--maui-fg); }
+  h2 { font-size: 22px; font-weight: 800; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h2 + p { margin: 0 0 20px; color: var(--maui-fg-muted); font-size: 14px; max-width: 640px; }
+  h3 { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--maui-fg-muted); margin: 28px 0 12px; }
+  .card { background:#fff; border:1px solid var(--maui-border); border-radius:16px; padding:20px; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; }
+  .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
+  .grid-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; }
+  .swatch { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:36px 20px; border-radius:16px; border:1px solid var(--maui-border); min-height:180px; }
+  .swatch img { display:block; }
+  .swatch.onCrema  { background: var(--maui-bg); }
+  .swatch.onWhite  { background: #fff; }
+  .swatch.onWarm   { background: linear-gradient(180deg,#FFF6E2,#FDE8C6 60%,#F8D48A); }
+  .swatch.onGreen  { background: var(--maui-primary); }
+  .swatch.onDark   { background: #1A1A1A; }
+  .swatch.onPhoto  { background: linear-gradient(135deg,#8B6E4D 0%,#6B4F33 100%); }
+  .swatch .label   { font-size: 11px; font-weight: 600; color: var(--maui-fg-muted); }
+  .swatch.onGreen .label, .swatch.onDark .label, .swatch.onPhoto .label { color: rgba(255,255,255,.85); }
+
+  .sizes { display:flex; align-items:flex-end; gap:24px; justify-content:center; flex-wrap: wrap; }
+  .sizes .item { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .sizes .item .l { font-size:10.5px; color:var(--maui-fg-muted); font-variant-numeric: tabular-nums; }
+
+  .check, .cross { position:relative; }
+  .check::after, .cross::after {
+    position:absolute; top:10px; right:10px;
+    width:24px; height:24px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:700; color:#fff;
+  }
+  .check::after { content: '✓'; background: var(--maui-primary); }
+  .cross::after { content: '✕'; background: var(--maui-error); }
+
+  .bad-stretch  { transform: scaleX(1.35); transform-origin: center; }
+  .bad-squish   { transform: scaleY(0.7); transform-origin: center; }
+  .bad-rotate   { transform: rotate(-12deg); }
+  .bad-recolor  { filter: hue-rotate(220deg) saturate(1.4); }
+
+  .clearspace { padding: 36px; display:flex; justify-content:center; align-items:center; gap: 28px; flex-wrap: wrap; }
+  .clearspace .frame { position: relative; padding: 36px 60px; }
+  .clearspace .guide { position:absolute; inset: 0; border: 1.5px dashed #FFB020; border-radius:6px; pointer-events:none; }
+  .clearspace .xmark { position:absolute; font-family: var(--maui-font-mono); font-size:10px; color:#FFB020; font-weight:600; }
+
+  .needs { background: #FFF8E6; border:1px solid #F1CF7A; padding: 14px 16px; border-radius: 12px; font-size: 13px; line-height:1.55; color:#5A4A14; margin-bottom: 12px; }
+  .needs b { color: #3A2D00; }
+  code.k { font-family: var(--maui-font-mono); font-size:12px; background:var(--maui-gray-50); padding:2px 6px; border-radius:4px; }
+</style></head>
+<body>
+
+  <h2>MAUI · Logo</h2>
+  <p>Wordmark sólido. La marca es la palabra: <b>MAUI</b> en grotesca pesada, sin símbolo. Esto la hace category-agnostic — funciona para supermercado, ferretería, cualquier vertical futura — y resuelve perfecto a 16 px y a 16 m. SVG vectorial oficial: <code class="k">assets/maui-logo.svg</code>.</p>
+
+  <div class="needs">
+    <b>Pendiente menor:</b> el wordmark del SVG renderiza con <code class="k">Archivo Black</code> cuando la fuente está cargada en la página; usado como <code class="k">&lt;img&gt;</code> aislado, cae a Arial Black (visualmente casi idéntico para "MAUI"). Para producción 100% pixel-perfect, convertir el texto a paths con un editor vectorial.
+  </div>
+
+  <!-- Hero -->
+  <div class="card" style="padding:48px; display:flex; align-items:center; justify-content:center; gap:48px;">
+    <img src="../assets/maui-logo.svg" alt="MAUI" style="height: 120px">
+    <div style="max-width: 280px;">
+      <p style="margin:0; font-size: 14px; color: var(--maui-fg-muted); line-height: 1.55;">
+        Una sola palabra, una sola tipografía. Archivo Black 900 con tracking ajustado (−5/em). Negro institucional <code class="k">#1A1A1A</code> sobre crema. Sin símbolos, sin decoración, sin tagline.
+      </p>
+    </div>
+  </div>
+
+  <!-- Active assets manifest -->
+  <h3>Archivos disponibles</h3>
+  <div class="card" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:14px;">
+    <div style="text-align:center;"><div style="background:var(--maui-bg); border-radius:12px; padding:36px 20px; margin-bottom:8px; min-height:120px; display:flex; align-items:center; justify-content:center;"><img src="../assets/maui-logo.svg" style="height:60px"></div><code class="k" style="font-size:11px;">maui-logo.svg</code><div style="font-size:11px; color:var(--maui-fg-muted); margin-top:4px;">Negro · default</div></div>
+    <div style="text-align:center;"><div style="background:#fff; border:1px solid var(--maui-border); border-radius:12px; padding:36px 20px; margin-bottom:8px; min-height:120px; display:flex; align-items:center; justify-content:center;"><img src="../assets/maui-logo-black.svg" style="height:60px"></div><code class="k" style="font-size:11px;">maui-logo-black.svg</code><div style="font-size:11px; color:var(--maui-fg-muted); margin-top:4px;">Negro · alias</div></div>
+    <div style="text-align:center;"><div style="background:#1A1A1A; border-radius:12px; padding:36px 20px; margin-bottom:8px; min-height:120px; display:flex; align-items:center; justify-content:center;"><img src="../assets/maui-logo-white.svg" style="height:60px"></div><code class="k" style="font-size:11px;">maui-logo-white.svg</code><div style="font-size:11px; color:var(--maui-fg-muted); margin-top:4px;">Blanco · sobre oscuro</div></div>
+  </div>
+
+  <!-- Size scale -->
+  <h3>Escala</h3>
+  <div class="card">
+    <div class="sizes" style="padding: 16px 0;">
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:120px"><span class="l">120 px · hero login</span></div>
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:72px"><span class="l">72 px · header landing</span></div>
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:48px"><span class="l">48 px · header app</span></div>
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:32px"><span class="l">32 px · footer</span></div>
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:20px"><span class="l">20 px · firma email</span></div>
+      <div class="item"><img src="../assets/maui-logo.svg" style="height:14px"><span class="l">14 px · mínimo</span></div>
+    </div>
+    <p style="font-size: 12px; color: var(--maui-fg-muted); text-align:center; margin: 12px 0 0;">Mínimo absoluto: <b>14 px de alto</b>. La grotesca densa mantiene legibilidad muy abajo en escala.</p>
+  </div>
+
+  <!-- Backgrounds -->
+  <h3>Uso sobre fondos</h3>
+  <div class="grid-3">
+    <div class="swatch onCrema"><img src="../assets/maui-logo.svg" style="height:72px"><span class="label">Crema · default</span></div>
+    <div class="swatch onWhite"><img src="../assets/maui-logo.svg" style="height:72px"><span class="label">Blanco</span></div>
+    <div class="swatch onWarm"><img src="../assets/maui-logo.svg" style="height:72px"><span class="label">Amanecer · landing</span></div>
+    <div class="swatch onGreen"><img src="../assets/maui-logo-white.svg" style="height:72px"><span class="label">Verde · blanco</span></div>
+    <div class="swatch onDark"><img src="../assets/maui-logo-white.svg" style="height:72px"><span class="label">Oscuro · blanco</span></div>
+    <div class="swatch onPhoto"><img src="../assets/maui-logo-white.svg" style="height:72px"><span class="label">Foto · blanco</span></div>
+  </div>
+  <p style="font-size: 12px; color: var(--maui-fg-muted); margin-top: 8px;">Sobre fondos cálidos o claros, usar el wordmark negro. Sobre verde institucional, oscuro o foto, usar la versión blanca para preservar contraste 7:1.</p>
+
+  <!-- Clearspace -->
+  <h3>Clearspace · respiro mínimo</h3>
+  <div class="card clearspace">
+    <div class="frame">
+      <div class="guide"></div>
+      <span class="xmark" style="top: 12px; left: 50%; transform: translateX(-50%);">X</span>
+      <span class="xmark" style="bottom: 12px; left: 50%; transform: translateX(-50%);">X</span>
+      <span class="xmark" style="left: 14px; top: 50%; transform: translateY(-50%);">½ M</span>
+      <span class="xmark" style="right: 14px; top: 50%; transform: translateY(-50%);">½ M</span>
+      <img src="../assets/maui-logo.svg" style="height: 80px; display:block;">
+    </div>
+    <p style="font-size:12px; color:var(--maui-fg-muted); max-width:280px;">
+      Reservar al menos <b>el alto de la X (X)</b> arriba y abajo, y <b>el ancho de medio M (½ M)</b> a izquierda y derecha. Esto da el respiro mínimo antes de cualquier otro elemento — borde de card, foto, otro logo en lockup.
+    </p>
+  </div>
+
+  <!-- PWA icon -->
+  <h3>Ícono PWA · contenedor sólido</h3>
+  <div class="card" style="display:grid; grid-template-columns: auto 1fr; gap: 28px; align-items:center;">
+    <div style="display:flex; gap: 14px; align-items:flex-end;">
+      <div style="width:192px; height:192px; background: var(--maui-primary); border-radius:42px; display:flex; align-items:center; justify-content:center;">
+        <img src="../assets/maui-logo-white.svg" style="height: 56px;">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+        <div style="width:96px; height:96px; background: var(--maui-primary); border-radius:22px; display:flex; align-items:center; justify-content:center;">
+          <img src="../assets/maui-logo-white.svg" style="height: 28px;">
+        </div>
+        <span style="font-size:10.5px; color:var(--maui-fg-muted)">96 px</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+        <div style="width:48px; height:48px; background: var(--maui-primary); border-radius:11px; display:flex; align-items:center; justify-content:center;">
+          <img src="../assets/maui-logo-white.svg" style="height: 14px;">
+        </div>
+        <span style="font-size:10.5px; color:var(--maui-fg-muted)">48 px</span>
+      </div>
+    </div>
+    <div style="font-size:13px; line-height:1.55; color:var(--maui-fg);">
+      Para el ícono de la PWA, encerrar el wordmark blanco en un cuadrado verde institucional <code class="k">#2F7D32</code> con radio relativo del 22% (iOS-style superellipse). El wordmark ocupa ~28% del alto del contenedor — denso pero respirando. Sin sol, el ícono se vuelve un sello tipográfico limpio.
+      <br><br>
+      <b>Pendiente:</b> exportar a <code class="k">icon-192.png</code>, <code class="k">icon-512.png</code>, <code class="k">apple-touch-icon.png</code>.
+    </div>
+  </div>
+
+  <!-- Do / Don't -->
+  <h3>Usos correctos e incorrectos</h3>
+  <div class="grid-4">
+    <div class="swatch onCrema check"><img src="../assets/maui-logo.svg" style="height:48px"><span class="label">Negro sobre crema</span></div>
+    <div class="swatch onDark check"><img src="../assets/maui-logo-white.svg" style="height:48px"><span class="label">Blanco sobre oscuro</span></div>
+    <div class="swatch onCrema cross"><div style="height:48px; display:flex; align-items:center;"><img src="../assets/maui-logo.svg" class="bad-stretch" style="height:48px"></div><span class="label">No estirar</span></div>
+    <div class="swatch onCrema cross"><div style="height:48px; display:flex; align-items:center;"><img src="../assets/maui-logo.svg" class="bad-squish" style="height:48px"></div><span class="label">No aplastar</span></div>
+    <div class="swatch onCrema cross"><img src="../assets/maui-logo.svg" class="bad-rotate" style="height:48px"><span class="label">No rotar</span></div>
+    <div class="swatch onCrema cross"><img src="../assets/maui-logo.svg" class="bad-recolor" style="height:48px"><span class="label">No recolorear</span></div>
+    <div class="swatch onWhite cross"><span style="font-family:var(--maui-font-display); font-size:42px; letter-spacing:0;">M A U I</span><span class="label">No abrir el tracking</span></div>
+    <div class="swatch onCrema cross"><img src="../assets/maui-logo.svg" style="height:48px; box-shadow: 6px 6px 0 rgba(0,0,0,.25);"><span class="label">Sin sombras exteriores</span></div>
+  </div>
+
+  <!-- Construction -->
+  <h3>Notas de construcción</h3>
+  <div class="card" style="display:grid; grid-template-columns: 200px 1fr; gap: 28px; align-items:center;">
+    <img src="../assets/maui-logo.svg" style="width: 180px;">
+    <div style="font-size:13px; line-height:1.6;">
+      <div style="display:grid; grid-template-columns: 130px 1fr; gap: 8px 16px; font-family: var(--maui-font-mono); font-size:12px;">
+        <span style="color:var(--maui-fg-muted)">ViewBox</span><span>0 0 480 180</span>
+        <span style="color:var(--maui-fg-muted)">Tipografía</span><span>Archivo Black 900</span>
+        <span style="color:var(--maui-fg-muted)">Tamaño</span><span>160 unidades · letter-spacing −5</span>
+        <span style="color:var(--maui-fg-muted)">Color default</span><span style="display:flex; gap:6px; align-items:center;"><span style="width:12px; height:12px; background:#1A1A1A; border-radius:3px"></span>#1A1A1A · negro</span>
+        <span style="color:var(--maui-fg-muted)">Color inverso</span><span style="display:flex; gap:6px; align-items:center;"><span style="width:12px; height:12px; background:#fff; border:1px solid var(--maui-border); border-radius:3px"></span>#FFFFFF · sobre verde/oscuro</span>
+        <span style="color:var(--maui-fg-muted)">Fondo</span><span>Transparente — la marca no carga su propio fondo</span>
+      </div>
+    </div>
+  </div>
+
+</body></html>

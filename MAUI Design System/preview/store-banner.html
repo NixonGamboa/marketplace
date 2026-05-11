@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Store banner</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_base.css">
+<style>
+body { background:#fff; gap:14px; flex-direction:column; display:flex; align-items:flex-start;}
+.b { display:flex; align-items:center; gap:8px; padding:10px 16px; font-size:13px; font-weight:500; width:640px;}
+.b.open  { background:var(--maui-primary-50); color:var(--maui-primary); border-bottom:1px solid #CCE3CF; }
+.b.close { background:var(--maui-error-bg); color:var(--maui-error); border-bottom:1px solid #F5C9C9; }
+.dot { width:8px; height:8px; border-radius:50%; }
+.open .dot  { background:var(--maui-primary); }
+.close .dot { background:var(--maui-error); }
+.sep { color:var(--maui-fg-muted); opacity:.7;}
+.mut { color:var(--maui-fg-muted); font-weight:400;}
+</style></head><body>
+<div class="b open">
+  <span class="dot"></span>
+  <span>Abierto</span><span class="sep">·</span><span class="mut">Lun–Sáb 8:00 AM – 6:00 PM</span><span class="sep">·</span><span class="mut">Cierre de despachos 5:30 PM</span>
+</div>
+<div class="b close">
+  <span class="dot"></span>
+  <span>Cerrado ahora</span><span class="sep">·</span><span class="mut">Abrimos mañana 8:00 AM</span>
+</div>
+<span class="mono">aparece sticky al tope del Home · altura fija 40px</span>
+</body></html>

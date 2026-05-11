@@ -1,0 +1,24 @@
+/* Base utilities for preview cards. Each card should import colors_and_type.css
+   and this file. */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--maui-font-sans);
+  color: var(--maui-fg);
+  background: var(--maui-surface);
+  padding: 20px 24px;
+  min-height: 100vh;
+}
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: 11px; color: var(--maui-fg-subtle); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.mono { font-family: var(--maui-font-mono); font-size: 12px; color: var(--maui-fg-muted); }
+.swatch {
+  width: 120px; height: 72px; border-radius: 10px;
+  border: 1px solid var(--maui-border);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 8px 10px; color: var(--maui-fg);
+}
+.swatch.dark { color: #fff; }
+.swatch .name { font-size: 12px; font-weight: 600; }
+.swatch .hex  { font-family: var(--maui-font-mono); font-size: 11px; opacity: .8; }

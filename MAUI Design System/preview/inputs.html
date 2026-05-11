@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Inputs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_base.css">
+<style>
+  body { background: var(--maui-bg); padding: 24px; display:flex; flex-direction:column; gap:20px; font-family: var(--maui-font-sans); align-items:flex-start; }
+  .field { display:flex; flex-direction:column; gap:6px; width:260px; }
+  .field label { font-size:13px; font-weight:500; color:var(--maui-fg); }
+  .field input { height:44px; padding:0 12px; border:1px solid var(--maui-gray-300); border-radius:10px; background:#fff; font-family:var(--maui-font-sans); font-size:14px; color:var(--maui-fg); outline:none; transition: border var(--maui-dur-fast),box-shadow var(--maui-dur-fast); }
+  .field input:focus { border-color:var(--maui-primary); box-shadow:0 0 0 3px rgba(47,125,50,.25); }
+  .field.error input { border-color:var(--maui-error); }
+  .field .hint { font-size:12px; color:var(--maui-fg-subtle); }
+  .field .err  { font-size:12px; color:var(--maui-error); font-weight:500; }
+
+  .stepper-demo { width: 260px; display:flex; flex-direction:column; gap:6px; }
+  .stepper-demo label { font-size:13px; font-weight:500; color:var(--maui-fg); }
+  .stepper { display:inline-flex; align-items:center; border:1px solid var(--maui-border); border-radius:10px; overflow:hidden; background:#fff; align-self:flex-start; }
+  .stepper button { width:36px; height:36px; background:#fff; border:none; color:var(--maui-primary); font-size:18px; font-weight:600; cursor:pointer; }
+  .stepper button:hover { background: rgba(47,125,50,.06); }
+  .stepper .n { width:36px; text-align:center; font-weight:600; font-variant-numeric:tabular-nums; }
+  .stepper-demo .hint { font-size:12px; color:var(--maui-fg-subtle); }
+</style></head><body>
+
+  <div class="field">
+    <label>Número de celular</label>
+    <input placeholder="Ej: 3001234567 (10 dígitos)">
+    <span class="hint">Te enviaremos un enlace por WhatsApp. Sin contraseñas.</span>
+  </div>
+
+  <div class="field">
+    <label>Dirección</label>
+    <input value="Carrera 5 #12-34" style="border-color:var(--maui-primary); box-shadow:0 0 0 3px rgba(47,125,50,.25);">
+    <span class="hint">Estado :focus</span>
+  </div>
+
+  <div class="field error">
+    <label>Teléfono de contacto</label>
+    <input value="300123">
+    <span class="err">Debe tener 10 dígitos.</span>
+  </div>
+
+  <div class="stepper-demo">
+    <label>Selector de cantidad</label>
+    <div class="stepper"><button aria-label="Restar">−</button><span class="n">2</span><button aria-label="Sumar">+</button></div>
+    <span class="hint">Aparece dentro de la Product Card al agregar un producto. Reemplaza al botón "+ Agregar" con + / − y la cantidad actual. Tap targets 36×36 px.</span>
+  </div>
+
+</body></html>

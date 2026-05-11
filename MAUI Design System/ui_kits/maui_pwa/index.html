@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <title>MAUI PWA — UI Kit</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo+Black&display=swap" rel="stylesheet"/>
+
+  <link rel="stylesheet" href="../../colors_and_type.css"/>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--maui-font-sans);
+      background: #1a1815;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 32px 16px;
+      gap: 20px;
+      color: #fff;
+    }
+    .header {
+      max-width: 440px; text-align: center;
+    }
+    .header img { height: 40px; margin-bottom: 8px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.3)); }
+    .header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .header p { margin: 4px 0 0; color: rgba(255,255,255,.6); font-size: 13px; }
+    .nav {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+      max-width: 440px;
+    }
+    .nav button {
+      height: 32px; padding: 0 12px; border-radius: 16px;
+      background: rgba(255,255,255,.08); color: rgba(255,255,255,.75);
+      border: 1px solid rgba(255,255,255,.1);
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      font-family: inherit;
+    }
+    .nav button.on {
+      background: var(--maui-primary); color: #fff; border-color: var(--maui-primary);
+    }
+    #stage {
+      transform-origin: top center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="../../assets/maui-logo.svg" alt="MAUI"/>
+    <h1>MAUI PWA · UI Kit</h1>
+    <p>Flujo completo del cliente. Toca los botones para navegar.</p>
+  </div>
+
+  <div class="nav" id="nav"></div>
+
+  <div id="stage"></div>
+  <div id="navRoot"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="data.js?v=3"></script>
+  <script type="text/babel" src="ios-frame.jsx?v=3"></script>
+  <script type="text/babel" src="components.jsx?v=3"></script>
+  <script type="text/babel" src="AuthScreen.jsx?v=3"></script>
+  <script type="text/babel" src="HomeScreen.jsx?v=3"></script>
+  <script type="text/babel" src="CatalogScreen.jsx?v=3"></script>
+  <script type="text/babel" src="CheckoutScreen.jsx?v=3"></script>
+  <script type="text/babel" src="ConfirmationScreen.jsx?v=3"></script>
+  <script type="text/babel" src="MonitorScreen.jsx?v=3"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const DEVICE_W = 390;
+    const DEVICE_H = 844;
+
+    const SCREENS = [
+      { id: 'auth',    label: '1. Auth' },
+      { id: 'home',    label: '2. Inicio' },
+      { id: 'catalog', label: '3. Pasillo' },
+      { id: 'checkout',label: '4. Checkout' },
+      { id: 'confirm', label: '5. Confirmación' },
+      { id: 'monitor', label: '6. Monitor' },
+    ];
+
+    function App() {
+      const [screen, setScreen] = React.useState(
+        localStorage.getItem('maui_screen') || 'auth'
+      );
+      const [pasillo, setPasillo] = React.useState(MAUI_PASILLOS[0]);
+      const [cart, setCart] = React.useState({});
+
+      React.useEffect(() => { localStorage.setItem('maui_screen', screen); }, [screen]);
+
+      const go = (id) => setScreen(id);
+      const openPasillo = (p) => { setPasillo(p); go(p.id === 'cart' ? 'checkout' : 'catalog'); };
+
+      const cartTotal = Object.values(cart).reduce((s, { qty, price }) => s + qty * price, 0);
+
+      // Pre-seed cart for monitor/confirmation standalone preview
+      React.useEffect(() => {
+        if ((screen === 'confirm' || screen === 'monitor') && Object.keys(cart).length === 0) {
+          setCart({
+            arrz: { qty: 2, price: 3200, name: 'Arroz Diana 500g', unit: 'paquete', img: 'arrz' },
+            ban:  { qty: 2, price: 2800, name: 'Banano Maduro',    unit: 'libra',   variable: true, img: 'ban' },
+            leche:{ qty: 3, price: 4600, name: 'Leche Alquería',   unit: 'litro',   img: 'leche' },
+          });
+        }
+      }, [screen]);
+
+      let body = null;
+      if (screen === 'auth')    body = <AuthScreen onLogin={() => go('home')}/>;
+      if (screen === 'home')    body = <HomeScreen cart={cart} onOpenPasillo={openPasillo} onOpenReorder={() => go('checkout')}/>;
+      if (screen === 'catalog') body = <CatalogScreen pasillo={pasillo} cart={cart} setCart={setCart} onBack={() => go('home')} onOpenCart={() => go('checkout')}/>;
+      if (screen === 'checkout')body = <CheckoutScreen cart={cart} setCart={setCart} onBack={() => go('catalog')} onConfirm={() => go('confirm')}/>;
+      if (screen === 'confirm') body = <ConfirmationScreen total={cartTotal + 3500} onMonitor={() => go('monitor')} onHome={() => { setCart({}); go('home'); }}/>;
+      if (screen === 'monitor') body = <MonitorScreen onBack={() => go('home')}/>;
+
+      const dark = screen === 'auth' || screen === 'confirm';
+
+      // Render nav buttons via portal so they stay reactive
+      const navEl = document.getElementById('nav');
+      const navPortal = navEl ? ReactDOM.createPortal(
+        SCREENS.map(s => (
+          <button key={s.id} className={screen === s.id ? 'on' : ''} onClick={() => go(s.id)}>
+            {s.label}
+          </button>
+        )),
+        navEl
+      ) : null;
+
+      return (
+        <>
+          {navPortal}
+          <IOSDevice width={DEVICE_W} height={DEVICE_H} dark={false}>
+            <div style={{ width: DEVICE_W, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--maui-bg)', paddingTop: screen === 'auth' ? 0 : 54, paddingBottom: screen === 'auth' ? 0 : 34, boxSizing: 'border-box' }}>
+              {body}
+              {screen !== 'auth' && screen !== 'confirm' && screen !== 'monitor' && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 34 }}>
+                  <MauiTabBar active={screen === 'home' ? 'home' : screen === 'checkout' ? 'cart' : 'pasillos'}
+                              cartCount={Object.values(cart).reduce((s, { qty }) => s + qty, 0)}
+                              onNav={(id) => {
+                                if (id === 'home') go('home');
+                                if (id === 'pasillos') go('catalog');
+                                if (id === 'cart') go('checkout');
+                                if (id === 'me') go('monitor');
+                              }}/>
+                </div>
+              )}
+            </div>
+          </IOSDevice>
+        </>
+      );
+    }
+
+    // Render nav into #nav, device into #stage
+    const AppShell = () => {
+      const [tick, setTick] = React.useState(0);
+      return <App key={tick}/>;
+    };
+
+    ReactDOM.createRoot(document.getElementById('stage')).render(<App/>);
+  </script>
+</body>
+</html>
