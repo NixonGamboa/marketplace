@@ -2,7 +2,7 @@
 
 ## Workflow de Features
 
-Al terminar cada feature (después de `/meli.finish`), actualizar `tareas/roadmap.md`:
+Al terminar cada feature (después de `/maui.finish`), actualizar `tareas/roadmap.md`:
 - Marcar la feature como completada (añadir `✅` al título)
 - Anotar la fecha de finalización
 - Actualizar el estado de dependencias desbloqueadas si aplica

@@ -1,7 +1,7 @@
 # Plan: MAUI — Roadmap de Features (SDD)
 
 ## Context
-El proyecto es una PWA de e-commerce (React 19 + TypeScript + Vite) ya refactorizada con arquitectura limpia (types, stores Zustand, React Query, PWA). El objetivo es construir la app completa descrita en `tareas/backlogDeProducto_AppClientes.md` usando Spec-Driven Development (SDD) con `/meli.*` commands, una feature a la vez.
+El proyecto es una PWA de e-commerce (React 19 + TypeScript + Vite) ya refactorizada con arquitectura limpia (types, stores Zustand, React Query, PWA). El objetivo es construir la app completa descrita en `tareas/backlogDeProducto_AppClientes.md` usando Spec-Driven Development (SDD) con `/maui.*` commands, una feature a la vez.
 
 **Stack decidido:**
 - Frontend: React 19 + TypeScript + Vite + TailwindCSS + Zustand + React Query (existente)
@@ -412,12 +412,12 @@ FEAT-012 (Photo + Notif)        → necesita FEAT-010 + S3
 
 Para cada feature ejecutar en orden:
 ```
-/meli.start FEAT-XXX: <nombre>
-/meli.spec              ← functional spec + technical spec
-/meli.plan              ← tasks breakdown + effort
-/meli.build             ← implementación layer por layer
-/meli.check             ← validación y tests
-/meli.finish            ← archiva, listo para PR
+/maui.start FEAT-XXX: <nombre>
+/maui.spec              ← functional spec + technical spec
+/maui.plan              ← tasks breakdown + effort
+/maui.build             ← implementación layer por layer
+/maui.check             ← validación y tests
+/maui.finish            ← archiva, listo para PR
 ```
 
 ---
