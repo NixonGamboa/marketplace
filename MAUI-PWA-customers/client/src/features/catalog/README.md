@@ -1,0 +1,1 @@
+Catalog feature module placeholder.

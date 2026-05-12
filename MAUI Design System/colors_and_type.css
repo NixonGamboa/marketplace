@@ -1,0 +1,135 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   MAUI Design System — Colors & Type
+   Fuente de verdad tipada a tokens. Importar en cualquier artefacto MAUI.
+
+   Paleta: verde campo + crema cálida. Evoca mercado rural, agricultura,
+   confianza. CTAs usan verde institucional (#2F7D32) con contraste 7:1
+   sobre fondo crema para legibilidad bajo el sol de Dolores, Tolima.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ─── BRAND COLORS ──────────────────────────────────────────────────── */
+  --maui-primary:        #2F7D32;  /* verde CTA — 7.3:1 vs bg */
+  --maui-primary-dark:   #1B5E20;  /* hover/focus de primary  */
+  --maui-primary-light:  #81C784;  /* hover bg suaves         */
+  --maui-primary-50:     #E8F5E9;  /* fondos de estado abierto*/
+
+  /* Sol — acento solo en logo e ilustración, NO en UI funcional */
+  --maui-sun-1:          #FFD54A;
+  --maui-sun-2:          #FFB020;
+  --maui-sun-3:          #F07B15;
+
+  /* WhatsApp — sólo para acciones WhatsApp/Magic Link  */
+  --maui-whatsapp:       #25D366;
+  --maui-whatsapp-dark:  #1DA851;
+
+  /* ─── SURFACES & NEUTRALS ───────────────────────────────────────────── */
+  --maui-bg:             #F8F4EE;  /* crema cálida — fondo página    */
+  --maui-bg-warm:        #FDE8C6;  /* degradé cálido para landing    */
+  --maui-surface:        #FFFFFF;  /* cards, inputs, modales         */
+  --maui-surface-alt:    #F9F7F4;  /* zonas secundarias              */
+  --maui-border:         #D6CFC4;  /* bordes cards, divisores        */
+  --maui-border-strong:  #C8BFB4;  /* bordes énfasis                 */
+
+  /* ─── TEXT ──────────────────────────────────────────────────────────── */
+  --maui-fg:             #1A1A1A;  /* texto principal — 14.7:1 vs bg */
+  --maui-fg-muted:       #5C5C5C;  /* texto secundario — 7.1:1       */
+  --maui-fg-subtle:      #857D72;  /* metadatos, placeholders        */
+  --maui-fg-inverse:     #FFFFFF;
+
+  /* ─── SEMANTIC ──────────────────────────────────────────────────────── */
+  --maui-warning:        #E65100;  /* peso variable — 7.2:1          */
+  --maui-warning-bg:     #FFF3E0;
+  --maui-error:          #B71C1C;  /* tienda cerrada, errores        */
+  --maui-error-bg:       #FDECEC;
+  --maui-success:        #2F7D32;  /* = primary                      */
+  --maui-success-bg:     #E8F5E9;
+
+  /* ─── GRAY SCALE ────────────────────────────────────────────────────── */
+  --maui-gray-50:  #F9F7F4;
+  --maui-gray-100: #F0EDE8;
+  --maui-gray-200: #E0DAD2;
+  --maui-gray-300: #C8BFB4;
+  --maui-gray-400: #A89F93;
+  --maui-gray-500: #857D72;
+  --maui-gray-600: #635D54;
+  --maui-gray-700: #433F38;
+  --maui-gray-800: #2A2722;
+  --maui-gray-900: #1A1815;
+
+  /* ─── TYPOGRAPHY ────────────────────────────────────────────────────── */
+  --maui-font-sans:    'Inter', 'Roboto', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --maui-font-display: 'Archivo Black', 'Inter', system-ui, sans-serif;  /* logotipo + titulares hero */
+  --maui-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Tamaños — escala mobile-first; el BOTÓN min 44px responde al principio zona-del-pulgar */
+  --maui-text-xs:   12px;   /* metadatos, unit, cutoff              */
+  --maui-text-sm:   14px;   /* body, producto name                  */
+  --maui-text-base: 16px;   /* body default                         */
+  --maui-text-lg:   18px;   /* section leads                        */
+  --maui-text-xl:   20px;   /* h4, card titles                      */
+  --maui-text-2xl:  24px;   /* h3                                   */
+  --maui-text-3xl:  30px;   /* h2                                   */
+  --maui-text-4xl:  36px;   /* h1                                   */
+  --maui-text-hero: 48px;   /* landing hero                         */
+
+  --maui-weight-regular:  400;
+  --maui-weight-medium:   500;
+  --maui-weight-semibold: 600;
+  --maui-weight-bold:     700;
+  --maui-weight-black:    900;  /* wordmark */
+
+  --maui-leading-tight:   1.15;
+  --maui-leading-snug:    1.35;
+  --maui-leading-normal:  1.55;
+
+  /* ─── SPACING / RADII / SHADOWS ─────────────────────────────────────── */
+  --maui-space-1:  4px;
+  --maui-space-2:  8px;
+  --maui-space-3:  12px;
+  --maui-space-4:  16px;
+  --maui-space-5:  20px;
+  --maui-space-6:  24px;
+  --maui-space-8:  32px;
+  --maui-space-10: 40px;
+  --maui-space-12: 48px;
+
+  --maui-radius-sm:   6px;
+  --maui-radius-md:   8px;
+  --maui-radius-lg:   12px;  /* cards, buttons md                  */
+  --maui-radius-xl:   16px;  /* modals, hero cards                 */
+  --maui-radius-pill: 9999px;
+
+  --maui-shadow-card:   0 1px 3px rgba(26,26,26,.08), 0 1px 2px rgba(26,26,26,.04);
+  --maui-shadow-sm:     0 1px 4px rgba(47,125,50,.12);
+  --maui-shadow-md:     0 4px 16px rgba(47,125,50,.20);
+  --maui-shadow-float:  0 -4px 16px rgba(26,26,26,.12);  /* barra flotante checkout */
+
+  /* Zonas táctiles — mínimo 44×44 px (Apple HIG + zona del pulgar MAUI) */
+  --maui-tap:      44px;
+
+  /* Durations */
+  --maui-dur-fast:   150ms;
+  --maui-dur-base:   250ms;
+  --maui-dur-slow:   400ms;
+  --maui-ease:       cubic-bezier(.2,.8,.2,1);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   SEMANTIC ELEMENTS — tipografía base.
+   Usar estas clases o estos elementos directamente para heredar el sistema.
+   ──────────────────────────────────────────────────────────────────────────── */
+html { font-family: var(--maui-font-sans); color: var(--maui-fg); background: var(--maui-bg); -webkit-font-smoothing: antialiased; }
+
+.maui-h1, h1.maui { font-family: var(--maui-font-sans); font-weight: var(--maui-weight-bold); font-size: var(--maui-text-4xl); line-height: var(--maui-leading-tight); letter-spacing: -.02em; color: var(--maui-fg); }
+.maui-h2, h2.maui { font-weight: var(--maui-weight-semibold); font-size: var(--maui-text-3xl); line-height: var(--maui-leading-tight); letter-spacing: -.015em; color: var(--maui-fg); }
+.maui-h3, h3.maui { font-weight: var(--maui-weight-semibold); font-size: var(--maui-text-2xl); line-height: var(--maui-leading-snug); color: var(--maui-fg); }
+.maui-h4, h4.maui { font-weight: var(--maui-weight-semibold); font-size: var(--maui-text-xl); line-height: var(--maui-leading-snug); color: var(--maui-fg); }
+
+.maui-body      { font-size: var(--maui-text-base); line-height: var(--maui-leading-normal); color: var(--maui-fg); }
+.maui-body-sm   { font-size: var(--maui-text-sm);   line-height: var(--maui-leading-normal); color: var(--maui-fg); }
+.maui-caption   { font-size: var(--maui-text-xs);   line-height: var(--maui-leading-snug);   color: var(--maui-fg-muted); }
+.maui-price     { font-weight: var(--maui-weight-semibold); color: var(--maui-fg); font-variant-numeric: tabular-nums; }
+.maui-price-cta { font-weight: var(--maui-weight-bold); color: var(--maui-primary); font-variant-numeric: tabular-nums; }
+.maui-wordmark  { font-family: var(--maui-font-display); font-weight: var(--maui-weight-black); letter-spacing: -.02em; color: var(--maui-fg); }
+.maui-mono      { font-family: var(--maui-font-mono); font-size: var(--maui-text-sm); }
