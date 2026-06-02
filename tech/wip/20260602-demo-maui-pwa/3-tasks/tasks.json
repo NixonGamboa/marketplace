@@ -10,7 +10,7 @@
   },
   "stats": {
     "total": 21,
-    "done": 14,
+    "done": 18,
     "by_layer": {
       "1": 21,
       "2": 0,
@@ -278,7 +278,7 @@
       "id": "TASK-011",
       "title": "CheckoutPage con flujo completo",
       "description": "Crear `features/checkout/CheckoutPage.tsx` para ruta `/checkout`. Una sola página con 4 secciones: resumen del carrito, `DeliverySelector`, `SubstitutionSelector`, CTA 'Pedir mi Mercado'. CTA deshabilitado si `isSubmitting || !isCheckoutReady`. Al confirmar: `orderService.submit()` → `cartStore.clearCart()` (solo si éxito) → `router.replace('/orden/:orderId')`. Aviso Ley 1581 visible encima del CTA.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "High",
       "depends_on": [
@@ -353,7 +353,7 @@
       "id": "TASK-014",
       "title": "OrderDetailPage con polling",
       "description": "Crear `features/orders/OrderDetailPage.tsx` para ruta `/orden/:orderId`. Usa `orderService.getById(orderId)` con React Query (refetchInterval: 5000 — polling simulado). Renderiza `OrderTimeline` con el estado actual + botón WhatsApp prellenado con mensaje del estado actual. Manejo de orderId no encontrado.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -381,7 +381,7 @@
       "id": "TASK-015",
       "title": "OrdersPage — lista de pedidos del usuario",
       "description": "Reemplazar el placeholder de `features/orders/OrdersPage.tsx`. Usa `orderService.list()` vía React Query. Renderiza lista de pedidos (orderId, fecha createdAt, total estimado, estado actual). Cada item es link a `/orden/:orderId`. Estado vacío: CTA 'Ir al catálogo'.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -501,7 +501,7 @@
       "id": "TASK-019",
       "title": "Admin — OrdersList, StatusBadge y routing",
       "description": "Crear `maui-admin-front/src/features/orders/OrdersList.tsx` (lista de pedidos del localStorage con poll cada 3s para detectar nuevos), `StatusBadge.tsx` (badge coloreado por estado). Actualizar `App.tsx` con React Router: `/` → `OrdersList`, `/pedido/:id` → `OrderDetail` (placeholder por ahora).",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
