@@ -10,7 +10,7 @@
   },
   "stats": {
     "total": 21,
-    "done": 20,
+    "done": 21,
     "by_layer": {
       "1": 21,
       "2": 0,
@@ -560,7 +560,7 @@
       "id": "TASK-021",
       "title": "Admin — DemoSimulator (auto-avance 20s)",
       "description": "Crear `maui-admin-front/src/features/orders/DemoSimulator.tsx`. Botón '▶ Demo en vivo' que activa un `setInterval` cada 20 segundos para avanzar automáticamente el estado del pedido activo (visto en `OrderDetail`). Botón '⏸ Detener' para pausar. Cleanup del interval al desmontar. Visible solo en `OrderDetail`.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [

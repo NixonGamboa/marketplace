@@ -5,6 +5,7 @@ import type { Order, OrderStatus } from '@/types/order'
 import { getOrderById, updateOrderStatus } from '@/lib/localStorage'
 import StatusBadge from './StatusBadge'
 import WhatsAppLink from './WhatsAppLink'
+import DemoSimulator from './DemoSimulator'
 
 // ---------------------------------------------------------------------------
 // State-machine
@@ -194,6 +195,17 @@ export default function OrderDetail() {
           <p className="text-sm text-gray-500">El pedido ya fue entregado. No hay más transiciones disponibles.</p>
         )}
       </section>
+
+      {/* Demo Simulator */}
+      <DemoSimulator
+        orderId={order.orderId}
+        currentStatus={order.status}
+        onStatusChange={(newStatus) =>
+          setOrder((prev) =>
+            prev ? { ...prev, status: newStatus, updatedAt: new Date().toISOString() } : prev
+          )
+        }
+      />
 
       {/* WhatsApp */}
       {showWhatsApp && (
