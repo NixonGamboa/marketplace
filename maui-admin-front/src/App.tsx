@@ -1,14 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import OrdersList from './features/orders/OrdersList'
-
-function OrderDetailPlaceholder() {
-  return (
-    <div className="p-8">
-      <h1 className="text-xl font-bold">Detalle del pedido</h1>
-      <p className="text-gray-600 mt-2">Implementado en TASK-020</p>
-    </div>
-  )
-}
+import OrderDetail from './features/orders/OrderDetail'
 
 export default function App() {
   return (
@@ -23,7 +15,7 @@ export default function App() {
         <main className="max-w-3xl mx-auto px-4 py-6">
           <Routes>
             <Route path="/" element={<OrdersList />} />
-            <Route path="/pedido/:orderId" element={<OrderDetailPlaceholder />} />
+            <Route path="/pedido/:orderId" element={<OrderDetail />} />
           </Routes>
         </main>
       </div>

@@ -10,7 +10,7 @@
   },
   "stats": {
     "total": 21,
-    "done": 18,
+    "done": 20,
     "by_layer": {
       "1": 21,
       "2": 0,
@@ -408,7 +408,7 @@
       "id": "TASK-016",
       "title": "Actualizar router con 3 rutas nuevas",
       "description": "Modificar la configuración del router (probablemente en `App.tsx` o `router/`) para agregar: `/catalog/:categoryId` → `CatalogPage`, `/checkout` → `CheckoutPage`, `/orden/:orderId` → `OrderDetailPage`. Usar `React.lazy` para code-splitting de las nuevas rutas. Mantener las rutas existentes intactas.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -531,7 +531,7 @@
       "id": "TASK-020",
       "title": "Admin — OrderDetail con transición de estados y WhatsAppLink",
       "description": "Crear `maui-admin-front/src/features/orders/OrderDetail.tsx` (detalle con items, total, status actual) y `WhatsAppLink.tsx` (link `wa.me/{numero}?text={mensajeContextual}` por estado). El detalle expone botones de transición: 'Confirmar' → 'Preparando' → 'Listo' → 'Entregado' que llaman a `updateOrderStatus()` y muestran el `WhatsAppLink` del nuevo estado.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "High",
       "depends_on": [
