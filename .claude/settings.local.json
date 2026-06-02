@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout *)",
+      "Bash(bash ~/.tech-sdd-kit/tools/detection/detect-phase.sh tech/wip/20260602-demo-maui-pwa --json)",
+      "Bash(bash ~/.tech-sdd-kit/tools/validation/validate-functional.sh tech/wip/20260602-demo-maui-pwa)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(git config *)",
+      "Bash(bash ~/.tech-sdd-kit/tools/validation/validate-technical.sh tech/wip/20260602-demo-maui-pwa)",
+      "Bash(bash ~/.tech-sdd-kit/tools/validation/validate-spec-conflicts.sh tech/wip/20260602-demo-maui-pwa blocking)",
+      "Bash(bash *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Skill(update-config)",
+      "Bash(grep -iE \"\\\\.wav$\")",
+      "PowerShell(\\(New-Object System.Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\Windows Notify.wav'\\).PlaySync\\(\\); Write-Output \"notify OK\")",
+      "PowerShell(\\(New-Object System.Media.SoundPlayer 'C:\\\\Windows\\\\Media\\\\tada.wav'\\).PlaySync\\(\\); Write-Output \"tada OK\")",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat\\(demo-maui-pwa\\): Level 0 - foundation tasks *)",
+      "Bash(git commit -m 'feat\\(demo-maui-pwa\\): Level 1 - feature components *)",
+      "Bash(git commit -m 'feat\\(demo-maui-pwa\\): Level 2 - orchestration *)",
+      "Bash(git commit -m 'feat\\(demo-maui-pwa\\): Level 3 - integration *)",
+      "Bash(git commit -m 'feat\\(demo-maui-pwa\\): Level 4 - DemoSimulator \\(auto-avance 20s\\) *)",
+      "Bash(npx tsc *)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" /d/Market/final/MAUI-PWA-customers/client/node_modules/typescript/bin/tsc --noEmit --project /d/Market/final/MAUI-PWA-customers/client/tsconfig.json)",
+      "Bash(\"/c/Program Files/nodejs/npm.cmd\" install --no-audit --no-fund --loglevel=error)",
+      "Bash(\"/c/Program Files/nodejs/npm.cmd\" install --no-audit --no-fund --ignore-scripts --loglevel=error)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" /d/Market/final/maui-admin-front/node_modules/typescript/bin/tsc --noEmit --project /d/Market/final/maui-admin-front/tsconfig.app.json)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" ./node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(echo \"=== PWA exit: $? ===\")",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json)",
+      "Bash(echo \"=== Admin exit: $? ===\")",
+      "Bash(\"/c/Program Files/nodejs/npm.cmd\" install --no-audit --no-fund --ignore-scripts --force)",
+      "Bash(grep -v \"^d.*\\\\\\\\.$\")",
+      "Bash(rm -rf node_modules .vite .DS_Store dist dev-dist package-lock.json)",
+      "Bash(rm -rf client/node_modules client/dist client/dev-dist)",
+      "Bash(grep -E \"node_modules|\\\\\\\\.vite|\\\\\\\\.DS_Store|^d.*dist\")"
+    ]
+  }
+}
