@@ -1,0 +1,622 @@
+{
+  "feature": "demo-maui-pwa",
+  "project_type": "prototype",
+  "platform": "web",
+  "local_config": {
+    "mysql": null,
+    "kv_store": null,
+    "message_queue": null,
+    "frontend_dev_server": "vite"
+  },
+  "stats": {
+    "total": 21,
+    "done": 8,
+    "by_layer": {
+      "1": 21,
+      "2": 0,
+      "3": 0
+    }
+  },
+  "execution_strategy": "parallel",
+  "orchestration": {
+    "orchestrator_model": "opus",
+    "implementer_model": "sonnet",
+    "implementer_subagent": "tech-frontend-web-implementer"
+  },
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Service layer switch (mockOrderService vs realOrderService)",
+      "description": "Create `services/index.ts` exporting `orderService` based on `VITE_DEMO_MODE`. Create `.env.demo` with `VITE_DEMO_MODE=true`. Create the `OrderService` TypeScript interface in `types/orderService.ts` shared by both implementations.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/services/index.ts",
+        "MAUI-PWA-customers/client/src/types/orderService.ts",
+        "MAUI-PWA-customers/client/.env.demo"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `services/index.ts` exporta `orderService` con el switch `import.meta.env.VITE_DEMO_MODE === 'true'`",
+        "AC-2: Interface `OrderService` declarada con métodos `submit`, `getById`, `list`",
+        "AC-3: `.env.demo` existe con `VITE_DEMO_MODE=true`",
+        "GATE: `pnpm typecheck` (o `tsc --noEmit`) pasa sin errores"
+      ],
+      "references": [
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-002",
+      "title": "mockOrderService implementation",
+      "description": "Implement `services/mockOrderService.ts` that conforms to `OrderService`. `submit()` delay 1200ms + escribe en `localStorage['maui-orders']` con `orderId = MAUI-{Date.now()}`. `getById()` delay 800ms + lee del localStorage. `list()` delay 600ms + retorna todos. Incluir helpers internos `saveToLocalStorage` y `readFromLocalStorage`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-001"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/services/mockOrderService.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `submit(payload)` retorna `OrderConfirmation` con `orderId` formato `MAUI-{timestamp}` tras delay 1200ms",
+        "AC-2: El pedido se persiste en `localStorage` con key `maui-orders` (objeto `{ [orderId]: Order }`)",
+        "AC-3: `getById(orderId)` lee del localStorage tras delay 800ms",
+        "AC-4: `list()` retorna todos los pedidos del localStorage como array tras delay 600ms",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "design_decisions": [
+        "DD-1"
+      ]
+    },
+    {
+      "id": "TASK-003",
+      "title": "authStore con DEMO_USER pre-autenticado",
+      "description": "Actualizar `features/auth/authStore.ts` para inicializar con `DEMO_USER` cuando `VITE_DEMO_MODE === 'true'`. Conservar el flujo de login existente para cuando `VITE_DEMO_MODE === 'false'`. `DEMO_USER` debe tener: id, name, phone, isAuthenticated: true.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/stores/authStore.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Constante `DEMO_USER` definida con datos hardcoded (id, name, phone)",
+        "AC-2: Si `VITE_DEMO_MODE=true`, el store inicializa con `user = DEMO_USER` e `isAuthenticated = true`",
+        "AC-3: Si `VITE_DEMO_MODE=false`, el comportamiento original del login se mantiene intacto",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": [
+        "DD-4"
+      ]
+    },
+    {
+      "id": "TASK-004",
+      "title": "config/app.ts con datos reales de Leche y Miel",
+      "description": "Actualizar `config/app.ts` con el número real de WhatsApp de Leche y Miel (parametrizable via env). Agregar `WHATSAPP_ORDER_NUMBER` si difiere de `WHATSAPP_SUPPORT_NUMBER`. Mantener compatibilidad con el código existente que ya importa estas constantes.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/config/app.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `WHATSAPP_SUPPORT_NUMBER` apunta al número real de L&M (placeholder documentado si aún no se ha confirmado)",
+        "AC-2: Las exportaciones existentes (APP_NAME, STORE_SCHEDULE, SUPPORT_EMAIL) se preservan sin cambios",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-5",
+        "US-7"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-005",
+      "title": "mockData.ts con catálogo real de Leche y Miel",
+      "description": "Reemplazar productos ficticios en `features/catalog/mockData.ts` con ~15 productos reales de Leche y Miel. Cada producto: id, name, name_display, name_legal, price, unit, imageUrl (WebP), categoryId, inStock, is_variable_weight: false, badge, currency: 'COP'. Confirmar pasillos con el aliado o documentar como pendiente. Incluir al menos un producto con `inStock: false` para validar US-3.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/catalog/mockData.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Al menos 15 productos con datos reales (o realistas si datos del aliado pendientes)",
+        "AC-2: Todos los productos tienen `is_variable_weight: false` y `currency: 'COP'`",
+        "AC-3: Al menos 1 producto con `inStock: false` para validar el badge 'Agotado'",
+        "AC-4: Categorías corresponden a pasillos reales de L&M (o placeholders documentados)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-1",
+        "US-3"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-006",
+      "title": "CatalogPage componente",
+      "description": "Crear `features/catalog/CatalogPage.tsx` para la ruta `/catalog/:categoryId`. Lee `categoryId` con `useParams()`, llama a `useProducts({ categoryId })` (React Query staleTime 5min), renderiza grid de `ProductCard`. Skeleton loaders durante la carga. Estado vacío si la categoría no tiene productos.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/catalog/CatalogPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Lee `categoryId` desde `useParams()` y lo pasa al hook `useProducts`",
+        "AC-2: Grid responsive de `ProductCard` (reutiliza el componente existente)",
+        "AC-3: Skeleton loaders visibles mientras `isLoading === true`",
+        "AC-4: Estado vacío con CTA 'Volver al inicio' si la categoría no tiene productos",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-1"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-007",
+      "title": "ProductDetailModal componente",
+      "description": "Crear `features/catalog/ProductDetailModal.tsx`. Modal centrado con imagen grande (400x400 WebP), nombre, precio/unidad, contador (+/-) y botón 'Agregar al carrito'. Si `inStock === false`, deshabilitar el botón y mostrar badge 'Agotado'. Llama a `cartStore.addItem()`. Cerrar con backdrop click o botón X.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/catalog/ProductDetailModal.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Modal centrado con backdrop semi-transparente",
+        "AC-2: Contador (+/-) refleja la cantidad actual del producto en el carrito",
+        "AC-3: Botón 'Agregar al carrito' deshabilitado cuando `inStock === false`",
+        "AC-4: Badge 'Agotado' visible cuando `inStock === false`",
+        "AC-5: Cierra con backdrop click, botón X o tecla Escape",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-1",
+        "US-3"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-008",
+      "title": "checkoutStore (Zustand efímero)",
+      "description": "Crear `features/checkout/checkoutStore.ts`. Store Zustand SIN middleware `persist`. State: deliveryMode, timeSlot, address, lat?, lng?, substitutionPref, customerName, isSubmitting. Actions: setDeliveryMode, setTimeSlot, setAddress, setSubstitutionPref, setSubmitting, reset. Selectors derivados: `isCheckoutReady` (todos los steps completos).",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/checkout/checkoutStore.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Store creado con `create()` de Zustand SIN middleware `persist`",
+        "AC-2: Actions tipadas: setDeliveryMode, setTimeSlot, setAddress, setSubstitutionPref, setSubmitting, reset",
+        "AC-3: Selector `isCheckoutReady` retorna true cuando deliveryMode y substitutionPref están definidos",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": [
+        "DD-3"
+      ]
+    },
+    {
+      "id": "TASK-009",
+      "title": "DeliverySelector componente",
+      "description": "Crear `features/checkout/DeliverySelector.tsx`. Dos opciones: 'Pickup' (3 timeslots: mañana / tarde / ya mismo) y 'Domicilio' (input dirección + botón 'Usar mi ubicación' que llama `navigator.geolocation.getCurrentPosition`). Llama a `checkoutStore.setDeliveryMode/setTimeSlot/setAddress`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-008"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/checkout/DeliverySelector.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Toggle entre Pickup y Domicilio con UI clara del estado seleccionado",
+        "AC-2: En Pickup, 3 radio buttons para timeSlot (morning, afternoon, asap)",
+        "AC-3: En Domicilio, input dirección + botón 'Usar mi ubicación' funcional (geolocalización)",
+        "AC-4: Errores de geolocalización manejados (permiso denegado → mostrar mensaje, no romper UI)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-010",
+      "title": "SubstitutionSelector componente",
+      "description": "Crear `features/checkout/SubstitutionSelector.tsx`. Tres radio buttons: 'Llámame' (`call_me`), 'Producto similar' (`similar`), 'Eliminar del pedido' (`remove`). Llama a `checkoutStore.setSubstitutionPref()`. Sin selección por defecto — debe forzar al usuario a elegir.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-008"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/checkout/SubstitutionSelector.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 3 radio buttons con labels claros: 'Llámame', 'Producto similar', 'Eliminar del pedido'",
+        "AC-2: Sin valor por defecto (todos los radios sin marcar al montar)",
+        "AC-3: Cada selección actualiza `checkoutStore.substitutionPref`",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-011",
+      "title": "CheckoutPage con flujo completo",
+      "description": "Crear `features/checkout/CheckoutPage.tsx` para ruta `/checkout`. Una sola página con 4 secciones: resumen del carrito, `DeliverySelector`, `SubstitutionSelector`, CTA 'Pedir mi Mercado'. CTA deshabilitado si `isSubmitting || !isCheckoutReady`. Al confirmar: `orderService.submit()` → `cartStore.clearCart()` (solo si éxito) → `router.replace('/orden/:orderId')`. Aviso Ley 1581 visible encima del CTA.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-001",
+        "TASK-002",
+        "TASK-008",
+        "TASK-009",
+        "TASK-010"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/checkout/CheckoutPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 4 secciones visibles en orden: Resumen, Modalidad, Sustitución, Confirmación",
+        "AC-2: CTA dice exactamente 'Pedir mi Mercado' (NO 'Pagar' ni 'Confirmar pedido')",
+        "AC-3: Aviso de Ley 1581 visible justo encima del CTA",
+        "AC-4: CTA deshabilitado mientras `isSubmitting === true` (guard de doble submit)",
+        "AC-5: `cartStore.clearCart()` se llama SOLO tras respuesta exitosa de `orderService.submit()`",
+        "AC-6: Tras éxito: `router.replace('/orden/:orderId')` (NO `router.push`)",
+        "AC-7: Si `submit()` falla, mostrar error y permitir reintentar (no destruir el carrito)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-012",
+      "title": "Fix CartPage CTA \"Pedir mi Mercado\"",
+      "description": "Modificar `features/cart/CartPage.tsx`: cambiar el CTA actual (que dice 'Confirmar pedido' o similar) por 'Pedir mi Mercado' que navega a `/checkout`. Verificar que la `FloatingCartBar` también use el wording correcto si tiene CTA.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/cart/CartPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: CTA en `CartPage` dice exactamente 'Pedir mi Mercado' (sin la palabra 'Pagar')",
+        "AC-2: El CTA navega a `/checkout` con `useNavigate()` o `Link`",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-4"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-013",
+      "title": "OrderTimeline componente",
+      "description": "Crear `features/orders/OrderTimeline.tsx`. Stepper vertical de 5 estados: 'received' → 'confirmed' → 'preparing' → 'ready' → 'delivered'. Cada step con icono, label y timestamp si disponible. Animación CSS (pulse o glow) en el estado activo. Estados completados marcados con check.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/orders/OrderTimeline.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Renderiza 5 steps en el orden: received, confirmed, preparing, ready, delivered",
+        "AC-2: Steps completados muestran check; el activo tiene animación visual; los futuros están atenuados",
+        "AC-3: Props: `currentStatus: OrderStatus`",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-6"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-014",
+      "title": "OrderDetailPage con polling",
+      "description": "Crear `features/orders/OrderDetailPage.tsx` para ruta `/orden/:orderId`. Usa `orderService.getById(orderId)` con React Query (refetchInterval: 5000 — polling simulado). Renderiza `OrderTimeline` con el estado actual + botón WhatsApp prellenado con mensaje del estado actual. Manejo de orderId no encontrado.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-001",
+        "TASK-002",
+        "TASK-013"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/orders/OrderDetailPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Lee `orderId` con `useParams()` y llama a `useQuery` con `refetchInterval: 5000`",
+        "AC-2: Muestra `orderId`, mensaje 'Pagas en efectivo cuando llegue tu pedido', `OrderTimeline`",
+        "AC-3: Botón WhatsApp (`wa.me/{numero}?text={mensaje}`) con mensaje contextual al estado actual",
+        "AC-4: Si el pedido no existe (`getById` retorna null/error), mostrar mensaje 'Pedido no encontrado' con CTA al home",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-5",
+        "US-6"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-015",
+      "title": "OrdersPage — lista de pedidos del usuario",
+      "description": "Reemplazar el placeholder de `features/orders/OrdersPage.tsx`. Usa `orderService.list()` vía React Query. Renderiza lista de pedidos (orderId, fecha createdAt, total estimado, estado actual). Cada item es link a `/orden/:orderId`. Estado vacío: CTA 'Ir al catálogo'.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/features/orders/OrdersPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `useQuery` llamando a `orderService.list()`",
+        "AC-2: Lista ordenada por `createdAt` descendente (más reciente primero)",
+        "AC-3: Cada item muestra orderId, fecha, total, status badge",
+        "AC-4: Cada item es `<Link to='/orden/:orderId'>`",
+        "AC-5: Estado vacío con mensaje y CTA al home",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-5"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-016",
+      "title": "Actualizar router con 3 rutas nuevas",
+      "description": "Modificar la configuración del router (probablemente en `App.tsx` o `router/`) para agregar: `/catalog/:categoryId` → `CatalogPage`, `/checkout` → `CheckoutPage`, `/orden/:orderId` → `OrderDetailPage`. Usar `React.lazy` para code-splitting de las nuevas rutas. Mantener las rutas existentes intactas.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-006",
+        "TASK-011",
+        "TASK-014"
+      ],
+      "files": [
+        "MAUI-PWA-customers/client/src/App.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Ruta `/catalog/:categoryId` registrada y carga `CatalogPage`",
+        "AC-2: Ruta `/checkout` registrada y carga `CheckoutPage`",
+        "AC-3: Ruta `/orden/:orderId` registrada y carga `OrderDetailPage`",
+        "AC-4: Las nuevas rutas usan `React.lazy` + `Suspense` con fallback",
+        "AC-5: Rutas existentes (`/`, `/cart`, `/orders`, `/auth`, `*`) se mantienen sin cambios",
+        "GATE: `pnpm dev` arranca sin errores y las 3 nuevas rutas son accesibles"
+      ],
+      "references": [
+        "US-1",
+        "US-4",
+        "US-5"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-017",
+      "title": "Scaffold maui-admin-front (Vite + React 19 + TS + Tailwind)",
+      "description": "Crear desde cero el proyecto `maui-admin-front/`: `package.json`, `vite.config.ts`, `tsconfig.json`, `tailwind.config.ts`, `postcss.config.js`, `index.html`, `src/main.tsx`, `src/App.tsx` (App vacío con Router), `src/index.css` con Tailwind directives. Mismo stack que la PWA cliente (React 19.1.0, Vite 7, TS 5.8, Tailwind 3.4).",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "maui-admin-front/package.json",
+        "maui-admin-front/vite.config.ts",
+        "maui-admin-front/tsconfig.json",
+        "maui-admin-front/tailwind.config.ts",
+        "maui-admin-front/postcss.config.js",
+        "maui-admin-front/index.html",
+        "maui-admin-front/src/main.tsx",
+        "maui-admin-front/src/App.tsx",
+        "maui-admin-front/src/index.css"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `package.json` con dependencias mínimas: react, react-dom, react-router-dom, lucide-react",
+        "AC-2: `pnpm install && pnpm dev` arranca sin errores en puerto distinto al de la PWA cliente",
+        "AC-3: `pnpm build` produce bundle válido",
+        "AC-4: Tailwind funcional (clase utility aplica en el App.tsx vacío)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-7",
+        "US-8"
+      ],
+      "design_decisions": [
+        "DD-2"
+      ]
+    },
+    {
+      "id": "TASK-018",
+      "title": "Admin — tipos compartidos, localStorage helpers y WhatsApp templates",
+      "description": "Crear en `maui-admin-front/src/`: `types/order.ts` con los mismos tipos que la PWA (OrderStatus, Order, OrderPayload, CartItem). `lib/localStorage.ts` con helpers `getOrders()`, `getOrderById()`, `updateOrderStatus(orderId, newStatus)`. `config/whatsapp.ts` con templates de mensaje por estado (confirmed/preparing/ready/delivered).",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-017"
+      ],
+      "files": [
+        "maui-admin-front/src/types/order.ts",
+        "maui-admin-front/src/lib/localStorage.ts",
+        "maui-admin-front/src/config/whatsapp.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Tipos idénticos a los de la PWA cliente (OrderStatus, Order, OrderPayload, CartItem)",
+        "AC-2: `getOrders()` retorna `Order[]` ordenado por `createdAt` desc",
+        "AC-3: `updateOrderStatus(orderId, newStatus)` modifica el localStorage y actualiza `updatedAt`",
+        "AC-4: 4 templates de WhatsApp con placeholders `{name}` y `{orderId}` reemplazados correctamente",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-7"
+      ],
+      "design_decisions": [
+        "DD-1"
+      ]
+    },
+    {
+      "id": "TASK-019",
+      "title": "Admin — OrdersList, StatusBadge y routing",
+      "description": "Crear `maui-admin-front/src/features/orders/OrdersList.tsx` (lista de pedidos del localStorage con poll cada 3s para detectar nuevos), `StatusBadge.tsx` (badge coloreado por estado). Actualizar `App.tsx` con React Router: `/` → `OrdersList`, `/pedido/:id` → `OrderDetail` (placeholder por ahora).",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-018"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/OrdersList.tsx",
+        "maui-admin-front/src/features/orders/StatusBadge.tsx",
+        "maui-admin-front/src/App.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `OrdersList` muestra todos los pedidos con orderId, customerName, total, status (StatusBadge), createdAt",
+        "AC-2: `StatusBadge` muestra color distintivo por cada uno de los 5 estados",
+        "AC-3: Poll cada 3 segundos para detectar nuevos pedidos sin recarga",
+        "AC-4: Click en un pedido navega a `/pedido/:id`",
+        "AC-5: Estado vacío: mensaje 'No hay pedidos aún'",
+        "GATE: `pnpm dev` arranca y la lista es navegable"
+      ],
+      "references": [
+        "US-7"
+      ],
+      "design_decisions": [
+        "DD-2"
+      ]
+    },
+    {
+      "id": "TASK-020",
+      "title": "Admin — OrderDetail con transición de estados y WhatsAppLink",
+      "description": "Crear `maui-admin-front/src/features/orders/OrderDetail.tsx` (detalle con items, total, status actual) y `WhatsAppLink.tsx` (link `wa.me/{numero}?text={mensajeContextual}` por estado). El detalle expone botones de transición: 'Confirmar' → 'Preparando' → 'Listo' → 'Entregado' que llaman a `updateOrderStatus()` y muestran el `WhatsAppLink` del nuevo estado.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-019"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/OrderDetail.tsx",
+        "maui-admin-front/src/features/orders/WhatsAppLink.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Muestra todos los datos del pedido: orderId, customerName, items, total, deliveryType, deliveryData, substitutionPreference, status actual",
+        "AC-2: Solo se muestra el botón de la siguiente transición válida (no permite saltarse estados)",
+        "AC-3: Al avanzar el estado, `updateOrderStatus()` se llama y la UI se refresca",
+        "AC-4: Tras cada transición, se muestra el link `WhatsAppLink` correspondiente al nuevo estado",
+        "AC-5: `WhatsAppLink` usa `VITE_WHATSAPP_NUMBER` y el template del estado actual",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "US-7"
+      ],
+      "design_decisions": [
+        "DD-1"
+      ]
+    },
+    {
+      "id": "TASK-021",
+      "title": "Admin — DemoSimulator (auto-avance 20s)",
+      "description": "Crear `maui-admin-front/src/features/orders/DemoSimulator.tsx`. Botón '▶ Demo en vivo' que activa un `setInterval` cada 20 segundos para avanzar automáticamente el estado del pedido activo (visto en `OrderDetail`). Botón '⏸ Detener' para pausar. Cleanup del interval al desmontar. Visible solo en `OrderDetail`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-020"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/DemoSimulator.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Botón toggle 'Demo en vivo' / 'Detener' visible en `OrderDetail`",
+        "AC-2: Cuando activo, avanza el estado cada 20s siguiendo el orden: received → confirmed → preparing → ready → delivered",
+        "AC-3: Se detiene automáticamente al llegar a 'delivered'",
+        "AC-4: `clearInterval` en cleanup del `useEffect` al desmontar o al detener manualmente",
+        "GATE: `pnpm build` pasa para ambas apps (PWA cliente y admin) y la demo es navegable end-to-end manualmente"
+      ],
+      "references": [
+        "US-8"
+      ],
+      "design_decisions": []
+    }
+  ],
+  "dependency_graph": {
+    "by_layer": {
+      "1": {
+        "level_0": [
+          "TASK-001",
+          "TASK-003",
+          "TASK-004",
+          "TASK-005",
+          "TASK-008",
+          "TASK-012",
+          "TASK-013",
+          "TASK-017"
+        ],
+        "level_1": [
+          "TASK-002",
+          "TASK-006",
+          "TASK-007",
+          "TASK-009",
+          "TASK-010",
+          "TASK-018"
+        ],
+        "level_2": [
+          "TASK-011",
+          "TASK-014",
+          "TASK-015",
+          "TASK-019"
+        ],
+        "level_3": [
+          "TASK-016",
+          "TASK-020"
+        ],
+        "level_4": [
+          "TASK-021"
+        ]
+      }
+    }
+  }
+}
