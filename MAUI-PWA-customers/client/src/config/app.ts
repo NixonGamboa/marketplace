@@ -10,8 +10,11 @@ export const STORE_SCHEDULE = {
 export const SUPPORT_EMAIL = 'soporte@maui.com.co'
 export const SUPPORT_PHONE = '+57 310 000 0000'
 export const SUPPORT_PHONE_RAW = '+573100000000'
-export const WHATSAPP_SUPPORT_NUMBER = '573100000000'
+// TODO: confirmar número real de Leche y Miel con el aliado antes del deploy
+export const WHATSAPP_SUPPORT_NUMBER = '+573000000000'
+export const WHATSAPP_ORDER_NUMBER = WHATSAPP_SUPPORT_NUMBER
 export const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_SUPPORT_NUMBER}`
+export const MERCHANT_NAME = 'Leche y Miel'
 export const SEARCH_PLACEHOLDER = `Buscar en ${APP_NAME}`
 export const HERO_AUTOPLAY_INTERVAL = 6000
 export const CART_BADGE_MAX = 99
