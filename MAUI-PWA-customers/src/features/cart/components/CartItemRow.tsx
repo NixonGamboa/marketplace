@@ -15,45 +15,52 @@ export function CartItemRow({ item, onRemove, onQuantityChange }: CartItemRowPro
   const subtotal = item.price_at_moment * item.quantity
 
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-brand-border last:border-0">
+    <div className="flex items-start gap-3 px-4 py-4 border-b border-brand-border last:border-0">
       {/* Thumbnail */}
-      <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 border border-brand-border">
+      <div className="w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50 border border-brand-border">
         <img
           src={item.imageUrl}
           alt={item.name}
           loading="lazy"
-          className="w-full h-full object-contain p-1 mix-blend-multiply"
+          className="w-full h-full object-contain p-1.5 mix-blend-multiply"
         />
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-brand-dark leading-snug line-clamp-2">{item.name}</p>
+        <p className="text-sm font-semibold text-brand-dark leading-snug line-clamp-2">
+          {item.name}
+        </p>
         {item.is_variable_weight && <VariableWeightBadge compact className="mt-1" />}
-        <p className="text-xs text-brand-muted mt-0.5">{item.unit}</p>
+        {item.unit && (
+          <p className="text-xs text-brand-muted mt-0.5">{item.unit}</p>
+        )}
 
         {/* Stepper + subtotal */}
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1 border border-brand-border rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between mt-3">
+          {/* Stepper */}
+          <div className="flex items-center rounded-xl border border-brand-border overflow-hidden">
             <button
               onClick={() => onQuantityChange(item.productId, item.quantity - 1)}
               aria-label="Reducir cantidad"
-              className="w-8 h-8 flex items-center justify-center text-brand-primary hover:bg-brand-primary/5 transition-colors text-lg font-semibold"
+              className="w-9 h-9 flex items-center justify-center text-brand-primary hover:bg-brand-primary-light transition-colors text-lg font-bold"
             >
               −
             </button>
-            <span className="w-8 text-center text-sm font-semibold text-brand-dark tabular-nums">
+            <span className="w-9 text-center text-sm font-bold text-brand-dark tabular-nums select-none">
               {item.quantity}
             </span>
             <button
               onClick={() => onQuantityChange(item.productId, item.quantity + 1)}
               aria-label="Aumentar cantidad"
-              className="w-8 h-8 flex items-center justify-center text-brand-primary hover:bg-brand-primary/5 transition-colors text-lg font-semibold"
+              className="w-9 h-9 flex items-center justify-center text-brand-primary hover:bg-brand-primary-light transition-colors text-lg font-bold"
             >
               +
             </button>
           </div>
-          <span className="text-sm font-semibold text-brand-dark tabular-nums">
+
+          {/* Subtotal */}
+          <span className="text-sm font-bold text-brand-primary tabular-nums">
             {formatPrice(subtotal)}
           </span>
         </div>
@@ -63,9 +70,9 @@ export function CartItemRow({ item, onRemove, onQuantityChange }: CartItemRowPro
       <button
         onClick={() => onRemove(item.productId)}
         aria-label={`Eliminar ${item.name}`}
-        className="flex-shrink-0 p-1.5 text-brand-muted hover:text-brand-error transition-colors rounded-md hover:bg-red-50"
+        className="flex-shrink-0 p-2 text-brand-muted/70 hover:text-brand-error transition-colors rounded-xl hover:bg-red-50"
       >
-        <Trash2 size={16} aria-hidden="true" />
+        <Trash2 size={15} aria-hidden="true" />
       </button>
     </div>
   )

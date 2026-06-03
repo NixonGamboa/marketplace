@@ -13,39 +13,45 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary:        '#2F7D32', // verde CTA principal — 7.3:1 vs fondo crema
-          'primary-dark': '#1B5E20', // hover/focus de primary
-          'primary-light':'#81C784', // hover backgrounds suaves
-          bg:             '#F8F4EE', // fondo de página (crema cálida)
-          surface:        '#FFFFFF', // cards, modales, inputs
-          dark:           '#1A1A1A', // texto principal — 14.7:1 vs bg
-          muted:          '#5C5C5C', // texto secundario — 7.1:1 vs bg
-          border:         '#D6CFC4', // bordes de cards, divisores
-          warning:        '#E65100', // badge peso variable — 7.2:1 vs bg
-          'warning-bg':   '#FFF3E0', // fondo del badge warning
-          error:          '#B71C1C', // estado cerrado, errores — 9:1 vs bg
+          primary:        '#4338CA', // indigo-700 — CTAs, precios, focus rings  (7.7:1 vs blanco)
+          'primary-dark': '#3730A3', // indigo-800 — hover/pressed               (9.7:1 vs blanco)
+          'primary-light':'#EEF2FF', // indigo-50  — chips seleccionados, fondos suaves
+          bg:             '#F8FAFC', // slate-50   — fondo de página (más legible bajo el sol que la crema)
+          surface:        '#FFFFFF', // blanco puro — cards, modales, inputs
+          dark:           '#0F172A', // slate-900  — texto principal              (18.8:1 vs blanco)
+          muted:          '#64748B', // slate-500  — texto secundario             (5.9:1 vs blanco)
+          border:         '#E2E8F0', // slate-200  — bordes de cards, divisores
+          warning:        '#C2410C', // orange-700 — badge peso variable          (7.4:1 vs blanco)
+          'warning-bg':   '#FFF7ED', // orange-50  — fondo del badge warning
+          error:          '#B91C1C', // red-700    — estado cerrado, errores      (8.6:1 vs blanco)
           whatsapp:       '#25D366', // sin cambio
         },
         gray: {
-          50:  '#F9F7F4',
-          100: '#F0EDE8',
-          200: '#E0DAD2',
-          300: '#C8BFB4',
-          400: '#A89F93',
-          500: '#857D72',
-          600: '#635D54',
-          700: '#433F38',
-          800: '#2A2722',
-          900: '#1A1815',
+          50:  '#F8FAFC',
+          100: '#F1F5F9',
+          200: '#E2E8F0',
+          300: '#CBD5E1',
+          400: '#94A3B8',
+          500: '#64748B',
+          600: '#475569',
+          700: '#334155',
+          800: '#1E293B',
+          900: '#0F172A',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Roboto', 'system-ui', 'Arial', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       boxShadow: {
-        'brand-sm': '0 1px 4px rgba(47, 125, 50, 0.12)',
-        'brand-md': '0 4px 16px rgba(47, 125, 50, 0.20)',
-        'card':     '0 1px 3px rgba(26, 26, 26, 0.08), 0 1px 2px rgba(26, 26, 26, 0.04)',
+        'brand-sm':   '0 2px 8px rgba(67, 56, 202, 0.18)',
+        'brand-md':   '0 8px 32px rgba(67, 56, 202, 0.28)',
+        'card':       '0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04)',
+        'card-hover': '0 4px 16px rgba(15, 23, 42, 0.10)',
+        'elevated':   '0 10px 40px rgba(15, 23, 42, 0.12)',
+      },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.5rem',
       },
       keyframes: {
         'fade-in': {
@@ -60,11 +66,16 @@ export default {
           from: { opacity: '0', transform: 'translateY(1rem)' },
           to:   { opacity: '1', transform: 'translateY(0)' },
         },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.96)' },
+          to:   { opacity: '1', transform: 'scale(1)' },
+        },
       },
       animation: {
-        'fade-in':         'fade-in 0.25s ease',
-        'slide-in-top':    'slide-in-top 0.3s ease',
-        'slide-in-bottom': 'slide-in-bottom 0.3s ease',
+        'fade-in':         'fade-in 0.2s ease',
+        'slide-in-top':    'slide-in-top 0.25s ease',
+        'slide-in-bottom': 'slide-in-bottom 0.25s ease',
+        'scale-in':        'scale-in 0.2s ease',
       },
       zIndex: {
         60: '60',

@@ -9,8 +9,8 @@ interface StoreStatusBannerProps {
 
 function deriveIsOpen(): boolean {
   const now = new Date()
-  const day = now.getDay() // 0=Sun, 6=Sat
-  if (day === 0) return false // cerrado domingos
+  const day = now.getDay()
+  if (day === 0) return false
 
   const [openH, openM] = STORE_SCHEDULE.open.split(':').map(Number)
   const [closeH, closeM] = STORE_SCHEDULE.close.split(':').map(Number)
@@ -33,33 +33,38 @@ export function StoreStatusBanner({
       role="status"
       aria-live="polite"
       className={[
-        'flex items-center gap-2 px-4 py-2 text-sm font-medium',
+        'flex items-center gap-2.5 px-4 py-2.5 text-sm border-b',
         open
-          ? 'bg-green-50 text-brand-primary border-b border-green-100'
-          : 'bg-red-50 text-brand-error border-b border-red-100',
+          ? 'bg-brand-primary-light text-brand-primary border-brand-primary/15'
+          : 'bg-red-50 text-brand-error border-red-100',
         className,
       ].join(' ')}
     >
+      {/* Indicador de estado */}
       <span
         className={[
-          'inline-block w-2 h-2 rounded-full flex-shrink-0',
-          open ? 'bg-brand-primary' : 'bg-brand-error',
+          'inline-flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0',
+          open ? 'bg-brand-primary/15' : 'bg-brand-error/15',
         ].join(' ')}
         aria-hidden="true"
-      />
-      {open ? (
+      >
+        <span
+          className={[
+            'inline-block w-2 h-2 rounded-full',
+            open ? 'bg-brand-primary animate-pulse' : 'bg-brand-error',
+          ].join(' ')}
+        />
+      </span>
+
+      <span className="font-semibold">{open ? 'Abierto' : 'Cerrado ahora'}</span>
+
+      <span className="text-brand-muted hidden xs:block">·</span>
+      <span className="text-brand-muted text-xs hidden xs:block">{scheduleLabel}</span>
+
+      {open && deliveryCutoff && (
         <>
-          <span>Abierto</span>
-          <span className="text-brand-muted font-normal">·</span>
-          <span className="text-brand-muted font-normal">{scheduleLabel}</span>
-          <span className="text-brand-muted font-normal">·</span>
-          <span className="text-brand-muted font-normal">{deliveryCutoff}</span>
-        </>
-      ) : (
-        <>
-          <span>Cerrado ahora</span>
-          <span className="text-brand-muted font-normal">·</span>
-          <span className="text-brand-muted font-normal">{scheduleLabel}</span>
+          <span className="text-brand-muted hidden sm:block">·</span>
+          <span className="text-brand-muted text-xs hidden sm:block">{deliveryCutoff}</span>
         </>
       )}
     </div>

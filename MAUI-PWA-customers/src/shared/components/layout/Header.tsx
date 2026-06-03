@@ -20,10 +20,10 @@ const Header = ({
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-brand-surface/95 backdrop-blur-md supports-[backdrop-filter]:bg-brand-surface/90 shadow-card border-b border-brand-border">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/90 border-b border-brand-border shadow-[0_1px_0_0_rgba(226,232,240,0.8)]">
       {/* Fila principal */}
-      <div className="max-w-screen-xl mx-auto px-4 py-3 md:py-2 flex items-center gap-3 md:gap-6">
-        {/* Menú hamburguesa en móvil */}
+      <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center gap-3 md:gap-4">
+        {/* Hamburguesa en móvil */}
         <div className="flex md:hidden">
           <Button
             variant="ghost"
@@ -31,6 +31,7 @@ const Header = ({
             aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
+            className="text-brand-dark"
           >
             <Icon name={menuOpen ? 'close' : 'menu'} decorative />
           </Button>
@@ -39,7 +40,7 @@ const Header = ({
         {/* Logo */}
         <a
           href="/"
-          className="flex items-center gap-2 font-semibold text-brand-dark text-lg md:text-xl"
+          className="flex items-center gap-2 shrink-0"
           aria-label="Ir al inicio"
         >
           <img
@@ -50,32 +51,32 @@ const Header = ({
           />
         </a>
 
-        {/* Search (visible en md+) */}
-        <div className="hidden flex-1 md:block">
-          <SearchBar onSubmit={onSearch} className="mx-auto" />
+        {/* Buscador — ocupa todo el espacio central en desktop */}
+        <div className="hidden flex-1 md:flex justify-center">
+          <SearchBar onSubmit={onSearch} className="max-w-lg w-full" />
         </div>
 
-        {/* Botón Categorías (solo desktop) */}
-        <div className="hidden md:block">
+        {/* Botón Pasillos solo en desktop */}
+        <div className="hidden md:block shrink-0">
           <Button
-            variant="secondary"
+            variant="ghost"
             size="md"
-            className="font-medium"
+            className="text-brand-muted hover:text-brand-dark font-medium"
             onClick={onOpenCategories}
-            aria-label="Abrir categorías"
+            aria-label="Ver todos los pasillos"
           >
             <Icon name="category" decorative />
-            Categorías
+            Pasillos
           </Button>
         </div>
 
-        {/* Acciones derecha */}
-        <div className="flex items-center gap-1 md:gap-2 ml-auto">
+        {/* Carrito */}
+        <div className="ml-auto md:ml-0 shrink-0">
           <CartIcon count={cartCount} onClick={onCartClick} />
         </div>
       </div>
 
-      {/* Segunda fila móvil: buscador */}
+      {/* Fila buscador en móvil */}
       <div className="px-4 pb-3 md:hidden">
         <SearchBar onSubmit={onSearch} />
       </div>
@@ -83,18 +84,22 @@ const Header = ({
       {/* Menú expandible móvil */}
       {menuOpen && (
         <nav
-          className="md:hidden border-t border-brand-border bg-brand-surface/[0.98] backdrop-blur-md shadow-card animate-fade-in animate-slide-in-top"
+          className="md:hidden border-t border-brand-border bg-white animate-slide-in-top"
           aria-label="Menú principal"
         >
-          <ul className="max-w-screen-xl mx-auto px-4 py-3 grid gap-2 text-sm">
+          <ul className="max-w-screen-xl mx-auto px-4 py-2">
             <li>
               <Button
                 variant="ghost"
                 size="md"
-                className="w-full justify-start font-medium"
-                onClick={onOpenCategories}
+                className="w-full justify-start font-medium text-brand-dark"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onOpenCategories?.()
+                }}
               >
-                Todas las categorías
+                <Icon name="category" decorative />
+                Todos los pasillos
               </Button>
             </li>
           </ul>

@@ -128,7 +128,7 @@ export default function CheckoutPage() {
         {/* ── Section 1: Resumen del carrito ──────────────────────────────── */}
         <section
           aria-labelledby="summary-heading"
-          className="rounded-xl border border-brand-border bg-white p-4 shadow-sm"
+          className="rounded-2xl border border-brand-border bg-white p-5 shadow-card"
         >
           <div className="mb-3 flex items-center justify-between">
             <h2
@@ -213,13 +213,13 @@ export default function CheckoutPage() {
         <div className="mx-auto max-w-lg space-y-3">
 
           {/* Pago en efectivo — refuerzo de confianza */}
-          <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl bg-brand-primary-light px-3 py-2.5">
             <Banknote
               size={18}
               aria-hidden="true"
-              className="shrink-0 text-green-700"
+              className="shrink-0 text-brand-primary"
             />
-            <p className="text-xs font-medium text-green-800">
+            <p className="text-xs font-semibold text-brand-primary">
               Pagas en efectivo cuando llegue tu pedido
             </p>
           </div>

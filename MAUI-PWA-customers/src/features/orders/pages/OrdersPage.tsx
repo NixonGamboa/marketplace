@@ -55,7 +55,7 @@ function OrderCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="bg-brand-surface rounded-xl border border-brand-border shadow-card p-4 animate-pulse"
+      className="bg-white rounded-2xl border border-brand-border shadow-card p-5 animate-pulse"
     >
       <div className="h-4 w-44 bg-brand-border/50 rounded mb-2" />
       <div className="h-3 w-24 bg-brand-border/40 rounded mb-3" />
@@ -74,7 +74,7 @@ function OrderCard({ order }: { order: Order }) {
   return (
     <Link
       to={`/orden/${order.orderId}`}
-      className="block bg-brand-surface rounded-xl border border-brand-border shadow-card p-4 min-h-20 hover:border-brand-primary/40 hover:shadow-brand-sm active:scale-[0.99] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+      className="block bg-white rounded-2xl border border-brand-border shadow-card p-5 min-h-20 hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
       aria-label={`Pedido ${order.orderId}, estado: ${badge.label}`}
     >
       <p className="text-sm font-semibold text-brand-dark truncate">

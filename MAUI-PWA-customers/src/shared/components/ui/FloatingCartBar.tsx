@@ -14,22 +14,32 @@ export function FloatingCartBar({ itemCount, total, currency = 'COP', onCheckout
   if (itemCount === 0) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-in-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 animate-slide-in-bottom">
       <button
         onClick={onCheckout}
-        aria-label={`Ver carrito, ${itemCount} producto${itemCount === 1 ? '' : 's'}, total ${formatPrice(total, currency)}`}
-        className="w-full h-16 bg-brand-primary text-white flex items-center justify-between px-5 shadow-brand-md hover:bg-brand-primary-dark transition-colors active:scale-[0.99]"
+        aria-label={`Ver canasta, ${itemCount} producto${itemCount === 1 ? '' : 's'}, total ${formatPrice(total, currency)}`}
+        className={[
+          'w-full h-14 rounded-2xl bg-brand-primary text-white',
+          'flex items-center justify-between px-5',
+          'shadow-brand-md hover:bg-brand-primary-dark active:scale-[0.99]',
+          'transition-all duration-150',
+        ].join(' ')}
       >
-        <div className="flex items-center gap-2">
+        {/* Izquierda: carrito + cantidad */}
+        <div className="flex items-center gap-3">
           <span className="relative">
-            <ShoppingCart size={22} aria-hidden="true" />
-            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 bg-white text-brand-primary rounded-full text-[10px] font-bold tabular-nums">
+            <ShoppingCart size={20} aria-hidden="true" />
+            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 bg-white text-brand-primary rounded-full text-[10px] font-bold tabular-nums shadow">
               {itemCount > 9 ? '9+' : itemCount}
             </span>
           </span>
-          <span className="text-sm font-semibold">Ver canasta</span>
+          <span className="text-sm font-semibold">Ver mi canasta</span>
         </div>
-        <span className="text-base font-bold tabular-nums">{formatPrice(total, currency)}</span>
+
+        {/* Derecha: precio */}
+        <span className="text-base font-bold tabular-nums">
+          {formatPrice(total, currency)}
+        </span>
       </button>
     </div>
   )

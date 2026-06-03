@@ -47,10 +47,12 @@ export function PasillosGrid({ categories, onSelect, selectedId, className = '' 
               onClick={() => onSelect(cat)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               className={[
-                'flex flex-col items-center gap-2 rounded-xl p-3 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2',
+                'flex flex-col items-center justify-center gap-2.5 rounded-2xl p-3 text-center',
+                'transition-all duration-200 focus-visible:outline-none focus-visible:ring-2',
+                'focus-visible:ring-brand-primary focus-visible:ring-offset-2',
                 isSelected
-                  ? 'bg-brand-primary text-white shadow-brand-sm'
-                  : 'bg-brand-surface border border-brand-border text-brand-dark hover:border-brand-primary hover:bg-green-50',
+                  ? 'bg-brand-primary text-white shadow-brand-sm scale-[0.97]'
+                  : 'bg-white border border-brand-border text-brand-dark hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5',
               ].join(' ')}
             >
               {cat.illustrationUrl ? (
@@ -58,17 +60,27 @@ export function PasillosGrid({ categories, onSelect, selectedId, className = '' 
                   src={cat.illustrationUrl}
                   alt=""
                   aria-hidden="true"
-                  className="w-10 h-10 object-contain select-none"
+                  className={[
+                    'w-10 h-10 object-contain select-none transition-transform',
+                    isSelected ? '' : 'group-hover:scale-110',
+                  ].join(' ')}
                   draggable={false}
                 />
               ) : (
                 <LayoutGrid
-                  size={32}
+                  size={28}
                   aria-hidden="true"
                   className={isSelected ? 'text-white' : 'text-brand-primary'}
                 />
               )}
-              <span className="text-xs font-medium leading-tight line-clamp-2">{cat.name}</span>
+              <span
+                className={[
+                  'text-xs font-semibold leading-tight line-clamp-2',
+                  isSelected ? 'text-white' : 'text-brand-dark',
+                ].join(' ')}
+              >
+                {cat.name}
+              </span>
             </button>
           )
         })}

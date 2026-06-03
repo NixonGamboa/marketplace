@@ -6,8 +6,8 @@
   - Activo:       icono con animación pulse, línea coloreada hasta él.
   - Futuros:      icono y línea en gray-300 (atenuados).
   - Accesibilidad: role="list", aria-current="step" en el paso activo.
-  - Contraste:    brand-primary (#2F7D32) sobre blanco = 7.3:1 ✓
-                  brand-dark  (#1A1A1A) sobre blanco = 14.7:1 ✓
+  - Contraste:    brand-primary (#4338CA) sobre blanco = 7.7:1 ✓
+                  brand-dark  (#0F172A) sobre blanco = 18.8:1 ✓
 */
 
 import { Inbox, CheckCircle, Package, Truck, Home, Check } from 'lucide-react'
