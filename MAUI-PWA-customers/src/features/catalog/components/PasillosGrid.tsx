@@ -1,6 +1,6 @@
 import { useRef, type KeyboardEvent } from 'react'
-import { LayoutGrid } from 'lucide-react'
 import type { Category } from '@/types'
+import { categoryIcons, defaultCategoryIcon } from '@/assets/categories'
 
 interface PasillosGridProps {
   categories: Category[]
@@ -55,24 +55,16 @@ export function PasillosGrid({ categories, onSelect, selectedId, className = '' 
                   : 'bg-white border border-brand-border text-brand-dark hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5',
               ].join(' ')}
             >
-              {cat.illustrationUrl ? (
-                <img
-                  src={cat.illustrationUrl}
-                  alt=""
-                  aria-hidden="true"
-                  className={[
-                    'w-10 h-10 object-contain select-none transition-transform',
-                    isSelected ? '' : 'group-hover:scale-110',
-                  ].join(' ')}
-                  draggable={false}
-                />
-              ) : (
-                <LayoutGrid
-                  size={28}
-                  aria-hidden="true"
-                  className={isSelected ? 'text-white' : 'text-brand-primary'}
-                />
-              )}
+              {(() => {
+                const CategoryIcon = (cat.slug && categoryIcons[cat.slug]) || defaultCategoryIcon
+                return (
+                  <CategoryIcon
+                    size={28}
+                    aria-hidden="true"
+                    className={isSelected ? 'text-white' : 'text-brand-primary'}
+                  />
+                )
+              })()}
               <span
                 className={[
                   'text-xs font-semibold leading-tight line-clamp-2',

@@ -1,5 +1,6 @@
 import Icon from '../../components/ui/Icon'
 import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_RAW, WHATSAPP_LINK } from '@/config/app'
+import logoMaui from '@/assets/logo/logo-maui.svg'
 
 interface FooterProps {
   supportEmail?: string
@@ -23,7 +24,7 @@ const Footer = ({
         {/* Marca */}
         <div className="flex flex-col items-center md:items-start gap-3 text-center md:text-left">
           <img
-            src="/logo/maui-logo.svg"
+            src={logoMaui}
             alt="Logo MAUI"
             className="h-9 w-auto select-none brightness-0 invert"
             draggable={false}

@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import Icon from '@/shared/components/ui/Icon'
+import logoMaui from '@/assets/logo/logo-maui.svg'
 
 export default function AuthPage() {
   const { login, loading } = useAuthStore()
@@ -12,7 +13,7 @@ export default function AuthPage() {
         {/* Logo + nombre */}
         <div className="flex flex-col items-center gap-3 mb-10">
           <img
-            src="/logo/maui-logo.svg"
+            src={logoMaui}
             alt="Logo MAUI"
             className="h-14 w-auto select-none"
             draggable={false}

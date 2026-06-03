@@ -1,4 +1,14 @@
 import type { Product, Category } from '@/types'
+import imgLeche from '@/assets/products/lacteos/leche.png'
+import imgQuesoCampesino from '@/assets/products/lacteos/queso-campesino.png'
+import imgYogurt from '@/assets/products/lacteos/yogurt.webp'
+import imgPlatano from '@/assets/products/frutas-verduras/platano.webp'
+import imgTomate from '@/assets/products/frutas-verduras/tomate.png'
+import imgPolloEntero from '@/assets/products/carnes/pollo-entero.png'
+import imgCarneMolida from '@/assets/products/carnes/carne-molida.png'
+import imgChorizo from '@/assets/products/carnes/chorizo.webp'
+import imgArroz from '@/assets/products/abarrotes/arroz.png'
+import imgAceiteGirasol from '@/assets/products/abarrotes/aceite-girasol.png'
 
 // ─── Categorías ───────────────────────────────────────────────────────────────
 
@@ -13,8 +23,9 @@ export const mockCategories: Category[] = [
 ]
 
 // ─── Productos ────────────────────────────────────────────────────────────────
-// TODO: reemplazar imageUrl con imágenes WebP 400×400 reales de Leche y Miel
-//       < 30KB por imagen. Convenio: /assets/products/<id>.webp
+// TODO: reemplazar imageUrl con imágenes reales 400×400 < 30KB por imagen.
+//       Convenio: src/assets/products/<categoria>/<nombre>.png
+//       Ejemplo: src/assets/products/lacteos/leche.png → import { leche } from '@/assets/products/lacteos'
 
 export const mockProducts: Product[] = [
   // ── Lácteos ──────────────────────────────────────────────────────────────
@@ -24,8 +35,9 @@ export const mockProducts: Product[] = [
     name_display: 'Leche Entera',
     name_legal: 'Leche entera pasteurizada UHT 1 litro',
     price: 4500,
+    originalPrice: 5800,
     unit: '1 L',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Leche.webp',
+    imageUrl: imgLeche,
     categoryId: 'cat-la',
     inStock: true,
     is_variable_weight: false,
@@ -38,7 +50,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Queso campesino fresco artesanal 250g',
     price: 7500,
     unit: '250 g',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Queso.webp',
+    imageUrl: imgQuesoCampesino,
     categoryId: 'cat-la',
     inStock: true,
     is_variable_weight: false,
@@ -52,9 +64,9 @@ export const mockProducts: Product[] = [
     name_legal: 'Mantequilla pasteurizada con sal 250g',
     price: 6800,
     unit: '250 g',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Mantequilla.webp',
+    imageUrl: 'https://placehold.co/400x400/fef9c3/92400e?text=Mantequilla',
     categoryId: 'cat-la',
-    inStock: false,  // Agotado — valida US-3 / AC-3
+    inStock: false,
     is_variable_weight: false,
     currency: 'COP',
   },
@@ -65,7 +77,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Yogurt natural entero sin azúcar 1 litro',
     price: 8200,
     unit: '1 L',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Yogurt.webp',
+    imageUrl: imgYogurt,
     categoryId: 'cat-la',
     inStock: true,
     is_variable_weight: false,
@@ -79,8 +91,9 @@ export const mockProducts: Product[] = [
     name_display: 'Pollo Entero',
     name_legal: 'Pollo entero fresco sin vísceras por unidad',
     price: 22000,
+    originalPrice: 27000,
     unit: 'unidad',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Pollo.webp',
+    imageUrl: imgPolloEntero,
     categoryId: 'cat-ca',
     inStock: true,
     is_variable_weight: false,
@@ -92,8 +105,9 @@ export const mockProducts: Product[] = [
     name_display: 'Carne Molida',
     name_legal: 'Carne bovina molida fresca 500g',
     price: 14500,
+    originalPrice: 18000,
     unit: '500 g',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Carne+Molida.webp',
+    imageUrl: imgCarneMolida,
     categoryId: 'cat-ca',
     inStock: true,
     is_variable_weight: false,
@@ -106,8 +120,9 @@ export const mockProducts: Product[] = [
     name_display: 'Chorizo',
     name_legal: 'Chorizo de cerdo artesanal 250g',
     price: 9000,
+    originalPrice: 11500,
     unit: '250 g',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Chorizo.webp',
+    imageUrl: imgChorizo,
     categoryId: 'cat-ca',
     inStock: true,
     is_variable_weight: false,
@@ -122,7 +137,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Plátano verde hartón por unidad',
     price: 800,
     unit: 'unidad',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Platano.webp',
+    imageUrl: imgPlatano,
     categoryId: 'cat-fv',
     inStock: true,
     is_variable_weight: false,
@@ -134,8 +149,9 @@ export const mockProducts: Product[] = [
     name_display: 'Tomate Chonto',
     name_legal: 'Tomate chonto fresco 1 libra',
     price: 3200,
+    originalPrice: 4200,
     unit: '1 lb',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Tomate.webp',
+    imageUrl: imgTomate,
     categoryId: 'cat-fv',
     inStock: true,
     is_variable_weight: false,
@@ -148,7 +164,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Cebolla cabezona blanca fresca 1 libra',
     price: 2800,
     unit: '1 lb',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Cebolla.webp',
+    imageUrl: 'https://placehold.co/400x400/fefce8/713f12?text=Cebolla',
     categoryId: 'cat-fv',
     inStock: true,
     is_variable_weight: false,
@@ -160,8 +176,9 @@ export const mockProducts: Product[] = [
     name_display: 'Aguacate Hass',
     name_legal: 'Aguacate variedad Hass por unidad',
     price: 3500,
+    originalPrice: 4800,
     unit: 'unidad',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Aguacate.webp',
+    imageUrl: 'https://placehold.co/400x400/dcfce7/14532d?text=Aguacate',
     categoryId: 'cat-fv',
     inStock: true,
     is_variable_weight: false,
@@ -176,8 +193,9 @@ export const mockProducts: Product[] = [
     name_display: 'Arroz',
     name_legal: 'Arroz blanco pulido extra 1 kilogramo',
     price: 5500,
+    originalPrice: 7000,
     unit: '1 kg',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Arroz.webp',
+    imageUrl: imgArroz,
     categoryId: 'cat-ab',
     inStock: true,
     is_variable_weight: false,
@@ -189,8 +207,9 @@ export const mockProducts: Product[] = [
     name_display: 'Aceite Girasol',
     name_legal: 'Aceite vegetal de girasol refinado 1 litro',
     price: 12000,
+    originalPrice: 15000,
     unit: '1 L',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Aceite.webp',
+    imageUrl: imgAceiteGirasol,
     categoryId: 'cat-ab',
     inStock: true,
     is_variable_weight: false,
@@ -203,7 +222,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Azúcar blanca refinada 1 kilogramo',
     price: 4800,
     unit: '1 kg',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Azucar.webp',
+    imageUrl: 'https://placehold.co/400x400/fafafa/6b7280?text=Azucar',
     categoryId: 'cat-ab',
     inStock: true,
     is_variable_weight: false,
@@ -216,7 +235,7 @@ export const mockProducts: Product[] = [
     name_legal: 'Panela de caña de azúcar redonda 500g',
     price: 3800,
     unit: '500 g',
-    imageUrl: 'https://placehold.co/400x400/0a7e3a/white?text=Panela.webp',
+    imageUrl: 'https://placehold.co/400x400/fef3c7/92400e?text=Panela',
     categoryId: 'cat-ab',
     inStock: true,
     is_variable_weight: false,
