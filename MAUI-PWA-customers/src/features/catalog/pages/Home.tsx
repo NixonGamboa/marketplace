@@ -18,7 +18,8 @@ import {
   ChevronRight,
   type LucideIcon,
 } from 'lucide-react'
-import { heroSupermercadoAbarrotes } from '@/assets/hero'
+import HeroCarousel from '../components/HeroCarousel'
+import { heroSlides } from '@/assets/hero'
 import { bannerAhorraMauiPlus } from '@/assets/banners'
 import { promoEnvioGratis } from '@/assets/promos'
 import { useFeaturedProducts } from '@/hooks'
@@ -42,7 +43,7 @@ const SIDEBAR_CATS: { id: string; name: string; Icon: LucideIcon; slug: string |
 
 const BENEFITS: { Icon: LucideIcon; title: string; sub: string }[] = [
   { Icon: Truck,         title: 'Envío rápido',        sub: 'Entrega en 2-4h' },
-  { Icon: ShieldCheck,   title: 'Pago seguro',          sub: 'Compras protegidas' },
+  { Icon: ShieldCheck,   title: 'Pago contraentrega',   sub: 'Pagas al recibir' },
   { Icon: Award,         title: 'Calidad garantizada',  sub: 'Productos seleccionados' },
   { Icon: MessageCircle, title: 'Atención al cliente',  sub: 'Estamos para ayudarte' },
 ]
@@ -64,7 +65,7 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 py-5 flex gap-5">
+    <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-4 md:py-6 flex gap-4 md:gap-6">
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-52 shrink-0 gap-3" aria-label="Categorías">
         {/* Menú de categorías */}
@@ -115,84 +116,61 @@ export default function Home() {
       </aside>
 
       {/* ── Contenido principal ──────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col gap-5">
+      <div className="flex-1 min-w-0 flex flex-col gap-4 md:gap-6">
 
         {/* Categorías horizontales móvil */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
-          {SIDEBAR_CATS.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => handleCategory(cat)}
-              role="listitem"
-              className={[
-                'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
-                activeCategory === cat.id
-                  ? 'bg-brand-primary text-white border-brand-primary'
-                  : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
-              ].join(' ')}
-            >
-              <cat.Icon size={13} strokeWidth={2} />
-              <span>{cat.name}</span>
-            </button>
-          ))}
+        <div className="lg:hidden relative">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
+            {SIDEBAR_CATS.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleCategory(cat)}
+                role="listitem"
+                className={[
+                  'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
+                  activeCategory === cat.id
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
+                ].join(' ')}
+              >
+                <cat.Icon size={13} strokeWidth={2} />
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-brand-bg to-transparent pointer-events-none" />
         </div>
 
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
-        <section
-          aria-label="Banner principal"
-          className="relative overflow-hidden rounded-2xl border border-brand-primary/10 min-h-[240px] md:min-h-[280px]"
-        >
-          {/* Imagen ocupa el 100% del fondo */}
+        <HeroCarousel slides={heroSlides} />
+
+        {/* Promo envío gratis — solo móvil */}
+        <div className="lg:hidden relative h-20 rounded-2xl overflow-hidden shadow-brand-sm">
           <img
-            src={heroSupermercadoAbarrotes}
+            src={promoEnvioGratis}
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="absolute inset-0 w-full h-full object-cover object-center select-none"
+            className="absolute inset-0 w-full h-full object-cover object-right"
           />
-
-          {/* Overlay gradiente — garantiza legibilidad del texto */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#EEF2FF]/90 via-[#E0E7FF]/65 to-transparent" />
-
-          {/* Texto */}
-          <div className="relative z-10 p-6 md:p-8 flex items-center min-h-[240px] md:min-h-[280px]">
-            <div className="flex-1 max-w-sm">
-              <p className="text-xs font-semibold text-brand-primary uppercase tracking-widest mb-2">
-                Fresco · Local · Rápido
-              </p>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-[#1F2937] leading-tight mb-3">
-                Productos frescos<br />todos los días
-              </h1>
-              <p className="text-[#6B7280] text-sm mb-5 max-w-xs leading-relaxed">
-                Frutas, verduras y mucho más, directo a tu hogar con la mejor calidad.
-              </p>
-              <button
-                onClick={() => navigate('/catalog/frutas-verduras')}
-                className="bg-brand-primary hover:bg-brand-primary-dark active:bg-brand-primary-dark text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors shadow-brand-sm inline-flex items-center gap-2"
-              >
-                Comprar ahora
-                <ChevronRight size={16} />
-              </button>
-            </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/65 to-transparent" />
+          <div className="relative z-10 px-4 h-full flex flex-col justify-center">
+            <p className="text-[13px] font-bold text-brand-primary leading-tight">Envío gratis</p>
+            <p className="text-[11px] text-brand-muted leading-snug">
+              En compras superiores a <span className="font-bold text-brand-primary">$30.000</span>
+            </p>
           </div>
-
-          {/* Badge frescura */}
-          <div className="absolute top-4 right-4 z-10 w-16 h-16 rounded-full bg-white/90 border-2 border-brand-primary/20 flex flex-col items-center justify-center shadow-brand-sm text-center">
-            <span className="text-[9px] font-bold text-brand-primary leading-tight">100%</span>
-            <span className="text-[8px] text-brand-muted font-medium leading-tight">Frescura</span>
-            <span className="text-[8px] text-brand-muted font-medium leading-tight">Garantizada</span>
-          </div>
-        </section>
+        </div>
 
         {/* ── Beneficios ──────────────────────────────────────────────────────── */}
         <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          className="flex gap-3 overflow-x-auto no-scrollbar pb-1 md:grid md:grid-cols-4 md:overflow-visible md:pb-0"
           aria-label="Beneficios de comprar en MAUI"
         >
           {BENEFITS.map((b) => (
             <div
               key={b.title}
-              className="bg-white rounded-xl border border-brand-border p-3 flex items-center gap-3 shadow-card"
+              className="shrink-0 w-44 md:w-auto bg-white rounded-xl border border-brand-border p-3 flex items-center gap-3 shadow-card"
             >
               <div className="w-9 h-9 rounded-lg bg-brand-primary-light flex items-center justify-center shrink-0">
                 <b.Icon size={18} className="text-brand-primary" strokeWidth={1.8} />
@@ -218,13 +196,13 @@ export default function Home() {
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3">
               {(featured ?? []).slice(0, 4).map((product) => (
                 <ProductCard
                   key={product.id}
@@ -243,10 +221,10 @@ export default function Home() {
                 />
               ))}
 
-              {/* MAUI Plus — ocupa el 5.º slot del grid en pantallas XL */}
+              {/* MAUI Plus — full-width en móvil/md, 5.º slot en XL */}
               <div
                 aria-label="MAUI Plus"
-                className="hidden xl:flex rounded-2xl overflow-hidden shadow-brand-md relative"
+                className="col-span-2 md:col-span-3 xl:col-span-1 flex rounded-2xl overflow-hidden shadow-brand-md relative min-h-[110px] xl:min-h-0"
               >
                 <img
                   src={bannerAhorraMauiPlus}
@@ -256,16 +234,19 @@ export default function Home() {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50" />
-                <div className="relative z-10 p-4 flex flex-col justify-between w-full">
-                  <div>
+                <div className="relative z-10 p-3 xl:p-4 flex items-center gap-3 xl:flex-col xl:items-stretch xl:justify-between w-full">
+                  <div className="flex-1">
                     <p className="text-white/85 text-[11px] font-medium leading-tight">Ahorra más con</p>
                     <p className="text-white text-base font-extrabold leading-tight">MAUI Plus</p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-white/90 text-[11px] leading-snug">
+                    <p className="text-white/90 text-[11px] leading-snug mt-1 xl:hidden">
                       Descuentos exclusivos y envíos gratis siempre
                     </p>
-                    <button className="w-full py-2 rounded-xl bg-white/15 border border-white/50 text-white text-xs font-semibold hover:bg-white/25 transition-colors inline-flex items-center justify-center gap-1">
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0 xl:shrink">
+                    <p className="text-white/90 text-[11px] leading-snug hidden xl:block">
+                      Descuentos exclusivos y envíos gratis siempre
+                    </p>
+                    <button className="py-2 px-3 xl:w-full rounded-xl bg-white/15 border border-white/50 text-white text-xs font-semibold hover:bg-white/25 transition-colors inline-flex items-center justify-center gap-1">
                       Conocer más <ChevronRight size={13} />
                     </button>
                   </div>
