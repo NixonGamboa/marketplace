@@ -72,7 +72,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
         {/* Buscador central — solo desktop */}
         <form
           onSubmit={handleSearch}
-          className="flex-1 max-w-xl hidden md:flex"
+          className="flex-1 hidden md:flex"
           role="search"
           aria-label="Buscar productos"
         >
@@ -88,14 +88,14 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               type="search"
-              placeholder="Buscar productos frescos..."
+              placeholder="Buscar productos frescos, marcas y más..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-100 text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0 focus:ring-2 focus:ring-brand-primary/30 transition-shadow"
             />
           </div>
         </form>
 
         {/* Nav links desktop */}
-        <nav className="hidden md:flex items-center gap-0.5" aria-label="Navegación principal">
+        <nav className="hidden md:flex items-center gap-0.5 shrink-0" aria-label="Navegación principal">
           <NavLink to="/" label="Ofertas" icon={Tag} active />
           <NavLink to="/orders" label="Mis pedidos" icon={ShoppingBag} />
           <NavLink to="/" label="Favoritos" icon={Heart} />
@@ -105,7 +105,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
         <button
           onClick={onCartClick}
           aria-label={`Canasta — ${cartCount} productos — ${formatCOP(cartTotal)}`}
-          className="ml-auto md:ml-0 relative flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white rounded-xl px-3 py-2 transition-colors"
+          className="ml-auto md:ml-0 relative flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white rounded-xl px-3 py-2 transition-colors shrink-0"
         >
           <Icon name="cart" size="sm" decorative colorClass="text-white" />
           <span className="hidden sm:block text-sm font-semibold tabular-nums">
@@ -119,6 +119,16 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
               {cartCount > 99 ? '99+' : cartCount}
             </span>
           )}
+        </button>
+
+        {/* Avatar usuario */}
+        <button
+          aria-label="Perfil de usuario"
+          className="hidden md:flex shrink-0 w-9 h-9 rounded-full bg-gray-200 items-center justify-center hover:bg-gray-300 transition-colors overflow-hidden"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-500" fill="currentColor" aria-hidden="true">
+            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+          </svg>
         </button>
       </div>
 

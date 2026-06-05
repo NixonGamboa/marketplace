@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/authStore'
 import Icon from '@/shared/components/ui/Icon'
-import logoMaui from '@/assets/logo/logo.png'
+import logoMaui from '@/assets/logo/imagotipo.png'
 
 export default function AuthPage() {
   const { login, loading } = useAuthStore()

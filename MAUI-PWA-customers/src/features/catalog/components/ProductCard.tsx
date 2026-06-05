@@ -128,6 +128,8 @@ const ProductCard = ({
       <div className="flex flex-1 flex-col gap-1 px-3 pb-3 pt-2.5">
         <h3 className="text-sm font-medium leading-snug text-brand-dark line-clamp-2">{name}</h3>
 
+        {unit && <p className="text-[11px] text-brand-muted leading-tight">{unit}</p>}
+
         {is_variable_weight && (
           <VariableWeightBadge compact className="self-start" />
         )}
@@ -136,7 +138,6 @@ const ProductCard = ({
         <div className="flex flex-col mt-0.5">
           <div className="flex items-baseline gap-1.5">
             <span className="text-brand-primary font-bold text-base tabular-nums">{priceLabel}</span>
-            {unit && <span className="text-[11px] text-brand-muted">{unit}</span>}
           </div>
           {originalLabel && (
             <span className="text-[11px] text-brand-muted line-through tabular-nums">{originalLabel}</span>
