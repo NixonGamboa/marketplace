@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Tag, ShoppingBag, Heart, type LucideIcon } from 'lucide-react'
 import Icon from '../../components/ui/Icon'
-import logoMaui from '@/assets/logo/logo-maui.svg'
+import logoIsotipo from '@/assets/logo/isotipo.png'
+import logoLogotipo from '@/assets/logo/logotipo.png'
 
 interface HeaderProps {
   cartCount?: number
@@ -29,17 +31,17 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-brand-primary shadow-brand-md">
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-brand-border shadow-sm">
       {/* Fila principal desktop */}
-      <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center gap-3 md:gap-4">
+      <div className="max-w-[1440px] mx-auto px-4 h-16 flex items-center gap-3 md:gap-4">
         {/* Hamburguesa móvil */}
         <button
-          className="md:hidden text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+          className="md:hidden text-brand-dark p-1 rounded-lg hover:bg-brand-bg transition-colors"
           onClick={() => setMenuOpen((o) => !o)}
           aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
           aria-expanded={menuOpen}
         >
-          <Icon name={menuOpen ? 'close' : 'menu'} decorative colorClass="text-white" />
+          <Icon name={menuOpen ? 'close' : 'menu'} decorative colorClass="text-brand-dark" />
         </button>
 
         {/* Logo */}
@@ -48,17 +50,22 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
           className="flex items-center gap-2.5 shrink-0 no-underline hover:no-underline"
           aria-label="Ir al inicio — MAUI"
         >
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+          <div className="flex items-center justify-center p-1.5 rounded-xl border border-brand-border bg-white shadow-sm">
             <img
-              src={logoMaui}
+              src={logoIsotipo}
               alt="MAUI"
-              className="h-5 w-auto brightness-0 invert select-none"
+              className="h-11 w-auto select-none"
               draggable={false}
             />
           </div>
-          <div className="hidden sm:flex flex-col leading-none gap-0.5">
-            <span className="text-white font-bold text-[15px] leading-none tracking-wide">MAUI</span>
-            <span className="text-white/60 text-[11px] leading-none font-medium">Tu mercado local</span>
+          <div className="hidden sm:flex flex-col gap-1">
+            <img
+              src={logoLogotipo}
+              alt="MAUI"
+              className="h-4 w-auto self-start select-none"
+              draggable={false}
+            />
+            <span className="text-brand-muted text-[10px] leading-none font-medium">En alianza con Leche y Miel</span>
           </div>
         </Link>
 
@@ -82,23 +89,23 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
               onChange={(e) => setQuery(e.target.value)}
               type="search"
               placeholder="Buscar productos frescos..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0 focus:ring-2 focus:ring-white/40 transition-shadow"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-100 text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0 focus:ring-2 focus:ring-brand-primary/30 transition-shadow"
             />
           </div>
         </form>
 
         {/* Nav links desktop */}
         <nav className="hidden md:flex items-center gap-0.5" aria-label="Navegación principal">
-          <NavLink to="/" label="Ofertas" />
-          <NavLink to="/orders" label="Mis pedidos" />
-          <NavLink to="/" label="Favoritos" />
+          <NavLink to="/" label="Ofertas" icon={Tag} active />
+          <NavLink to="/orders" label="Mis pedidos" icon={ShoppingBag} />
+          <NavLink to="/" label="Favoritos" icon={Heart} />
         </nav>
 
         {/* Carrito */}
         <button
           onClick={onCartClick}
           aria-label={`Canasta — ${cartCount} productos — ${formatCOP(cartTotal)}`}
-          className="ml-auto md:ml-0 relative flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white rounded-xl px-3 py-2 transition-colors"
+          className="ml-auto md:ml-0 relative flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white rounded-xl px-3 py-2 transition-colors"
         >
           <Icon name="cart" size="sm" decorative colorClass="text-white" />
           <span className="hidden sm:block text-sm font-semibold tabular-nums">
@@ -131,7 +138,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
               onChange={(e) => setQuery(e.target.value)}
               type="search"
               placeholder="Buscar productos frescos..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-100 text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0"
             />
           </div>
         </form>
@@ -140,10 +147,10 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
       {/* Menú móvil expandible */}
       {menuOpen && (
         <nav
-          className="md:hidden border-t border-white/20 bg-brand-primary animate-slide-in-top"
+          className="md:hidden border-t border-brand-border bg-white animate-slide-in-top"
           aria-label="Menú principal"
         >
-          <ul className="max-w-screen-xl mx-auto px-4 py-3 space-y-1">
+          <ul className="max-w-[1440px] mx-auto px-4 py-3 space-y-1">
             {[
               { to: '/', label: 'Ofertas' },
               { to: '/orders', label: 'Mis pedidos' },
@@ -153,7 +160,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
                 <Link
                   to={to}
                   onClick={() => setMenuOpen(false)}
-                  className="block text-white/80 hover:text-white hover:bg-white/10 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors no-underline"
+                  className="block text-brand-dark/70 hover:text-brand-primary hover:bg-brand-primary/5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors no-underline"
                 >
                   {label}
                 </Link>
@@ -165,7 +172,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
                   setMenuOpen(false)
                   navigate('/catalog/frutas-verduras')
                 }}
-                className="w-full text-left text-white/80 hover:text-white hover:bg-white/10 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                className="w-full text-left text-brand-dark/70 hover:text-brand-primary hover:bg-brand-primary/5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
               >
                 Todos los pasillos
               </button>
@@ -177,11 +184,17 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
   )
 }
 
-const NavLink = ({ to, label }: { to: string; label: string }) => (
+const NavLink = ({ to, label, icon: IconComponent, active }: { to: string; label: string; icon?: LucideIcon; active?: boolean }) => (
   <Link
     to={to}
-    className="text-white/80 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline"
+    className={[
+      'px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline flex items-center gap-1.5',
+      active
+        ? 'text-brand-primary hover:bg-brand-primary/5'
+        : 'text-brand-dark/70 hover:text-brand-primary hover:bg-brand-primary/5',
+    ].join(' ')}
   >
+    {IconComponent && <IconComponent size={15} strokeWidth={2} />}
     {label}
   </Link>
 )

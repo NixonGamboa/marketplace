@@ -1,1 +1,3 @@
-export { default as logoMaui } from './logo-maui.svg';
+export { default as logoIsotipo } from './isotipo.png';
+export { default as logoLogotipo } from './logotipo.png';
+export { default as logoImagotipo } from './imagotipo.png';
