@@ -4,6 +4,7 @@ export interface Product {
   name_display?: string  // nombre corto para UI: "Leche Entera"
   name_legal?: string    // nombre legal completo para recibos
   price: number
+  originalPrice?: number // precio antes del descuento para mostrar tachado
   unit: string
   imageUrl: string
   categoryId: string     // FK a Category.id

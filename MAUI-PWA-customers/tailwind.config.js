@@ -13,17 +13,18 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary:        '#4338CA', // indigo-700 — CTAs, precios, focus rings  (7.7:1 vs blanco)
-          'primary-dark': '#3730A3', // indigo-800 — hover/pressed               (9.7:1 vs blanco)
-          'primary-light':'#EEF2FF', // indigo-50  — chips seleccionados, fondos suaves
-          bg:             '#F8FAFC', // slate-50   — fondo de página (más legible bajo el sol que la crema)
-          surface:        '#FFFFFF', // blanco puro — cards, modales, inputs
-          dark:           '#0F172A', // slate-900  — texto principal              (18.8:1 vs blanco)
-          muted:          '#64748B', // slate-500  — texto secundario             (5.9:1 vs blanco)
-          border:         '#E2E8F0', // slate-200  — bordes de cards, divisores
-          warning:        '#C2410C', // orange-700 — badge peso variable          (7.4:1 vs blanco)
-          'warning-bg':   '#FFF7ED', // orange-50  — fondo del badge warning
-          error:          '#B91C1C', // red-700    — estado cerrado, errores      (8.6:1 vs blanco)
+          primary:        '#5B3DF5', // morado principal MAUI — CTAs, precios, focus rings
+          'primary-dark': '#4A30D4', // hover/pressed
+          'primary-light':'#EEF2FF', // chips seleccionados, fondos suaves
+          secondary:      '#7C5CFF', // morado secundario
+          bg:             '#F8F9FC', // fondo de página
+          surface:        '#FFFFFF', // cards, modales, inputs
+          dark:           '#1F2937', // texto principal
+          muted:          '#6B7280', // texto secundario
+          border:         '#E8EAF3', // bordes de cards, divisores
+          warning:        '#C2410C', // badge peso variable
+          'warning-bg':   '#FFF7ED', // fondo del badge warning
+          error:          '#B91C1C', // estado cerrado, errores
           whatsapp:       '#25D366', // sin cambio
         },
         gray: {
