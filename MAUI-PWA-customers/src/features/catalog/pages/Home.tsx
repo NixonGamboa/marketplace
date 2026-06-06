@@ -35,8 +35,8 @@ import { useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
 
-// ── Sidebar structure ─────────────────────────────────────────────────────────
-interface SidebarItem {
+// ── Business Categories (menú lateral — verticales de la plataforma) ─────────
+interface BusinessCategory {
   id: string
   name: string
   Icon: LucideIcon
@@ -44,7 +44,7 @@ interface SidebarItem {
   soon?: boolean
 }
 
-const SIDEBAR_COMPRAR: SidebarItem[] = [
+const BCATS_COMPRAR: BusinessCategory[] = [
   { id: 'mercado',        name: 'Mercado',           Icon: Store,    slug: null,              soon: false },
   { id: 'cat-fv',        name: 'Frutas y Verduras', Icon: Leaf,     slug: 'frutas-verduras', soon: true },
   { id: 'cat-ca',        name: 'Carnes Frescas',    Icon: Utensils, slug: 'carnes',          soon: true },
@@ -53,19 +53,19 @@ const SIDEBAR_COMPRAR: SidebarItem[] = [
   { id: 'mascotas',      name: 'Mascotas',          Icon: PawPrint, slug: null,              soon: true },
 ]
 
-const SIDEBAR_SERVICIOS: SidebarItem[] = [
+const BCATS_SERVICIOS: BusinessCategory[] = [
   { id: 'transporte',    name: 'Transporte',         Icon: Car,              slug: null, soon: true },
   { id: 'domicilios',    name: 'Domicilios',         Icon: Truck,            slug: null, soon: true },
   { id: 'hogar',         name: 'Hogar',              Icon: HomeIconLucide,   slug: null, soon: true },
 ]
 
-const SIDEBAR_COMUNIDAD: SidebarItem[] = [
+const BCATS_COMUNIDAD: BusinessCategory[] = [
   { id: 'promos-locales', name: 'Promociones locales',  Icon: Tag,  slug: null, soon: true },
   { id: 'negocios',       name: 'Negocios destacados',  Icon: Star, slug: null, soon: true },
 ]
 
-// ── Category cards for "Categorías principales" section ──────────────────────
-const MAIN_CATEGORIES: { id: string; name: string; Icon: LucideIcon; slug: string | null }[] = [
+// ── Categories (catálogo — agrupaciones de producto) ─────────────────────────
+const CATEGORIES: { id: string; name: string; Icon: LucideIcon; slug: string | null }[] = [
   { id: 'mercado',   name: 'Mercado',           Icon: Store,          slug: null },
   { id: 'lacteos',   name: 'Lácteos',           Icon: Milk,           slug: 'lacteos' },
   { id: 'bebidas',   name: 'Bebidas',           Icon: GlassWater,     slug: 'bebidas' },
@@ -77,8 +77,8 @@ const MAIN_CATEGORIES: { id: string; name: string; Icon: LucideIcon; slug: strin
   { id: 'congelados',name: 'Congelados',        Icon: Snowflake,      slug: null },
 ]
 
-// ── Mobile horizontal categories (kept for mobile scroll) ────────────────────
-const MOBILE_CATS: SidebarItem[] = [
+// ── Business Categories (versión móvil — scroll horizontal) ──────────────────
+const MOBILE_BCATS: BusinessCategory[] = [
   { id: 'mercado',   name: 'Mercado',           Icon: Store,          slug: null },
   { id: 'cat-fv',   name: 'Frutas y Verduras', Icon: Leaf,           slug: 'frutas-verduras' },
   { id: 'cat-ca',   name: 'Carnes',            Icon: Utensils,       slug: 'carnes' },
@@ -103,18 +103,18 @@ export default function Home() {
   const navigate = useNavigate()
   const addToCart = useAddToCart()
   const { items } = useCart()
-  const [activeCategory, setActiveCategory] = useState('mercado')
+  const [activeBusinessCategory, setActiveBusinessCategory] = useState('mercado')
   const { data: featured, isLoading } = useFeaturedProducts()
 
   const cartProductIds = new Set(items.map((i) => i.productId))
 
-  const handleSidebarItem = (item: SidebarItem) => {
+  const handleBusinessCategory = (item: BusinessCategory) => {
     if (item.soon) return
-    setActiveCategory(item.id)
+    setActiveBusinessCategory(item.id)
     if (item.slug) navigate(`/catalog/${item.slug}`)
   }
 
-  const handleCategoryCard = (cat: (typeof MAIN_CATEGORIES)[0]) => {
+  const handleCategoryClick = (cat: (typeof CATEGORIES)[0]) => {
     if (cat.slug) navigate(`/catalog/${cat.slug}`)
   }
 
@@ -126,12 +126,12 @@ export default function Home() {
         <nav className="bg-white rounded-2xl border border-brand-border shadow-card overflow-hidden">
           <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Comprar</p>
           <ul role="list">
-            {SIDEBAR_COMPRAR.map((item) => {
-              const isActive = activeCategory === item.id && !item.soon
+            {BCATS_COMPRAR.map((item) => {
+              const isActive = activeBusinessCategory === item.id && !item.soon
               return (
                 <li key={item.id}>
                   <button
-                    onClick={() => handleSidebarItem(item)}
+                    onClick={() => handleBusinessCategory(item)}
                     aria-current={isActive ? 'page' : undefined}
                     aria-disabled={item.soon}
                     className={[
@@ -164,10 +164,10 @@ export default function Home() {
           <div className="border-t border-brand-border mt-1">
             <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Servicios</p>
             <ul role="list">
-              {SIDEBAR_SERVICIOS.map((item) => (
+              {BCATS_SERVICIOS.map((item) => (
                 <li key={item.id}>
                   <button
-                    onClick={() => handleSidebarItem(item)}
+                    onClick={() => handleBusinessCategory(item)}
                     aria-disabled={item.soon}
                     className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
                   >
@@ -186,10 +186,10 @@ export default function Home() {
           <div className="border-t border-brand-border mt-1 mb-1">
             <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Comunidad</p>
             <ul role="list">
-              {SIDEBAR_COMUNIDAD.map((item) => (
+              {BCATS_COMUNIDAD.map((item) => (
                 <li key={item.id}>
                   <button
-                    onClick={() => handleSidebarItem(item)}
+                    onClick={() => handleBusinessCategory(item)}
                     aria-disabled={item.soon}
                     className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
                   >
@@ -227,14 +227,14 @@ export default function Home() {
         {/* Categorías horizontales móvil */}
         <div className="lg:hidden relative">
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
-            {MOBILE_CATS.map((cat) => (
+            {MOBILE_BCATS.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => handleSidebarItem(cat)}
+                onClick={() => handleBusinessCategory(cat)}
                 role="listitem"
                 className={[
                   'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
-                  activeCategory === cat.id
+                  activeBusinessCategory === cat.id
                     ? 'bg-brand-primary text-white border-brand-primary'
                     : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
                 ].join(' ')}
@@ -309,10 +309,10 @@ export default function Home() {
             </button>
           </div>
           <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 md:overflow-visible md:pb-0 md:grid md:grid-cols-9">
-            {MAIN_CATEGORIES.map((cat) => (
+            {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => handleCategoryCard(cat)}
+                onClick={() => handleCategoryClick(cat)}
                 className="shrink-0 w-[80px] md:w-auto bg-white rounded-xl border border-brand-border p-2.5 flex flex-col items-center gap-2 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
               >
                 <div className="w-10 h-10 rounded-xl bg-brand-primary-light flex items-center justify-center">
