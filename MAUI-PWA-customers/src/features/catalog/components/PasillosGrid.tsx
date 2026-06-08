@@ -1,6 +1,5 @@
 import { useRef, type KeyboardEvent } from 'react'
 import type { Category } from '@/types'
-import { categoryIcons, defaultCategoryIcon } from '@/assets/categories'
 
 interface PasillosGridProps {
   categories: Category[]
@@ -55,16 +54,22 @@ export function PasillosGrid({ categories, onSelect, selectedId, className = '' 
                   : 'bg-white border border-brand-border text-brand-dark hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5',
               ].join(' ')}
             >
-              {(() => {
-                const CategoryIcon = (cat.slug && categoryIcons[cat.slug]) || defaultCategoryIcon
-                return (
-                  <CategoryIcon
-                    size={28}
-                    aria-hidden="true"
-                    className={isSelected ? 'text-white' : 'text-brand-primary'}
-                  />
-                )
-              })()}
+              {cat.illustrationUrl ? (
+                <img
+                  src={cat.illustrationUrl}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="w-7 h-7 object-contain"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className={['text-2xl leading-none', isSelected ? 'text-white' : 'text-brand-primary'].join(' ')}
+                >
+                  ·
+                </span>
+              )}
               <span
                 className={[
                   'text-xs font-semibold leading-tight line-clamp-2',

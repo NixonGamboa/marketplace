@@ -1,4 +1,5 @@
 import type { Product, Category } from '@/types'
+import { categoryImages } from '@/assets/categories'
 import imgLeche from '@/assets/products/lacteos/leche.png'
 import imgQuesoCampesino from '@/assets/products/lacteos/queso-campesino.png'
 import imgYogurt from '@/assets/products/lacteos/yogurt.webp'
@@ -10,13 +11,15 @@ import imgChorizo from '@/assets/products/carnes/chorizo.webp'
 // ─── Categorías ───────────────────────────────────────────────────────────────
 
 export const mockCategories: Category[] = [
-  { id: 'cat-la', name: 'Lácteos',                slug: 'lacteos',          order: 1 },
-  { id: 'cat-gr', name: 'Grano',                  slug: 'grano',            order: 2 },
-  { id: 'cat-dp', name: 'Despensa',               slug: 'despensa',         order: 3 },
-  { id: 'cat-em', name: 'Embutidos y Mariscos',   slug: 'embutidos',        order: 4 },
-  { id: 'cat-be', name: 'Bebidas',                slug: 'bebidas',          order: 5 },
-  { id: 'cat-as', name: 'Aseo',                   slug: 'aseo',             order: 6 },
-  { id: 'cat-el', name: 'Electrodomésticos',      slug: 'electrodomesticos',order: 7 },
+  { id: 'cat-la', name: 'Lácteos',           slug: 'lacteos',           illustrationUrl: categoryImages.lacteos,      order: 1 },
+  { id: 'cat-be', name: 'Bebidas',           slug: 'bebidas',           illustrationUrl: categoryImages.bebidas,      order: 2 },
+  { id: 'cat-dp', name: 'Despensa',          slug: 'despensa',          illustrationUrl: categoryImages.despensa,     order: 3 },
+  { id: 'cat-as', name: 'Limpieza',          slug: 'aseo',              illustrationUrl: categoryImages.limpieza,     order: 4 },
+  { id: 'cat-sn', name: 'Snacks',            slug: 'snacks',            illustrationUrl: categoryImages.snacks,       order: 5 },
+  { id: 'cat-co', name: 'Congelados',        slug: 'congelados',        illustrationUrl: categoryImages.congelados,   order: 6 },
+  { id: 'cat-el', name: 'Electrodomésticos', slug: 'electrodomesticos', illustrationUrl: categoryImages.electro,      order: 7 },
+  { id: 'cat-hr', name: 'Herramientas',      slug: 'herramientas',      illustrationUrl: categoryImages.herramientas, order: 8 },
+  { id: 'cat-ju', name: 'Juguetería',        slug: 'jugueteria',        illustrationUrl: categoryImages.jugueteria,   order: 9 },
 ]
 
 // ─── Productos ────────────────────────────────────────────────────────────────
