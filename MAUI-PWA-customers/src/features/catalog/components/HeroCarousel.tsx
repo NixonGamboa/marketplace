@@ -51,15 +51,15 @@ export default function HeroCarousel({ slides, autoplayInterval = 5000 }: HeroCa
               className="absolute inset-0 w-full h-full object-cover object-center select-none"
             />
 
-            {/* Overlay: gradient from left (white) to transparent on desktop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/60 to-white/20 md:bg-gradient-to-r md:from-white md:via-white/75 md:to-transparent" />
+            {/* Overlay: gradient horizontal (izq → der) en ambos breakpoints; móvil con más opacidad por menos ancho */}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/65 to-white/5 md:from-white md:via-white/75 md:to-transparent" />
 
             <div className="relative z-10 p-5 md:p-8 flex items-center min-h-[220px] md:min-h-[300px]">
               <div className="flex-1 max-w-xs md:max-w-sm flex flex-col items-start">
                 <p className="text-[10px] md:text-xs font-bold text-brand-primary uppercase tracking-widest mb-2">
                   {slide.eyebrow}
                 </p>
-                <h1 className="text-xl md:text-[28px] font-extrabold text-brand-dark leading-tight mb-2.5">
+                <h1 className="text-lg md:text-[28px] font-extrabold text-brand-dark leading-tight mb-2.5">
                   {titleParts.map((line, j) => (
                     <span key={j}>
                       {line}
@@ -67,14 +67,15 @@ export default function HeroCarousel({ slides, autoplayInterval = 5000 }: HeroCa
                     </span>
                   ))}
                 </h1>
-                <p className="text-brand-muted text-sm mb-5 max-w-xs leading-relaxed">
+                <p className="text-brand-muted text-[11px] md:text-sm mb-5 max-w-[55%] md:max-w-xs leading-relaxed">
                   {slide.description}
                 </p>
                 <button
                   onClick={() => navigate(slide.buttonHref)}
-                  className="bg-brand-primary hover:bg-brand-primary-dark active:bg-brand-primary-dark text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-brand-sm inline-flex items-center gap-2 self-start w-fit"
+                  className="bg-brand-primary hover:bg-brand-primary-dark active:bg-brand-primary-dark text-white font-semibold px-4 py-2 md:px-5 md:py-2.5 rounded-xl text-xs md:text-sm transition-colors shadow-brand-sm inline-flex items-center gap-1.5 md:gap-2 self-start w-fit group"
                 >
                   {slide.buttonText}
+                  <ChevronRight size={14} strokeWidth={2.2} className="md:w-4 md:h-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </button>
               </div>
             </div>
