@@ -1,4 +1,4 @@
-export type { Product, Category } from './catalog'
+export type { Product, Category, BusinessCategory, BusinessCategoryGroup } from './catalog'
 export type { CartItem, CartState } from './cart'
 export type { User, AuthState } from './auth'
 export type { Order, OrderItem, OrderStatus, DeliveryMode, SubstitutionPreference, DeliveryData } from './orders'

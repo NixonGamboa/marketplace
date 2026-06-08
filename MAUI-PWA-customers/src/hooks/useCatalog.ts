@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { mockProducts, mockCategories, mockFeaturedProducts } from '@/features/catalog/mockData'
+import { mockProducts, mockCategories, mockFeaturedProducts, mockBusinessCategoryGroups } from '@/features/catalog/mockData'
 
 export function useProducts() {
   return useQuery({
@@ -22,5 +22,13 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: async () => mockCategories,
     staleTime: 1000 * 60 * 10,
+  })
+}
+
+export function useBusinessCategoryGroups() {
+  return useQuery({
+    queryKey: ['business-category-groups'],
+    queryFn: async () => mockBusinessCategoryGroups,
+    staleTime: 1000 * 60 * 60,
   })
 }

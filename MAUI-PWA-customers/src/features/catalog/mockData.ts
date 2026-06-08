@@ -1,4 +1,4 @@
-import type { Product, Category } from '@/types'
+import type { Product, Category, BusinessCategoryGroup } from '@/types'
 import { categoryImages } from '@/assets/categories'
 import imgLeche from '@/assets/products/lacteos/leche.png'
 import imgQuesoCampesino from '@/assets/products/lacteos/queso-campesino.png'
@@ -257,6 +257,43 @@ export const mockProducts: Product[] = [
     is_variable_weight: false,
     currency: 'COP',
     badge: 'Oferta',
+  },
+]
+
+// ─── Business Category Groups (menú lateral) ──────────────────────────────────
+
+export const mockBusinessCategoryGroups: BusinessCategoryGroup[] = [
+  {
+    id: 'comprar',
+    label: 'Comprar',
+    order: 1,
+    items: [
+      { id: 'mercado',     name: 'Mercado',           iconName: 'Store',    slug: null,              comingSoon: false },
+      { id: 'cat-fv',     name: 'Frutas y Verduras', iconName: 'Leaf',     slug: 'frutas-verduras', comingSoon: true  },
+      { id: 'cat-ca',     name: 'Carnes Frescas',    iconName: 'Utensils', slug: 'carnes',          comingSoon: true  },
+      { id: 'ferreteria', name: 'Ferretería',        iconName: 'Wrench',   slug: null,              comingSoon: true  },
+      { id: 'electro',    name: 'Electrodomésticos', iconName: 'Zap',      slug: null,              comingSoon: true  },
+      { id: 'mascotas',   name: 'Mascotas',          iconName: 'PawPrint', slug: null,              comingSoon: true  },
+    ],
+  },
+  {
+    id: 'servicios',
+    label: 'Servicios',
+    order: 2,
+    items: [
+      { id: 'transporte', name: 'Transporte', iconName: 'Car',   slug: null, comingSoon: true },
+      { id: 'domicilios', name: 'Domicilios', iconName: 'Truck', slug: null, comingSoon: true },
+      { id: 'hogar',      name: 'Hogar',      iconName: 'Home',  slug: null, comingSoon: true },
+    ],
+  },
+  {
+    id: 'comunidad',
+    label: 'Comunidad',
+    order: 3,
+    items: [
+      { id: 'promos-locales', name: 'Promociones locales', iconName: 'Tag',  slug: null, comingSoon: true },
+      { id: 'negocios',       name: 'Negocios destacados', iconName: 'Star', slug: null, comingSoon: true },
+    ],
   },
 ]
 

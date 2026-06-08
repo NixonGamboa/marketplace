@@ -22,3 +22,18 @@ export interface Category {
   illustrationUrl?: string // ruta al SVG de diseño (fallback: icono lucide)
   order?: number          // orden en el grid de Pasillos
 }
+
+export interface BusinessCategory {
+  id: string
+  name: string
+  iconName: string        // clave del registro de íconos (UI lo resuelve a LucideIcon)
+  slug: string | null     // ruta de navegación; null = no navega
+  comingSoon: boolean
+}
+
+export interface BusinessCategoryGroup {
+  id: string
+  label: string           // título de la sección: "Comprar", "Servicios", "Comunidad"
+  order: number
+  items: BusinessCategory[]
+}

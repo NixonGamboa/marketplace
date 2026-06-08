@@ -1,78 +1,40 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Leaf,
-  Utensils,
-  Milk,
-  ShoppingBasket,
-  GlassWater,
-  Sparkles,
-  Cookie,
-  Snowflake,
-  Truck,
-  ShieldCheck,
-  Award,
-  MessageCircle,
-  ChevronRight,
-  Store,
-  Wrench,
-  PawPrint,
-  Zap,
-  Car,
-  Home as HomeIconLucide,
-  Tag,
-  Star,
+  Leaf, Utensils, Milk, ShoppingBasket, GlassWater, Sparkles, Cookie, Snowflake,
+  Truck, ShieldCheck, Award, MessageCircle, ChevronRight,
+  Store, Wrench, PawPrint, Zap, Car, Home as HomeIconLucide, Tag, Star,
   type LucideIcon,
 } from 'lucide-react'
+import type { BusinessCategory, BusinessCategoryGroup } from '@/types'
 import HeroCarousel from '../components/HeroCarousel'
 import { heroSlides } from '@/assets/hero'
 import { bannerAhorraMauiPlus } from '@/assets/banners'
 import { promoEnvioGratis } from '@/assets/promos'
-import { useFeaturedProducts, useCategories } from '@/hooks'
+import { useFeaturedProducts, useCategories, useBusinessCategoryGroups } from '@/hooks'
 import { useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
 
-// ── Business Categories (menú lateral — verticales de la plataforma) ─────────
-interface BusinessCategory {
-  id: string
-  name: string
-  Icon: LucideIcon
-  slug: string | null
-  soon?: boolean
+// ── Registro de íconos (UI-only: resuelve iconName → LucideIcon) ──────────────
+const BCAT_ICON_REGISTRY: Record<string, LucideIcon> = {
+  Store, Leaf, Utensils, Wrench, Zap, PawPrint,
+  Car, Truck, Home: HomeIconLucide, Tag, Star,
+  Milk, ShoppingBasket, GlassWater, Sparkles, Cookie, Snowflake,
 }
 
-const BCATS_COMPRAR: BusinessCategory[] = [
-  { id: 'mercado',        name: 'Mercado',           Icon: Store,    slug: null,              soon: false },
-  { id: 'cat-fv',        name: 'Frutas y Verduras', Icon: Leaf,     slug: 'frutas-verduras', soon: true },
-  { id: 'cat-ca',        name: 'Carnes Frescas',    Icon: Utensils, slug: 'carnes',          soon: true },
-  { id: 'ferreteria',    name: 'Ferretería',        Icon: Wrench,   slug: null,              soon: true },
-  { id: 'electro',       name: 'Electrodomésticos', Icon: Zap,            slug: null,        soon: true },
-  { id: 'mascotas',      name: 'Mascotas',          Icon: PawPrint, slug: null,              soon: true },
-]
-
-const BCATS_SERVICIOS: BusinessCategory[] = [
-  { id: 'transporte',    name: 'Transporte',         Icon: Car,              slug: null, soon: true },
-  { id: 'domicilios',    name: 'Domicilios',         Icon: Truck,            slug: null, soon: true },
-  { id: 'hogar',         name: 'Hogar',              Icon: HomeIconLucide,   slug: null, soon: true },
-]
-
-const BCATS_COMUNIDAD: BusinessCategory[] = [
-  { id: 'promos-locales', name: 'Promociones locales',  Icon: Tag,  slug: null, soon: true },
-  { id: 'negocios',       name: 'Negocios destacados',  Icon: Star, slug: null, soon: true },
-]
-
-// ── Business Categories (versión móvil — scroll horizontal) ──────────────────
-const MOBILE_BCATS: BusinessCategory[] = [
-  { id: 'mercado',   name: 'Mercado',           Icon: Store,          slug: null },
-  { id: 'cat-fv',   name: 'Frutas y Verduras', Icon: Leaf,           slug: 'frutas-verduras' },
-  { id: 'cat-ca',   name: 'Carnes',            Icon: Utensils,       slug: 'carnes' },
-  { id: 'cat-la',   name: 'Lácteos',           Icon: Milk,           slug: 'lacteos' },
-  { id: 'cat-ab',   name: 'Despensa',          Icon: ShoppingBasket, slug: 'despensa' },
-  { id: 'cat-be',   name: 'Bebidas',           Icon: GlassWater,     slug: 'bebidas' },
-  { id: 'cat-as',   name: 'Limpieza',          Icon: Sparkles,       slug: 'aseo' },
-  { id: 'cat-sn',   name: 'Snacks',            Icon: Cookie,         slug: null },
-  { id: 'cat-co',   name: 'Congelados',        Icon: Snowflake,      slug: null },
+// ── Atajos de navegación móvil (scroll horizontal — lista plana UI-only) ──────
+type MobileNavItem = { id: string; name: string; iconName: string; slug: string | null }
+const MOBILE_BCATS: MobileNavItem[] = [
+  { id: 'mercado',   name: 'Mercado',           iconName: 'Store',          slug: null              },
+  { id: 'cat-fv',   name: 'Frutas y Verduras', iconName: 'Leaf',           slug: 'frutas-verduras' },
+  { id: 'cat-ca',   name: 'Carnes',            iconName: 'Utensils',       slug: 'carnes'          },
+  { id: 'cat-la',   name: 'Lácteos',           iconName: 'Milk',           slug: 'lacteos'         },
+  { id: 'cat-ab',   name: 'Despensa',          iconName: 'ShoppingBasket', slug: 'despensa'        },
+  { id: 'cat-be',   name: 'Bebidas',           iconName: 'GlassWater',     slug: 'bebidas'         },
+  { id: 'cat-as',   name: 'Limpieza',          iconName: 'Sparkles',       slug: 'aseo'            },
+  { id: 'cat-sn',   name: 'Snacks',            iconName: 'Cookie',         slug: null              },
+  { id: 'cat-co',   name: 'Congelados',        iconName: 'Snowflake',      slug: null              },
 ]
 
 const BENEFITS: { Icon: LucideIcon; title: string; sub: string }[] = [
@@ -93,11 +55,12 @@ export default function Home() {
   const [activeBusinessCategory, setActiveBusinessCategory] = useState('mercado')
   const { data: featured, isLoading } = useFeaturedProducts()
   const { data: categories = [] } = useCategories()
+  const { data: bCatGroups = [] } = useBusinessCategoryGroups()
 
   const cartProductIds = useMemo(() => new Set(items.map((i) => i.productId)), [items])
 
-  const handleBusinessCategory = (item: BusinessCategory) => {
-    if (item.soon) return
+  const handleBusinessCategory = (item: BusinessCategory | MobileNavItem) => {
+    if ('comingSoon' in item && item.comingSoon) return
     setActiveBusinessCategory(item.id)
     if (item.slug) navigate(`/catalog/${item.slug}`)
   }
@@ -110,46 +73,18 @@ export default function Home() {
     <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-4 md:py-6 flex gap-4 md:gap-5">
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-[210px] shrink-0 gap-3" aria-label="Navegación lateral">
-        {/* Sección COMPRAR */}
         <nav className="bg-white rounded-2xl border border-brand-border shadow-card overflow-hidden">
-          <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Comprar</p>
-          <ul role="list">
-            {BCATS_COMPRAR.map((item) => {
-              const isActive = activeBusinessCategory === item.id && !item.soon
-              return (
-                <li key={item.id}>
-                  <button
-                    onClick={() => handleBusinessCategory(item)}
-                    aria-current={isActive ? 'page' : undefined}
-                    aria-disabled={item.soon}
-                    className={[
-                      'relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left transition-colors',
-                      isActive
-                        ? 'bg-brand-primary-light text-brand-primary font-semibold'
-                        : item.soon
-                          ? 'text-brand-muted cursor-default'
-                          : 'text-brand-dark hover:bg-brand-bg',
-                    ].join(' ')}
-                  >
-                    <item.Icon
-                      size={16}
-                      className={isActive ? 'text-brand-primary' : item.soon ? 'text-gray-300' : 'text-brand-muted'}
-                      strokeWidth={1.8}
-                    />
-                    <span className="flex-1 leading-snug">{item.name}</span>
-                    {item.soon && (
-                      <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                        Pronto
-                      </span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-
-          <SidebarSection title="Servicios" items={BCATS_SERVICIOS} onSelect={handleBusinessCategory} />
-          <SidebarSection title="Comunidad" items={BCATS_COMUNIDAD} onSelect={handleBusinessCategory} last />
+          {bCatGroups.map((group, index) => (
+            <SidebarSection
+              key={group.id}
+              group={group}
+              activeId={activeBusinessCategory}
+              iconRegistry={BCAT_ICON_REGISTRY}
+              onSelect={handleBusinessCategory}
+              first={index === 0}
+              last={index === bCatGroups.length - 1}
+            />
+          ))}
         </nav>
 
         {/* Promo envío gratis */}
@@ -175,22 +110,25 @@ export default function Home() {
         {/* Categorías horizontales móvil */}
         <div className="lg:hidden relative">
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
-            {MOBILE_BCATS.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleBusinessCategory(cat)}
-                role="listitem"
-                className={[
-                  'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
-                  activeBusinessCategory === cat.id
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
-                ].join(' ')}
-              >
-                <cat.Icon size={13} strokeWidth={2} />
-                <span>{cat.name}</span>
-              </button>
-            ))}
+            {MOBILE_BCATS.map((cat) => {
+              const Icon = BCAT_ICON_REGISTRY[cat.iconName]
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => handleBusinessCategory(cat)}
+                  role="listitem"
+                  className={[
+                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
+                    activeBusinessCategory === cat.id
+                      ? 'bg-brand-primary text-white border-brand-primary'
+                      : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
+                  ].join(' ')}
+                >
+                  {Icon && <Icon size={13} strokeWidth={2} />}
+                  <span>{cat.name}</span>
+                </button>
+              )
+            })}
           </div>
           <div className="absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-brand-bg to-transparent pointer-events-none" />
         </div>
@@ -334,39 +272,63 @@ export default function Home() {
   )
 }
 
-// ── SidebarSection — secciones "Pronto" del sidebar (Servicios, Comunidad) ───
+// ── SidebarSection ────────────────────────────────────────────────────────────
 function SidebarSection({
-  title,
-  items,
+  group,
+  activeId,
+  iconRegistry,
   onSelect,
+  first = false,
   last = false,
 }: {
-  title: string
-  items: BusinessCategory[]
+  group: BusinessCategoryGroup
+  activeId: string
+  iconRegistry: Record<string, LucideIcon>
   onSelect: (item: BusinessCategory) => void
+  first?: boolean
   last?: boolean
 }) {
   return (
-    <div className={['border-t border-brand-border mt-1', last && 'mb-1'].filter(Boolean).join(' ')}>
-      <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">{title}</p>
+    <div className={[!first && 'border-t border-brand-border mt-1', last && 'mb-1'].filter(Boolean).join(' ')}>
+      <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+        {group.label}
+      </p>
       <ul role="list">
-        {items.map((item) => (
-          <li key={item.id}>
-            <button
-              onClick={() => onSelect(item)}
-              aria-disabled={item.soon}
-              className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
-            >
-              <item.Icon size={16} className="text-gray-300" strokeWidth={1.8} />
-              <span className="flex-1 leading-snug">{item.name}</span>
-              {item.soon && (
-                <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                  Pronto
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
+        {group.items.map((item) => {
+          const Icon = iconRegistry[item.iconName]
+          const isActive = activeId === item.id && !item.comingSoon
+          return (
+            <li key={item.id}>
+              <button
+                onClick={() => onSelect(item)}
+                aria-current={isActive ? 'page' : undefined}
+                aria-disabled={item.comingSoon}
+                className={[
+                  'relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left transition-colors',
+                  isActive
+                    ? 'bg-brand-primary-light text-brand-primary font-semibold'
+                    : item.comingSoon
+                      ? 'text-brand-muted cursor-default'
+                      : 'text-brand-dark hover:bg-brand-bg',
+                ].join(' ')}
+              >
+                {Icon && (
+                  <Icon
+                    size={16}
+                    className={isActive ? 'text-brand-primary' : item.comingSoon ? 'text-gray-300' : 'text-brand-muted'}
+                    strokeWidth={1.8}
+                  />
+                )}
+                <span className="flex-1 leading-snug">{item.name}</span>
+                {item.comingSoon && (
+                  <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    Próximamente
+                  </span>
+                )}
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
