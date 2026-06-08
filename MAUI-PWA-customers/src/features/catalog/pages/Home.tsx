@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Leaf,
@@ -17,10 +17,8 @@ import {
   Store,
   Wrench,
   PawPrint,
-  WashingMachine,
   Zap,
   Car,
-  UtensilsCrossed,
   Home as HomeIconLucide,
   Tag,
   Star,
@@ -30,7 +28,7 @@ import HeroCarousel from '../components/HeroCarousel'
 import { heroSlides } from '@/assets/hero'
 import { bannerAhorraMauiPlus } from '@/assets/banners'
 import { promoEnvioGratis } from '@/assets/promos'
-import { useFeaturedProducts } from '@/hooks'
+import { useFeaturedProducts, useCategories } from '@/hooks'
 import { useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
@@ -64,19 +62,6 @@ const BCATS_COMUNIDAD: BusinessCategory[] = [
   { id: 'negocios',       name: 'Negocios destacados',  Icon: Star, slug: null, soon: true },
 ]
 
-// ── Categories (catálogo — agrupaciones de producto) ─────────────────────────
-const CATEGORIES: { id: string; name: string; Icon: LucideIcon; slug: string | null }[] = [
-  { id: 'mercado',   name: 'Mercado',           Icon: Store,          slug: null },
-  { id: 'lacteos',   name: 'Lácteos',           Icon: Milk,           slug: 'lacteos' },
-  { id: 'bebidas',   name: 'Bebidas',           Icon: GlassWater,     slug: 'bebidas' },
-  { id: 'limpieza',  name: 'Limpieza',          Icon: Sparkles,       slug: 'aseo' },
-  { id: 'snacks',    name: 'Snacks',            Icon: Cookie,         slug: null },
-  { id: 'despensa',  name: 'Despensa',          Icon: ShoppingBasket, slug: 'despensa' },
-  { id: 'fv',        name: 'Frutas y Verduras', Icon: Leaf,           slug: 'frutas-verduras' },
-  { id: 'carnes',    name: 'Carnes',            Icon: UtensilsCrossed,slug: 'carnes' },
-  { id: 'congelados',name: 'Congelados',        Icon: Snowflake,      slug: null },
-]
-
 // ── Business Categories (versión móvil — scroll horizontal) ──────────────────
 const MOBILE_BCATS: BusinessCategory[] = [
   { id: 'mercado',   name: 'Mercado',           Icon: Store,          slug: null },
@@ -99,14 +84,17 @@ const BENEFITS: { Icon: LucideIcon; title: string; sub: string }[] = [
 
 const TRUST = ['Productos 100% frescos', 'Precios justos todos los días', 'Apoyamos lo local']
 
+const PRODUCT_SKELETON_SLOTS = [0, 1, 2, 3]
+
 export default function Home() {
   const navigate = useNavigate()
   const addToCart = useAddToCart()
   const { items } = useCart()
   const [activeBusinessCategory, setActiveBusinessCategory] = useState('mercado')
   const { data: featured, isLoading } = useFeaturedProducts()
+  const { data: categories = [] } = useCategories()
 
-  const cartProductIds = new Set(items.map((i) => i.productId))
+  const cartProductIds = useMemo(() => new Set(items.map((i) => i.productId)), [items])
 
   const handleBusinessCategory = (item: BusinessCategory) => {
     if (item.soon) return
@@ -114,7 +102,7 @@ export default function Home() {
     if (item.slug) navigate(`/catalog/${item.slug}`)
   }
 
-  const handleCategoryClick = (cat: (typeof CATEGORIES)[0]) => {
+  const handleCategoryClick = (cat: { slug?: string | null }) => {
     if (cat.slug) navigate(`/catalog/${cat.slug}`)
   }
 
@@ -160,63 +148,23 @@ export default function Home() {
             })}
           </ul>
 
-          {/* Sección SERVICIOS */}
-          <div className="border-t border-brand-border mt-1">
-            <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Servicios</p>
-            <ul role="list">
-              {BCATS_SERVICIOS.map((item) => (
-                <li key={item.id}>
-                  <button
-                    onClick={() => handleBusinessCategory(item)}
-                    aria-disabled={item.soon}
-                    className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
-                  >
-                    <item.Icon size={16} className="text-gray-300" strokeWidth={1.8} />
-                    <span className="flex-1 leading-snug">{item.name}</span>
-                    <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                      Pronto
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Sección COMUNIDAD */}
-          <div className="border-t border-brand-border mt-1 mb-1">
-            <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Comunidad</p>
-            <ul role="list">
-              {BCATS_COMUNIDAD.map((item) => (
-                <li key={item.id}>
-                  <button
-                    onClick={() => handleBusinessCategory(item)}
-                    aria-disabled={item.soon}
-                    className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
-                  >
-                    <item.Icon size={16} className="text-gray-300" strokeWidth={1.8} />
-                    <span className="flex-1 leading-snug">{item.name}</span>
-                    <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                      Pronto
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <SidebarSection title="Servicios" items={BCATS_SERVICIOS} onSelect={handleBusinessCategory} />
+          <SidebarSection title="Comunidad" items={BCATS_COMUNIDAD} onSelect={handleBusinessCategory} last />
         </nav>
 
         {/* Promo envío gratis */}
-        <div className="rounded-2xl overflow-hidden border border-brand-primary-light bg-brand-primary-light shadow-card relative">
+        <div className="rounded-2xl overflow-hidden shadow-brand-sm relative aspect-square">
           <img
             src={promoEnvioGratis}
-            alt="Repartidor de Maui"
+            alt=""
+            aria-hidden="true"
             draggable={false}
-            className="w-full object-cover object-center select-none"
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="px-4 pb-4 -mt-2">
-            <p className="text-[13px] font-bold text-brand-primary leading-tight">Envío gratis</p>
-            <p className="text-[11px] text-brand-muted mt-0.5 leading-snug">En compras superiores a</p>
-            <p className="text-[22px] font-extrabold text-brand-primary leading-none mt-0.5">$30.000</p>
+          <div className="relative z-10 p-4 flex flex-col">
+            <p className="text-[15px] font-bold text-brand-primary leading-tight">Envío gratis</p>
+            <p className="text-[11px] text-brand-muted mt-1 leading-snug">En compras superiores a</p>
+            <p className="text-[26px] font-extrabold text-brand-primary mt-0.5 leading-none">$30.000</p>
           </div>
         </div>
       </aside>
@@ -272,12 +220,9 @@ export default function Home() {
         <section aria-label="Beneficios de comprar en MAUI">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-brand-dark">Beneficios para ti</h2>
-            <button
-              onClick={() => {}}
-              className="text-brand-primary text-xs font-semibold hover:underline underline-offset-2 transition-colors inline-flex items-center gap-0.5"
-            >
+            <span className="text-brand-primary text-xs font-semibold inline-flex items-center gap-0.5 opacity-50 cursor-default">
               Ver todos <ChevronRight size={13} />
-            </button>
+            </span>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
             {BENEFITS.map((b) => (
@@ -309,14 +254,18 @@ export default function Home() {
             </button>
           </div>
           <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 md:overflow-visible md:pb-0 md:grid md:grid-cols-9">
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat)}
                 className="shrink-0 w-[80px] md:w-auto bg-white rounded-xl border border-brand-border p-2.5 flex flex-col items-center gap-2 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
               >
-                <div className="w-10 h-10 rounded-xl bg-brand-primary-light flex items-center justify-center">
-                  <cat.Icon size={20} className="text-brand-primary" strokeWidth={1.6} />
+                <div className="w-24 h-24 rounded-full bg-brand-primary-light flex items-center justify-center overflow-hidden shadow-[0_4px_14px_rgba(99,102,241,0.25)]">
+                  {cat.illustrationUrl ? (
+                    <img src={cat.illustrationUrl} alt={cat.name} className="w-full h-full object-cover" draggable={false} />
+                  ) : (
+                    <span className="text-brand-primary text-lg">·</span>
+                  )}
                 </div>
                 <span className="text-[11px] font-medium text-brand-dark leading-tight text-center line-clamp-2">{cat.name}</span>
               </button>
@@ -339,7 +288,7 @@ export default function Home() {
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3">
               <MauiPlusCard />
-              {Array.from({ length: 4 }).map((_, i) => (
+              {PRODUCT_SKELETON_SLOTS.map((i) => (
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
@@ -381,6 +330,44 @@ export default function Home() {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── SidebarSection — secciones "Pronto" del sidebar (Servicios, Comunidad) ───
+function SidebarSection({
+  title,
+  items,
+  onSelect,
+  last = false,
+}: {
+  title: string
+  items: BusinessCategory[]
+  onSelect: (item: BusinessCategory) => void
+  last?: boolean
+}) {
+  return (
+    <div className={['border-t border-brand-border mt-1', last && 'mb-1'].filter(Boolean).join(' ')}>
+      <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">{title}</p>
+      <ul role="list">
+        {items.map((item) => (
+          <li key={item.id}>
+            <button
+              onClick={() => onSelect(item)}
+              aria-disabled={item.soon}
+              className="relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left text-brand-muted cursor-default transition-colors hover:bg-brand-bg"
+            >
+              <item.Icon size={16} className="text-gray-300" strokeWidth={1.8} />
+              <span className="flex-1 leading-snug">{item.name}</span>
+              {item.soon && (
+                <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                  Pronto
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
