@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Leaf, Utensils, Milk, ShoppingBasket, GlassWater, Sparkles, Cookie, Snowflake,
-  Truck, ShieldCheck, Award, MessageCircle, ChevronRight,
+  Truck, ShieldCheck, Award, MessageCircle, ChevronRight, ChevronDown,
   Store, Wrench, PawPrint, Zap, Car, Home as HomeIconLucide, Tag, Star,
   type LucideIcon,
 } from 'lucide-react'
@@ -288,48 +288,66 @@ function SidebarSection({
   first?: boolean
   last?: boolean
 }) {
+  const [expanded, setExpanded] = useState(true)
+
   return (
     <div className={[!first && 'border-t border-brand-border mt-1', last && 'mb-1'].filter(Boolean).join(' ')}>
-      <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-        {group.label}
-      </p>
-      <ul role="list">
-        {group.items.map((item) => {
-          const Icon = iconRegistry[item.iconName]
-          const isActive = activeId === item.id && !item.comingSoon
-          return (
-            <li key={item.id}>
-              <button
-                onClick={() => onSelect(item)}
-                aria-current={isActive ? 'page' : undefined}
-                aria-disabled={item.comingSoon}
-                className={[
-                  'relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left transition-colors',
-                  isActive
-                    ? 'bg-brand-primary-light text-brand-primary font-semibold'
-                    : item.comingSoon
-                      ? 'text-brand-muted cursor-default'
-                      : 'text-brand-dark hover:bg-brand-bg',
-                ].join(' ')}
-              >
-                {Icon && (
-                  <Icon
-                    size={16}
-                    className={isActive ? 'text-brand-primary' : item.comingSoon ? 'text-gray-300' : 'text-brand-muted'}
-                    strokeWidth={1.8}
-                  />
-                )}
-                <span className="flex-1 leading-snug">{item.name}</span>
-                {item.comingSoon && (
-                  <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                    Próximamente
-                  </span>
-                )}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex items-center justify-between w-full px-4 pt-3 pb-1"
+      >
+        <span className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+          {group.label}
+        </span>
+        <ChevronDown
+          size={13}
+          className={[
+            'text-brand-muted transition-transform duration-200',
+            expanded ? '-rotate-180' : 'rotate-0',
+          ].join(' ')}
+        />
+      </button>
+      {expanded && (
+        <ul role="list">
+          {group.items.map((item) => {
+            const Icon = iconRegistry[item.iconName]
+            const isActive = activeId === item.id && !item.comingSoon
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => onSelect(item)}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-disabled={item.comingSoon}
+                  className={[
+                    'relative w-full flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium text-left transition-colors',
+                    isActive
+                      ? 'bg-brand-primary-light text-brand-primary font-semibold'
+                      : item.comingSoon
+                        ? 'text-brand-muted cursor-default'
+                        : 'text-brand-dark hover:bg-brand-bg',
+                  ].join(' ')}
+                >
+                  {Icon && (
+                    <Icon
+                      size={16}
+                      className={isActive ? 'text-brand-primary' : item.comingSoon ? 'text-gray-300' : 'text-brand-muted'}
+                      strokeWidth={1.8}
+                    />
+                  )}
+                  <span className="flex-1 leading-snug">{item.name}</span>
+                  {item.comingSoon && (
+                    <span className="absolute top-1 right-2 text-[9px] font-semibold text-brand-primary bg-brand-primary-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                      Próximamente
+                    </span>
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }
