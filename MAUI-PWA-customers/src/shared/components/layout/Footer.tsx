@@ -1,6 +1,6 @@
 import Icon from '../../components/ui/Icon'
 import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_RAW, WHATSAPP_LINK } from '@/config/app'
-import logoMaui from '@/assets/logo/logo.png'
+import logoMaui from '@/assets/logo/imagotipo.png'
 
 interface FooterProps {
   supportEmail?: string

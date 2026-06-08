@@ -3,8 +3,8 @@
   "short_name": "MAUI",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#F8F4EE",
-  "theme_color": "#2F7D32",
+  "background_color": "#F8F9FC",
+  "theme_color": "#5B3DF5",
   "description": "Tu mercado local, digital y sin fricción",
   "icons": [
     {

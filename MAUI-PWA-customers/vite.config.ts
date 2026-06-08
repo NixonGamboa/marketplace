@@ -31,8 +31,8 @@ export default defineConfig({
       manifest: {
         name: 'MAUI',
         short_name: 'MAUI',
-        theme_color: '#2F7D32',
-        background_color: '#F8F4EE',
+        theme_color: '#5B3DF5',
+        background_color: '#F8F9FC',
         display: 'standalone',
         start_url: '.',
         icons: [

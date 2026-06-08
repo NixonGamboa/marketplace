@@ -107,8 +107,8 @@ export default function Home() {
       {/* ── Contenido principal ──────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col gap-4 md:gap-5">
 
-        {/* Categorías horizontales móvil */}
-        <div className="lg:hidden relative">
+        {/* Categorías horizontales móvil — ocultas (reemplazadas por BottomNavBar) */}
+        <div className="hidden">
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
             {MOBILE_BCATS.map((cat) => {
               const Icon = BCAT_ICON_REGISTRY[cat.iconName]
@@ -136,8 +136,8 @@ export default function Home() {
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <HeroCarousel slides={heroSlides} />
 
-        {/* Promo envío gratis — solo móvil */}
-        <div className="lg:hidden relative h-20 rounded-2xl overflow-hidden shadow-brand-sm">
+        {/* Promo envío gratis — solo móvil (oculta; sidebar desktop tiene la propia) */}
+        <div className="hidden">
           <img
             src={promoEnvioGratis}
             alt=""
@@ -162,18 +162,18 @@ export default function Home() {
               Ver todos <ChevronRight size={13} />
             </span>
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
+          <div className="grid grid-cols-4 gap-2 md:gap-3">
             {BENEFITS.map((b) => (
               <div
                 key={b.title}
-                className="shrink-0 w-44 md:w-auto bg-white rounded-xl border border-brand-border p-3 flex items-center gap-3 shadow-card"
+                className="bg-white rounded-xl border border-brand-border p-2 md:p-3 flex flex-col md:flex-row items-center gap-1.5 md:gap-3 shadow-card text-center md:text-left"
               >
                 <div className="w-9 h-9 rounded-lg bg-brand-primary-light flex items-center justify-center shrink-0">
                   <b.Icon size={18} className="text-brand-primary" strokeWidth={1.8} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-brand-dark leading-tight">{b.title}</p>
-                  <p className="text-[11px] text-brand-muted mt-0.5 leading-tight">{b.sub}</p>
+                  <p className="text-[10px] md:text-xs font-semibold text-brand-dark leading-tight">{b.title}</p>
+                  <p className="hidden sm:block text-[11px] text-brand-muted mt-0.5 leading-tight">{b.sub}</p>
                 </div>
               </div>
             ))}
@@ -258,7 +258,7 @@ export default function Home() {
 
         {/* ── Trust bar ───────────────────────────────────────────────────────── */}
         <div
-          className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-4 border-t border-brand-border"
+          className="hidden md:flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-4 border-t border-brand-border"
           aria-label="Compromisos MAUI"
         >
           {TRUST.map((text) => (

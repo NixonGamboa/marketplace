@@ -14,7 +14,7 @@ export function FloatingCartBar({ itemCount, total, currency = 'COP', onCheckout
   if (itemCount === 0) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 animate-slide-in-bottom">
+    <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 animate-slide-in-bottom">
       <button
         onClick={onCheckout}
         aria-label={`Ver canasta, ${itemCount} producto${itemCount === 1 ? '' : 's'}, total ${formatPrice(total, currency)}`}
