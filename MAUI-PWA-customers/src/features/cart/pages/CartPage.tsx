@@ -2,13 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import { ShoppingCart } from 'lucide-react'
 import { useCart } from '@/hooks'
 import { CartItemRow } from '../components/CartItemRow'
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
+import { formatPrice } from '@/shared/utils/formatPrice'
 
 export default function CartPage() {
   const navigate = useNavigate()
-  const { items, removeItem, updateQuantity, updateKilos, total, count } = useCart()
+  const { items, removeItem, updateQuantity, updateKilos, total } = useCart()
 
   if (items.length === 0) {
     return (
@@ -38,7 +36,7 @@ export default function CartPage() {
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-brand-dark">Tu canasta</h1>
         <p className="text-brand-muted text-sm mt-0.5">
-          {count} producto{count === 1 ? '' : 's'}
+          {items.length} producto{items.length === 1 ? '' : 's'}
         </p>
       </div>
 

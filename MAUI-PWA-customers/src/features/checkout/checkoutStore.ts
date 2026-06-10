@@ -41,7 +41,7 @@ const initialState: CheckoutState = {
   address: null,
   lat: null,
   lng: null,
-  substitutionPref: null,
+  substitutionPref: 'similar',
   customerName: null,
   isSubmitting: false,
 }
@@ -75,20 +75,22 @@ export const useCheckoutStore = create<CheckoutStore>((set) => ({
   reset: () => set(initialState),
 }))
 
-// ─── Derived selector ─────────────────────────────────────────────────────────
+// ─── Derived selectors ────────────────────────────────────────────────────────
 
-/**
- * Returns true when the minimum required fields for checkout submission are
- * filled in, based on the selected delivery mode:
- *   - deliveryMode is always required
- *   - substitutionPref is always required
- *   - pickup requires a timeSlot
- *   - delivery requires an address
- */
+/** True when delivery details alone are complete (step 1 gate — no substitutionPref required). */
+export function useIsDeliveryReady(): boolean {
+  return useCheckoutStore((s) => {
+    if (s.deliveryMode === null) return false
+    if (s.deliveryMode === 'pickup') return s.timeSlot !== null
+    return s.address !== null && s.address.trim() !== ''
+  })
+}
+
+/** True when all required fields for final submission are filled in. */
 export function useIsCheckoutReady(): boolean {
   return useCheckoutStore((s) => {
     if (s.deliveryMode === null || s.substitutionPref === null) return false
     if (s.deliveryMode === 'pickup') return s.timeSlot !== null
-    return s.address !== null
+    return s.address !== null && s.address.trim() !== ''
   })
 }
