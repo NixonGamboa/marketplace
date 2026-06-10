@@ -158,7 +158,7 @@ export function ProductDetailSheet({
         {/* Contenido scrolleable */}
         <div className="flex-1 overflow-y-auto">
           {/* Imagen */}
-          <div className="relative w-full aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+          <div className="relative w-full aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
             <img
               src={image}
               alt={name}
