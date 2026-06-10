@@ -4,6 +4,9 @@ export function useProductQuantity(productId: string | undefined) {
   const quantity = useCartStore((s) =>
     productId ? (s.items.find((i) => i.productId === productId)?.quantity ?? 0) : 0,
   )
+  const kilos = useCartStore((s) =>
+    productId ? (s.items.find((i) => i.productId === productId)?.kilos ?? 0) : 0,
+  )
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
 
@@ -18,5 +21,5 @@ export function useProductQuantity(productId: string | undefined) {
     else updateQuantity(productId, quantity - 1)
   }
 
-  return { quantity, increment, decrement }
+  return { quantity, kilos, increment, decrement }
 }

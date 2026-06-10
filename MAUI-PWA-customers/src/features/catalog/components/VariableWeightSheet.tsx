@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Minus, Plus } from 'lucide-react'
+import { formatPrice } from '@/shared/utils/formatPrice'
 
 interface VariableWeightSheetProps {
   open: boolean
@@ -8,19 +9,8 @@ interface VariableWeightSheetProps {
   productName: string
   pricePerUnit: number // precio por kilogramo
   currency?: string
+  initialKilos?: number
   onConfirm: (kilos: number) => void
-}
-
-const formatPrice = (value: number, currency = 'COP') => {
-  try {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value)
-  } catch {
-    return `$${value}`
-  }
 }
 
 const MIN_KG = 0.25
@@ -33,9 +23,10 @@ export function VariableWeightSheet({
   productName,
   pricePerUnit,
   currency = 'COP',
+  initialKilos,
   onConfirm,
 }: VariableWeightSheetProps) {
-  const [kilos, setKilos] = useState(0.5)
+  const [kilos, setKilos] = useState(initialKilos ?? 0.5)
   const titleId = useId()
 
   // Bloquear scroll del body cuando el sheet está abierto
@@ -48,10 +39,9 @@ export function VariableWeightSheet({
     }
   }, [open])
 
-  // Resetear kg al abrir
-  useEffect(() => {
-    if (open) setKilos(0.5)
-  }, [open])
+  // Sincroniza el peso al momento de abrir; no durante la edición activa
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setKilos(initialKilos ?? 0.5) }, [open])
 
   if (!open) return null
 

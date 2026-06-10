@@ -3,8 +3,8 @@ import type { Product } from '@/types'
 import { productToCartItem } from '@/features/catalog/mappers'
 
 export function useCart() {
-  const { items, addItem, removeItem, updateQuantity, clearCart, count, total } = useCartStore()
-  return { items, addItem, removeItem, updateQuantity, clearCart, count, total }
+  const { items, addItem, removeItem, updateQuantity, updateKilos, clearCart, count, total } = useCartStore()
+  return { items, addItem, removeItem, updateQuantity, updateKilos, clearCart, count, total }
 }
 
 export function useAddToCart() {

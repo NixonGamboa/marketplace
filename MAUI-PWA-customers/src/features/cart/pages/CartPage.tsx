@@ -8,7 +8,7 @@ const formatPrice = (value: number) =>
 
 export default function CartPage() {
   const navigate = useNavigate()
-  const { items, removeItem, updateQuantity, total, count } = useCart()
+  const { items, removeItem, updateQuantity, updateKilos, total, count } = useCart()
 
   if (items.length === 0) {
     return (
@@ -50,6 +50,7 @@ export default function CartPage() {
             item={item}
             onRemove={removeItem}
             onQuantityChange={updateQuantity}
+            onKilosChange={updateKilos}
           />
         ))}
       </div>

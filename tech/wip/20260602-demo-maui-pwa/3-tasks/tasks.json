@@ -9,13 +9,22 @@
     "frontend_dev_server": "vite"
   },
   "stats": {
-    "total": 21,
-    "done": 21,
+    "total": 33,
+    "done": 30,
+    "drift": 1,
+    "pending": 2,
     "by_layer": {
-      "1": 21,
+      "1": 33,
       "2": 0,
       "3": 0
-    }
+    },
+    "drift_notes": [
+      "TASK-021: archivo DemoSimulator.tsx no encontrado en código",
+      "TASK-006: useProducts() ya no acepta { categoryId } — filtrado movido a CatalogPage (cambio post-aprobación)",
+      "TASK-005: mockProducts referencia categoryIds inexistentes (cat-gr, cat-em) — limpieza pendiente en TASK-027",
+      "Paths corregidos client/src/ → src/ tras flatten del repo (commit ebcf57b)",
+      "TASK-031: completado — CartItem.kilos persistido; unidad cambiada a kg (0.25–5 kg, paso 0.25)"
+    ]
   },
   "execution_strategy": "parallel",
   "orchestration": {
@@ -33,9 +42,9 @@
       "complexity": "Low",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/services/index.ts",
-        "MAUI-PWA-customers/client/src/types/orderService.ts",
-        "MAUI-PWA-customers/client/.env.demo"
+        "MAUI-PWA-customers/src/services/index.ts",
+        "MAUI-PWA-customers/src/types/orderService.ts",
+        "MAUI-PWA-customers/.env.demo"
       ],
       "acceptance_criteria": [
         "AC-1: `services/index.ts` exporta `orderService` con el switch `import.meta.env.VITE_DEMO_MODE === 'true'`",
@@ -61,7 +70,7 @@
         "TASK-001"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/services/mockOrderService.ts"
+        "MAUI-PWA-customers/src/services/mockOrderService.ts"
       ],
       "acceptance_criteria": [
         "AC-1: `submit(payload)` retorna `OrderConfirmation` con `orderId` formato `MAUI-{timestamp}` tras delay 1200ms",
@@ -88,7 +97,7 @@
       "complexity": "Low",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/stores/authStore.ts"
+        "MAUI-PWA-customers/src/stores/authStore.ts"
       ],
       "acceptance_criteria": [
         "AC-1: Constante `DEMO_USER` definida con datos hardcoded (id, name, phone)",
@@ -112,7 +121,7 @@
       "complexity": "Low",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/config/app.ts"
+        "MAUI-PWA-customers/src/config/app.ts"
       ],
       "acceptance_criteria": [
         "AC-1: `WHATSAPP_SUPPORT_NUMBER` apunta al número real de L&M (placeholder documentado si aún no se ha confirmado)",
@@ -134,7 +143,7 @@
       "complexity": "Medium",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/features/catalog/mockData.ts"
+        "MAUI-PWA-customers/src/features/catalog/mockData.ts"
       ],
       "acceptance_criteria": [
         "AC-1: Al menos 15 productos con datos reales (o realistas si datos del aliado pendientes)",
@@ -160,7 +169,7 @@
         "TASK-005"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/catalog/CatalogPage.tsx"
+        "MAUI-PWA-customers/src/features/catalog/CatalogPage.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Lee `categoryId` desde `useParams()` y lo pasa al hook `useProducts`",
@@ -185,7 +194,7 @@
         "TASK-005"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/catalog/ProductDetailModal.tsx"
+        "MAUI-PWA-customers/src/features/catalog/ProductDetailModal.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Modal centrado con backdrop semi-transparente",
@@ -210,7 +219,7 @@
       "complexity": "Low",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/features/checkout/checkoutStore.ts"
+        "MAUI-PWA-customers/src/features/checkout/checkoutStore.ts"
       ],
       "acceptance_criteria": [
         "AC-1: Store creado con `create()` de Zustand SIN middleware `persist`",
@@ -236,7 +245,7 @@
         "TASK-008"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/checkout/DeliverySelector.tsx"
+        "MAUI-PWA-customers/src/features/checkout/DeliverySelector.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Toggle entre Pickup y Domicilio con UI clara del estado seleccionado",
@@ -261,7 +270,7 @@
         "TASK-008"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/checkout/SubstitutionSelector.tsx"
+        "MAUI-PWA-customers/src/features/checkout/SubstitutionSelector.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: 3 radio buttons con labels claros: 'Llámame', 'Producto similar', 'Eliminar del pedido'",
@@ -289,7 +298,7 @@
         "TASK-010"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/checkout/CheckoutPage.tsx"
+        "MAUI-PWA-customers/src/features/checkout/CheckoutPage.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: 4 secciones visibles en orden: Resumen, Modalidad, Sustitución, Confirmación",
@@ -315,7 +324,7 @@
       "complexity": "Low",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/features/cart/CartPage.tsx"
+        "MAUI-PWA-customers/src/features/cart/CartPage.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: CTA en `CartPage` dice exactamente 'Pedir mi Mercado' (sin la palabra 'Pagar')",
@@ -336,7 +345,7 @@
       "complexity": "Medium",
       "depends_on": [],
       "files": [
-        "MAUI-PWA-customers/client/src/features/orders/OrderTimeline.tsx"
+        "MAUI-PWA-customers/src/features/orders/OrderTimeline.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Renderiza 5 steps en el orden: received, confirmed, preparing, ready, delivered",
@@ -362,7 +371,7 @@
         "TASK-013"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/orders/OrderDetailPage.tsx"
+        "MAUI-PWA-customers/src/features/orders/OrderDetailPage.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Lee `orderId` con `useParams()` y llama a `useQuery` con `refetchInterval: 5000`",
@@ -389,7 +398,7 @@
         "TASK-002"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/features/orders/OrdersPage.tsx"
+        "MAUI-PWA-customers/src/features/orders/OrdersPage.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: `useQuery` llamando a `orderService.list()`",
@@ -417,7 +426,7 @@
         "TASK-014"
       ],
       "files": [
-        "MAUI-PWA-customers/client/src/App.tsx"
+        "MAUI-PWA-customers/src/App.tsx"
       ],
       "acceptance_criteria": [
         "AC-1: Ruta `/catalog/:categoryId` registrada y carga `CatalogPage`",
@@ -560,7 +569,8 @@
       "id": "TASK-021",
       "title": "Admin — DemoSimulator (auto-avance 20s)",
       "description": "Crear `maui-admin-front/src/features/orders/DemoSimulator.tsx`. Botón '▶ Demo en vivo' que activa un `setInterval` cada 20 segundos para avanzar automáticamente el estado del pedido activo (visto en `OrderDetail`). Botón '⏸ Detener' para pausar. Cleanup del interval al desmontar. Visible solo en `OrderDetail`.",
-      "status": "completed",
+      "status": "drift",
+      "drift_notes": "Marcado completed pero el archivo DemoSimulator.tsx no se encuentra en código (verificado 2026-06-08). Decidir en próxima iteración: (a) implementar, (b) reemplazar por ReorderBanner que sí existe, o (c) sacar del scope.",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -580,6 +590,291 @@
         "US-8"
       ],
       "design_decisions": []
+    },
+    {
+      "id": "TASK-022",
+      "title": "Layout responsive — Header (una fila) + RootLayout + Footer",
+      "description": "Crear `shared/components/layout/{Header,RootLayout,Footer}.tsx`. Header con una sola fila (h-14 md:h-16) en todos los breakpoints. RootLayout envuelve todas las rutas (excepto NotFound) con Header + Outlet + Footer + PWAUpdateBanner.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/shared/components/layout/Header.tsx",
+        "MAUI-PWA-customers/src/shared/components/layout/RootLayout.tsx",
+        "MAUI-PWA-customers/src/shared/components/layout/Footer.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Header en móvil muestra imagotipo + buscador flex-1 + carrito redondo + avatar",
+        "AC-2: Header en desktop (≥md) muestra isotipo+logotipo+subtítulo + buscador + nav + carrito pill con total + avatar",
+        "AC-3: RootLayout es wrapper de todas las rutas excepto NotFound",
+        "AC-4: Footer oculto en móvil con lg:hidden"
+      ],
+      "references": [
+        "US-9"
+      ],
+      "design_decisions": [
+        "DD-6"
+      ]
+    },
+    {
+      "id": "TASK-023",
+      "title": "BottomNavBar PWA-nativa (5 slots + FAB carrito + safe-area)",
+      "description": "Crear `shared/components/layout/BottomNavBar.tsx` visible en `lg:hidden`. 5 slots: Inicio, Ofertas, Carrito (FAB elevado con badge), Mis pedidos, Favoritos. Hook `useBottomNavVisible()` para visibilidad por ruta. Padding inferior dinámico con env(safe-area-inset-bottom).",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-022"
+      ],
+      "files": [
+        "MAUI-PWA-customers/src/shared/components/layout/BottomNavBar.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 5 slots con orden fijo: Inicio · Ofertas · Carrito (FAB) · Mis pedidos · Favoritos",
+        "AC-2: Slot Carrito es FAB elevado con badge cartCount cuando >0; plano cuando vacío",
+        "AC-3: Visibilidad controlada por useBottomNavVisible()",
+        "AC-4: Respeta env(safe-area-inset-bottom) para PWA instalada"
+      ],
+      "references": [
+        "US-9"
+      ],
+      "design_decisions": [
+        "DD-6"
+      ]
+    },
+    {
+      "id": "TASK-024",
+      "title": "HeroCarousel con 2 slides + gradiente horizontal responsive",
+      "description": "Crear `features/catalog/components/HeroCarousel.tsx`. 2 slides definidos en `assets/hero/index.ts`. Autoplay 5s, pause on hover/focus. Gradiente bg-gradient-to-r con mayor opacidad blanca en móvil para legibilidad. Badge circular 72×72 hidden md:flex. Dots/pills + flechas solo desktop.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/components/HeroCarousel.tsx",
+        "MAUI-PWA-customers/src/assets/hero/index.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 2 slides — 'Maui y Leche y Miel, más cerca de ti' y 'Productos frescos todos los días'",
+        "AC-2: Autoplay 5s con pause on hover/focus",
+        "AC-3: Gradiente horizontal — más opaco en móvil para legibilidad sobre la imagen",
+        "AC-4: Indicadores dot/pill abajo en todos los breakpoints; flechas prev/next solo desktop"
+      ],
+      "references": [
+        "US-1"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-025",
+      "title": "Taxonomía BusinessCategory/BusinessCategoryGroup + mockData + hooks",
+      "description": "Definir tipos `BusinessCategory` y `BusinessCategoryGroup` en `types/catalog.ts` (separados de `Category`). Agregar `mockBusinessCategoryGroups` a `mockData.ts`. Crear hook `useBusinessCategoryGroups()` en `hooks/useCatalog.ts`. Registry de íconos Lucide (BCAT_ICON_REGISTRY) para resolver iconName → LucideIcon.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/types/catalog.ts",
+        "MAUI-PWA-customers/src/features/catalog/mockData.ts",
+        "MAUI-PWA-customers/src/hooks/useCatalog.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: BusinessCategory y BusinessCategoryGroup definidos como tipos separados de Category",
+        "AC-2: mockBusinessCategoryGroups expone Comprar / Servicios / Comunidad con sus items",
+        "AC-3: useBusinessCategoryGroups() retorna data via React Query (staleTime 10min)",
+        "AC-4: Items con comingSoon: true sin slug (no navegan)"
+      ],
+      "references": [
+        "US-10"
+      ],
+      "design_decisions": [
+        "DD-5"
+      ]
+    },
+    {
+      "id": "TASK-026",
+      "title": "Home rediseñada — Sidebar colapsable + 4 secciones",
+      "description": "Rediseñar `features/catalog/pages/Home.tsx` con secciones: HeroCarousel · Beneficios para ti · Categorías principales (PNG circulares 96×96) · MauiPlusCard + Ofertas del día · Trust bar (desktop). Sidebar desktop con SidebarSection colapsable mapeando useBusinessCategoryGroups(). MauiPlusCard inline con banner ahorra-maui-plus.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-024",
+        "TASK-025"
+      ],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/pages/Home.tsx",
+        "MAUI-PWA-customers/src/assets/categories",
+        "MAUI-PWA-customers/src/assets/banners/ahorra-maui-plus.png",
+        "MAUI-PWA-customers/src/assets/promos/envio-gratis.png"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Home renderiza HeroCarousel · Beneficios · Categorías principales · Ofertas del día en orden",
+        "AC-2: Sidebar desktop (lg:flex) con SidebarSection colapsable + tarjeta promo Envío gratis",
+        "AC-3: SidebarSection con chevron animado (-rotate-180 cuando expanded)",
+        "AC-4: MauiPlusCard ocupa el primer slot del grid Ofertas",
+        "AC-5: Categorías principales con PNG circular 96×96 desde assets/categories",
+        "AC-6: Items comingSoon muestran badge 'Próximamente' y aria-disabled"
+      ],
+      "references": [
+        "US-1",
+        "US-9",
+        "US-10"
+      ],
+      "design_decisions": [
+        "DD-5",
+        "DD-6"
+      ]
+    },
+    {
+      "id": "TASK-027",
+      "title": "Limpieza mockData — categoryIds huérfanos",
+      "description": "mockProducts referencia categoryIds inexistentes en mockCategories: 'cat-gr' (grano) y 'cat-em' (embutidos). Decidir: (a) eliminar productos con esos IDs, o (b) registrar las categorías faltantes en mockCategories. Asegurar consistencia antes del deploy.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-025"
+      ],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/mockData.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Ningún Product en mockProducts referencia un categoryId que no exista en mockCategories",
+        "AC-2: CatalogPage filtra correctamente todos los productos por categoría sin productos huérfanos"
+      ],
+      "references": [
+        "US-1"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-028",
+      "title": "Decidir rutas pendientes (/ofertas, /favoritos, /search, /catalog sin id)",
+      "description": "BottomNavBar y CTAs referencian rutas no registradas (/ofertas, /favoritos, /search, /catalog sin parámetro) que hoy caen en NotFound. Decidir: (a) registrar como placeholders (página 'Próximamente'), (b) redirigir al Home, o (c) quitar las referencias del BottomNav/Header hasta tener páginas reales.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-022",
+        "TASK-023"
+      ],
+      "files": [
+        "MAUI-PWA-customers/src/App.tsx",
+        "MAUI-PWA-customers/src/shared/components/layout/BottomNavBar.tsx",
+        "MAUI-PWA-customers/src/shared/components/layout/Header.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Ninguna ruta referenciada por la UI cae en NotFound por estar sin registrar",
+        "AC-2: Decisión documentada en spec técnico (placeholder vs redirect vs remove)"
+      ],
+      "references": [
+        "US-9"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-029",
+      "title": "Decidir destino de PasillosGrid.tsx (huérfano) y DemoSimulator (drift)",
+      "description": "PasillosGrid.tsx existe en features/catalog/components/ pero no es referenciado por ningún componente. DemoSimulator.tsx fue marcado completed en TASK-021 pero no existe en código. Para ambos: decidir (a) eliminar, (b) implementar/usar, o (c) reemplazar por componente existente (ej. ReorderBanner cubre parte del valor del simulador).",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/components/PasillosGrid.tsx",
+        "maui-admin-front/src/features/orders/DemoSimulator.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: PasillosGrid eliminado, reutilizado o documentado con propósito claro",
+        "AC-2: DemoSimulator implementado, reemplazado o sacado de scope (con actualización del spec)",
+        "AC-3: TASK-021 actualizado de drift a completed o cancelled según decisión"
+      ],
+      "references": [
+        "US-8"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-030",
+      "title": "QuantityStepper — counter pill inline en ProductCard",
+      "description": "Crear `features/catalog/components/QuantityStepper.tsx`. Pill `bg-brand-primary rounded-full h-9` con botones −/+ blancos. Soporta long-press (1 s delay, repite cada 300 ms via pointerDown/Up/Leave/Cancel). `role=group` con `aria-label='Cantidad: {quantity}'`.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/components/QuantityStepper.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: FAB `+` en ProductCard se reemplaza por QuantityStepper cuando quantity > 0",
+        "AC-2: Long-press activa repetición automática tras 1 s, cada 300 ms",
+        "AC-3: `aria-label='Cantidad: {quantity}'` presente",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": ["US-2", "AC-2.6"]
+    },
+    {
+      "id": "TASK-031",
+      "title": "VariableWeightSheet — bottom sheet selección de kilogramos",
+      "description": "Crear `features/catalog/components/VariableWeightSheet.tsx`. Bottom sheet `role=dialog aria-modal` para productos `is_variable_weight`. Selector 0.25–5 kg (paso 0.25). Muestra precio estimado en tiempo real. `safe-area-inset-bottom` en paddingBottom. `CartItem.kilos` persistido en cartStore; `addItem` acumula kilos; `calcTotals` usa kilos para precio.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/components/VariableWeightSheet.tsx",
+        "MAUI-PWA-customers/src/types/cart.ts",
+        "MAUI-PWA-customers/src/stores/cartStore.ts",
+        "MAUI-PWA-customers/src/features/catalog/components/ProductCard.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Sheet se abre al tocar FAB en producto `is_variable_weight === true`",
+        "AC-2: Selector 0.25–5 kg, paso 0.25; botones −/+ con disabled en extremos",
+        "AC-3: Precio estimado = `kilos × pricePerUnit` actualizado en tiempo real",
+        "AC-4: safe-area-inset-bottom respetado en CTA inferior",
+        "AC-5: CartItem.kilos persistido en cartStore; acumulación correcta en addItem"
+      ],
+      "references": ["US-2", "AC-1.4"]
+    },
+    {
+      "id": "TASK-032",
+      "title": "useProductQuantity — hook cartStore por productId",
+      "description": "Crear `shared/hooks/useProductQuantity.ts`. Lee quantity del cartStore para un productId. `increment()` llama `updateQuantity(id, q+1)`. `decrement()` llama `removeItem(id)` si q<=1, sino `updateQuantity(id, q-1)`.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": ["TASK-003"],
+      "files": [
+        "MAUI-PWA-customers/src/shared/hooks/useProductQuantity.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `quantity` refleja el valor actual en cartStore sin prop drilling",
+        "AC-2: `decrement` con quantity 1 llama `removeItem`",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": ["US-2", "AC-2.6", "AC-2.7"]
+    },
+    {
+      "id": "TASK-033",
+      "title": "ProductCard refactored — FAB/Stepper inline + badge Local",
+      "description": "Refactorizar `features/catalog/components/ProductCard.tsx`. Reemplazar botón ancho completo por FAB circular `w-9 h-9 rounded-full bg-brand-primary` (quantity=0) y `<QuantityStepper>` (quantity>0). Badge 'Local' usa `bg-emerald-600`. Productos `is_variable_weight`: FAB abre `<VariableWeightSheet>`. Precio y CTA en fila `flex items-end justify-between`. Usa `useProductQuantity(id)`.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": ["TASK-030", "TASK-031", "TASK-032"],
+      "files": [
+        "MAUI-PWA-customers/src/features/catalog/components/ProductCard.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: FAB visible cuando quantity === 0; QuantityStepper visible cuando quantity > 0",
+        "AC-2: Badge 'Local' renderiza en bg-emerald-600",
+        "AC-3: Producto agotado muestra 'Sin stock' inline (no botón)",
+        "AC-4: Precio y CTA en misma fila (no full-width button)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": ["US-2", "US-3", "AC-1.3", "AC-1.4", "AC-2.1"]
     }
   ],
   "dependency_graph": {
@@ -593,7 +888,14 @@
           "TASK-008",
           "TASK-012",
           "TASK-013",
-          "TASK-017"
+          "TASK-017",
+          "TASK-022",
+          "TASK-024",
+          "TASK-025",
+          "TASK-029",
+          "TASK-030",
+          "TASK-031",
+          "TASK-032"
         ],
         "level_1": [
           "TASK-002",
@@ -601,13 +903,18 @@
           "TASK-007",
           "TASK-009",
           "TASK-010",
-          "TASK-018"
+          "TASK-018",
+          "TASK-023",
+          "TASK-027",
+          "TASK-033"
         ],
         "level_2": [
           "TASK-011",
           "TASK-014",
           "TASK-015",
-          "TASK-019"
+          "TASK-019",
+          "TASK-026",
+          "TASK-028"
         ],
         "level_3": [
           "TASK-016",

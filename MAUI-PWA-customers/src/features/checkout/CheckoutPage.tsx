@@ -154,10 +154,12 @@ export default function CheckoutPage() {
               >
                 <span className="flex-1 text-brand-dark leading-snug">
                   {item.name}
-                  <span className="ml-1 text-brand-muted">× {item.quantity}</span>
+                  <span className="ml-1 text-brand-muted">
+                    × {item.is_variable_weight ? (item.kilos ?? 1) : item.quantity}
+                  </span>
                 </span>
                 <span className="tabular-nums font-medium text-brand-dark shrink-0">
-                  {formatPrice(item.price_at_moment * item.quantity)}
+                  {formatPrice(item.price_at_moment * (item.is_variable_weight ? (item.kilos ?? 1) : item.quantity))}
                 </span>
               </li>
             ))}

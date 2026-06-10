@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { CartItem } from '@/types'
 
 const STALE_MS = 30 * 24 * 60 * 60 * 1000 // 30 días
+const roundKg = (v: number) => parseFloat(v.toFixed(2))
 
 interface CartStore {
   items: CartItem[]
@@ -36,23 +37,15 @@ export const useCartStore = create<CartStore>()(
       lastUpdated: null,
 
       addItem: (item) => {
-        const existing = get().items.find((i) => i.productId === item.productId)
-        let items: CartItem[]
-        if (existing) {
-          if (item.is_variable_weight && item.kilos != null) {
-            items = get().items.map((i) =>
-              i.productId === item.productId
-                ? { ...i, kilos: parseFloat(((i.kilos ?? 0) + item.kilos!).toFixed(2)) }
-                : i,
-            )
-          } else {
-            items = get().items.map((i) =>
-              i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i,
-            )
-          }
-        } else {
-          items = [...get().items, { ...item, quantity: 1 }]
-        }
+        let found = false
+        const updated = get().items.map((i) => {
+          if (i.productId !== item.productId) return i
+          found = true
+          return item.is_variable_weight && item.kilos != null
+            ? { ...i, kilos: roundKg((i.kilos ?? 0) + item.kilos) }
+            : { ...i, quantity: i.quantity + 1 }
+        })
+        const items = found ? updated : [...updated, { ...item, quantity: 1 }]
         set({ items, ...calcTotals(items), lastUpdated: Date.now() })
       },
 
@@ -67,7 +60,7 @@ export const useCartStore = create<CartStore>()(
           return
         }
         const items = get().items.map((i) =>
-          i.productId === productId ? { ...i, kilos: parseFloat(kilos.toFixed(2)) } : i,
+          i.productId === productId ? { ...i, kilos: roundKg(kilos) } : i,
         )
         set({ items, ...calcTotals(items), lastUpdated: Date.now() })
       },

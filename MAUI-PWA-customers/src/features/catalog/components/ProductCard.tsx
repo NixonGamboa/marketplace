@@ -6,6 +6,7 @@ import { VariableWeightSheet } from './VariableWeightSheet'
 import { ProductDetailSheet } from './ProductDetailSheet'
 import { useProductQuantity } from '@/shared/hooks/useProductQuantity'
 import { useCartStore } from '@/stores/cartStore'
+import { formatPrice } from '@/shared/utils/formatPrice'
 import type { Product } from '@/types/catalog'
 import type { CartItem } from '@/types/cart'
 
@@ -29,18 +30,6 @@ export interface ProductCardProps {
   description?: string
   nutritionalInfo?: Product['nutritionalInfo']
   availability?: string
-}
-
-const formatPrice = (value: number, currency = 'COP') => {
-  try {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value)
-  } catch {
-    return `$${value}`
-  }
 }
 
 const ProductCard = ({
@@ -67,7 +56,7 @@ const ProductCard = ({
   const [favorited, setFavorited] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
-  const { quantity, increment, decrement } = useProductQuantity(id)
+  const { quantity, kilos: kilosInCart, increment, decrement } = useProductQuantity(id)
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
@@ -198,14 +187,30 @@ const ProductCard = ({
           {inStock ? (
             <div className="shrink-0">
               {is_variable_weight ? (
-                <button
-                  onClick={() => setSheetOpen(true)}
-                  aria-label={`Agregar ${name}`}
-                  disabled={disabled || loading}
-                  className="shrink-0 w-9 h-9 rounded-full bg-brand-primary hover:bg-brand-primary-dark text-white shadow-brand-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1"
-                >
-                  <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
-                </button>
+                kilosInCart > 0 ? (
+                  <div className="flex items-center gap-1 rounded-full bg-brand-primary shadow-brand-md pl-2.5 pr-1 py-1">
+                    <span className="text-white font-bold text-xs tabular-nums leading-none">
+                      {kilosInCart} kg
+                    </span>
+                    <button
+                      onClick={() => setSheetOpen(true)}
+                      aria-label={`Agregar más ${name}`}
+                      disabled={disabled || loading}
+                      className="w-6 h-6 rounded-full bg-white/25 hover:bg-white/40 text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-brand-primary"
+                    >
+                      <Plus size={13} strokeWidth={2.8} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setSheetOpen(true)}
+                    aria-label={`Agregar ${name}`}
+                    disabled={disabled || loading}
+                    className="shrink-0 w-9 h-9 rounded-full bg-brand-primary hover:bg-brand-primary-dark text-white shadow-brand-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1"
+                  >
+                    <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
+                  </button>
+                )
               ) : quantity === 0 ? (
                 <button
                   onClick={() => onAdd?.()}
@@ -247,6 +252,7 @@ const ProductCard = ({
           productName={name}
           pricePerUnit={price}
           currency={currency}
+          initialKilos={kilosInCart > 0 ? kilosInCart : undefined}
           onConfirm={(kilos) => {
             addItem({
               productId: id ?? name,
