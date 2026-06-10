@@ -7,6 +7,7 @@ export interface CartItem {
   unit: string
   quantity: number
   is_variable_weight: boolean // para mostrar badge en CartItemRow
+  kilos?: number // kilogramos seleccionados; solo para is_variable_weight === true
 }
 
 export interface CartState {

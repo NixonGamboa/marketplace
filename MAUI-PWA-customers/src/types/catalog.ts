@@ -12,6 +12,16 @@ export interface Product {
   is_variable_weight: boolean // true → mostrar badge naranja de peso variable
   badge?: string
   currency?: string
+  description?: string
+  nutritionalInfo?: {
+    calories?: number
+    protein?: string    // e.g. "3g"
+    fat?: string        // e.g. "1.5g"
+    carbs?: string      // e.g. "12g"
+    fiber?: string      // e.g. "0g"
+    serving?: string    // e.g. "Por 100ml"
+  }
+  availability?: string // "Disponible" | "Pocas unidades" | "Agotado"
 }
 
 export interface Category {

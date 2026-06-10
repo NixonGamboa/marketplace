@@ -1,6 +1,13 @@
 import { memo, useState } from 'react'
-import { ShoppingCart, Check } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { VariableWeightBadge } from './VariableWeightBadge'
+import { QuantityStepper } from './QuantityStepper'
+import { VariableWeightSheet } from './VariableWeightSheet'
+import { ProductDetailSheet } from './ProductDetailSheet'
+import { useProductQuantity } from '@/shared/hooks/useProductQuantity'
+import { useCartStore } from '@/stores/cartStore'
+import type { Product } from '@/types/catalog'
+import type { CartItem } from '@/types/cart'
 
 export interface ProductCardProps {
   id?: string
@@ -19,6 +26,9 @@ export interface ProductCardProps {
   is_variable_weight?: boolean
   badge?: string
   className?: string
+  description?: string
+  nutritionalInfo?: Product['nutritionalInfo']
+  availability?: string
 }
 
 const formatPrice = (value: number, currency = 'COP') => {
@@ -43,15 +53,25 @@ const ProductCard = ({
   unit,
   currency = 'COP',
   onAdd,
-  added = false,
+  added: _added = false,
   disabled = false,
   loading = false,
   inStock = true,
   is_variable_weight = false,
   badge,
   className = '',
+  description,
+  nutritionalInfo,
+  availability,
 }: ProductCardProps) => {
   const [favorited, setFavorited] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const { quantity, increment, decrement } = useProductQuantity(id)
+  const addItem = useCartStore((s) => s.addItem)
+  const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const removeItem = useCartStore((s) => s.removeItem)
+
   const priceLabel = formatPrice(price, currency)
   const originalLabel = originalPrice ? formatPrice(originalPrice, currency) : null
   const discountPct =
@@ -82,7 +102,12 @@ const ProductCard = ({
 
       {/* Badge personalizado (sin descuento) */}
       {badge && !discountPct && (
-        <span className="absolute left-2.5 top-2.5 z-10 rounded-lg bg-brand-primary px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white shadow-brand-sm">
+        <span
+          className={[
+            'absolute left-2.5 top-2.5 z-10 rounded-lg px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white shadow-brand-sm',
+            badge === 'Local' ? 'bg-emerald-600' : 'bg-brand-primary',
+          ].join(' ')}
+        >
           {badge}
         </span>
       )}
@@ -98,12 +123,17 @@ const ProductCard = ({
       {inStock && (
         <button
           onClick={() => setFavorited((f) => !f)}
-          aria-label={favorited ? `Quitar ${name} de favoritos` : `Agregar ${name} a favoritos`}
+          aria-label={
+            favorited ? `Quitar ${name} de favoritos` : `Agregar ${name} a favoritos`
+          }
           className="absolute right-2.5 top-2.5 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-card hover:shadow-card-hover transition-all"
         >
           <svg
             viewBox="0 0 24 24"
-            className={['w-4 h-4 transition-colors', favorited ? 'fill-red-500 stroke-red-500' : 'fill-none stroke-gray-400'].join(' ')}
+            className={[
+              'w-4 h-4 transition-colors',
+              favorited ? 'fill-red-500 stroke-red-500' : 'fill-none stroke-gray-400',
+            ].join(' ')}
             strokeWidth={1.8}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -113,8 +143,13 @@ const ProductCard = ({
         </button>
       )}
 
-      {/* Imagen */}
-      <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center overflow-hidden">
+      {/* Imagen — tap abre detalle */}
+      <button
+        type="button"
+        aria-label={`Ver detalle de ${name}`}
+        onClick={() => setDetailOpen(true)}
+        className="relative aspect-square w-full bg-gray-50 flex items-center justify-center overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-inset"
+      >
         <img
           src={image}
           alt={imageAlt}
@@ -122,11 +157,20 @@ const ProductCard = ({
           className="h-[80%] w-[80%] object-contain object-center mix-blend-multiply select-none transition-transform duration-300 group-hover:scale-[1.06]"
           draggable={false}
         />
-      </div>
+      </button>
 
       {/* Info */}
       <div className="flex flex-1 flex-col gap-1 px-3 pb-3 pt-2.5">
-        <h3 className="text-sm font-medium leading-snug text-brand-dark line-clamp-2">{name}</h3>
+        <button
+          type="button"
+          aria-label={`Ver detalle de ${name}`}
+          onClick={() => setDetailOpen(true)}
+          className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:rounded-sm"
+        >
+          <h3 className="text-sm font-medium leading-snug text-brand-dark line-clamp-2">
+            {name}
+          </h3>
+        </button>
 
         {unit && <p className="text-[11px] text-brand-muted leading-tight">{unit}</p>}
 
@@ -134,61 +178,128 @@ const ProductCard = ({
           <VariableWeightBadge compact className="self-start" />
         )}
 
-        {/* Precio */}
-        <div className="flex flex-col mt-0.5">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-brand-primary font-bold text-base tabular-nums">{priceLabel}</span>
+        {/* Fila inferior: precio + FAB/Stepper (igual en móvil y desktop) */}
+        <div className="mt-auto pt-2 flex items-end justify-between gap-2">
+          {/* Precio */}
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-brand-primary font-bold text-base tabular-nums">
+                {priceLabel}
+              </span>
+            </div>
+            {originalLabel && (
+              <span className="text-[11px] text-brand-muted line-through tabular-nums">
+                {originalLabel}
+              </span>
+            )}
           </div>
-          {originalLabel && (
-            <span className="text-[11px] text-brand-muted line-through tabular-nums">{originalLabel}</span>
-          )}
-        </div>
 
-        {/* CTA */}
-        <div className="mt-auto pt-2">
+          {/* FAB / Stepper — móvil y desktop */}
           {inStock ? (
-            <button
-              onClick={onAdd}
-              disabled={disabled || loading}
-              aria-label={`${added ? 'Quitar' : 'Agregar'} ${name}`}
-              className={[
-                'w-full py-2 rounded-xl text-sm font-semibold transition-all duration-150',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1',
-                added
-                  ? 'bg-brand-primary/10 text-brand-primary border border-brand-primary/30'
-                  : 'border border-brand-primary text-brand-primary bg-white hover:bg-brand-primary/5',
-                (disabled || loading) && 'opacity-50 cursor-not-allowed',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {loading ? (
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-                  </svg>
-                  Agregando...
-                </span>
-              ) : added ? (
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  <Check size={14} />
-                  En canasta
-                </span>
+            <div className="shrink-0">
+              {is_variable_weight ? (
+                <button
+                  onClick={() => setSheetOpen(true)}
+                  aria-label={`Agregar ${name}`}
+                  disabled={disabled || loading}
+                  className="shrink-0 w-9 h-9 rounded-full bg-brand-primary hover:bg-brand-primary-dark text-white shadow-brand-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1"
+                >
+                  <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
+                </button>
+              ) : quantity === 0 ? (
+                <button
+                  onClick={() => onAdd?.()}
+                  aria-label={`Agregar ${name}`}
+                  disabled={disabled || loading}
+                  className="shrink-0 w-9 h-9 rounded-full bg-brand-primary hover:bg-brand-primary-dark text-white shadow-brand-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1"
+                >
+                  {loading ? (
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                      <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
+                  )}
+                </button>
               ) : (
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  <ShoppingCart size={14} />
-                  Agregar
-                </span>
+                <QuantityStepper
+                  quantity={quantity}
+                  onIncrement={increment}
+                  onDecrement={decrement}
+                  disabled={disabled || loading}
+                />
               )}
-            </button>
+            </div>
           ) : (
-            <span className="block text-center text-xs text-brand-muted py-1.5 font-medium">
+            <span className="shrink-0 text-xs text-brand-muted font-medium">
               Sin stock
             </span>
           )}
         </div>
       </div>
+
+      {/* Bottom sheet para peso variable */}
+      {is_variable_weight && (
+        <VariableWeightSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          productName={name}
+          pricePerUnit={price}
+          currency={currency}
+          onConfirm={(kilos) => {
+            addItem({
+              productId: id ?? name,
+              name,
+              imageUrl: image,
+              price,
+              price_at_moment: price,
+              unit: 'kg',
+              quantity: 1,
+              is_variable_weight: true,
+              kilos,
+            })
+          }}
+        />
+      )}
+
+      {/* Bottom sheet de detalle del producto */}
+      <ProductDetailSheet
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        id={id}
+        name={name}
+        image={image}
+        price={price}
+        originalPrice={originalPrice}
+        unit={unit}
+        currency={currency}
+        description={description}
+        nutritionalInfo={nutritionalInfo}
+        availability={availability}
+        inStock={inStock}
+        is_variable_weight={is_variable_weight}
+        badge={badge}
+        cartQuantity={quantity}
+        onAdd={(qty) => {
+          if (qty === 0) {
+            removeItem(id ?? '')
+          } else if (quantity > 0) {
+            updateQuantity(id ?? '', qty)
+          } else {
+            addItem({ productId: id ?? name, name, imageUrl: image, price, price_at_moment: price, unit: unit ?? '', quantity: 1, is_variable_weight: false } satisfies CartItem)
+            if (qty > 1) updateQuantity(id ?? '', qty)
+          }
+        }}
+        onOpenWeightSheet={
+          is_variable_weight
+            ? () => {
+                setDetailOpen(false)
+                setSheetOpen(true)
+              }
+            : undefined
+        }
+      />
     </article>
   )
 }

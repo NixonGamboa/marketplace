@@ -9,6 +9,8 @@ interface UIStore {
   setSelectedCategoryId: (id: string | undefined) => void
   updateAvailable: boolean
   setUpdateAvailable: (v: boolean) => void
+  bottomSheetOpen: boolean
+  setBottomSheetOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -23,4 +25,7 @@ export const useUIStore = create<UIStore>((set) => ({
 
   updateAvailable: false,
   setUpdateAvailable: (v) => set({ updateAvailable: v }),
+
+  bottomSheetOpen: false,
+  setBottomSheetOpen: (open) => set({ bottomSheetOpen: open }),
 }))

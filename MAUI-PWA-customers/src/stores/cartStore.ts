@@ -12,13 +12,17 @@ interface CartStore {
   addItem: (item: CartItem) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
+  updateKilos: (productId: string, kilos: number) => void
   clearCart: () => void
   clearIfStale: () => void
 }
 
 function calcTotals(items: CartItem[]) {
   return {
-    total: items.reduce((acc, i) => acc + i.price_at_moment * i.quantity, 0),
+    total: items.reduce((acc, i) => {
+      const qty = i.is_variable_weight ? (i.kilos ?? 1) : i.quantity
+      return acc + i.price_at_moment * qty
+    }, 0),
     count: items.reduce((acc, i) => acc + i.quantity, 0),
   }
 }
@@ -35,9 +39,17 @@ export const useCartStore = create<CartStore>()(
         const existing = get().items.find((i) => i.productId === item.productId)
         let items: CartItem[]
         if (existing) {
-          items = get().items.map((i) =>
-            i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i,
-          )
+          if (item.is_variable_weight && item.kilos != null) {
+            items = get().items.map((i) =>
+              i.productId === item.productId
+                ? { ...i, kilos: parseFloat(((i.kilos ?? 0) + item.kilos!).toFixed(2)) }
+                : i,
+            )
+          } else {
+            items = get().items.map((i) =>
+              i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i,
+            )
+          }
         } else {
           items = [...get().items, { ...item, quantity: 1 }]
         }
@@ -46,6 +58,17 @@ export const useCartStore = create<CartStore>()(
 
       removeItem: (productId) => {
         const items = get().items.filter((i) => i.productId !== productId)
+        set({ items, ...calcTotals(items), lastUpdated: Date.now() })
+      },
+
+      updateKilos: (productId, kilos) => {
+        if (kilos <= 0) {
+          get().removeItem(productId)
+          return
+        }
+        const items = get().items.map((i) =>
+          i.productId === productId ? { ...i, kilos: parseFloat(kilos.toFixed(2)) } : i,
+        )
         set({ items, ...calcTotals(items), lastUpdated: Date.now() })
       },
 

@@ -173,7 +173,7 @@ export default function Home() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] md:text-xs font-semibold text-brand-dark leading-tight">{b.title}</p>
-                  <p className="hidden sm:block text-[11px] text-brand-muted mt-0.5 leading-tight">{b.sub}</p>
+                  <p className="hidden md:block text-[11px] text-brand-muted mt-0.5 leading-tight">{b.sub}</p>
                 </div>
               </div>
             ))}
@@ -196,7 +196,7 @@ export default function Home() {
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat)}
-                className="shrink-0 w-[80px] md:w-auto bg-white rounded-xl border border-brand-border p-2.5 flex flex-col items-center gap-2 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                className="shrink-0 w-[80px] flex flex-col items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 md:w-auto md:bg-white md:rounded-xl md:border md:border-brand-border md:p-2.5 md:shadow-card md:hover:shadow-card-hover md:hover:-translate-y-0.5 md:transition-all md:duration-200"
               >
                 <div className="w-24 h-24 rounded-full bg-brand-primary-light flex items-center justify-center overflow-hidden shadow-[0_4px_14px_rgba(99,102,241,0.25)]">
                   {cat.illustrationUrl ? (
@@ -250,6 +250,9 @@ export default function Home() {
                   badge={product.badge}
                   added={cartProductIds.has(product.id)}
                   onAdd={() => addToCart(product)}
+                  description={product.description}
+                  nutritionalInfo={product.nutritionalInfo}
+                  availability={product.availability}
                 />
               ))}
             </div>
@@ -368,14 +371,9 @@ function MauiPlusCard({ bannerSrc }: { bannerSrc?: string }) {
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}
-      <div
-        className={[
-          'absolute inset-0',
-          bannerSrc
-            ? 'bg-gradient-to-b from-brand-primary/80 via-brand-primary/60 to-brand-primary/90'
-            : 'bg-gradient-to-b from-brand-primary via-brand-secondary to-brand-primary-dark',
-        ].join(' ')}
-      />
+      {!bannerSrc && (
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-primary via-brand-secondary to-brand-primary-dark" />
+      )}
       <div className="relative z-10 p-4 flex flex-col justify-between w-full">
         <div>
           <p className="text-white/80 text-[11px] font-medium leading-tight">Ahorra más con</p>

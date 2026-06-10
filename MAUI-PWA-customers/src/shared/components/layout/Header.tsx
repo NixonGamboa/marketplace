@@ -31,7 +31,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
 
   return (
     <header
-      className="sticky top-0 z-40 w-full bg-white border-b border-brand-border shadow-sm"
+      className="md:sticky md:top-0 md:z-40 w-full bg-white border-b border-brand-border shadow-sm"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       {/* Fila única (mobile y desktop comparten la misma fila) */}

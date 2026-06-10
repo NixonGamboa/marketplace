@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, Tag, ShoppingCart, Package, Heart } from 'lucide-react'
 import { useCartStore } from '@/stores/cartStore'
+import { useUIStore } from '@/stores/uiStore'
 
 interface NavSlot {
   to: string
@@ -12,6 +13,7 @@ export default function BottomNavBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const cartCount = useCartStore((s) => s.count)
+  const bottomSheetOpen = useUIStore((s) => s.bottomSheetOpen)
 
   const slots: NavSlot[] = [
     { to: '/',          label: 'Inicio',      icon: <Home      size={22} strokeWidth={1.8} /> },
@@ -24,7 +26,11 @@ export default function BottomNavBar() {
     <nav
       role="navigation"
       aria-label="Navegación principal"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-brand-border overflow-visible shadow-[0_-2px_12px_rgba(15,23,42,0.08)]"
+      className={[
+        'lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-brand-border overflow-visible shadow-[0_-2px_12px_rgba(15,23,42,0.08)]',
+        'transition-transform duration-300 ease-in-out',
+        bottomSheetOpen ? 'translate-y-full' : 'translate-y-0',
+      ].join(' ')}
       style={{
         height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
         paddingBottom: 'env(safe-area-inset-bottom)',

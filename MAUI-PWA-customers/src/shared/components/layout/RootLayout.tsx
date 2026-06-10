@@ -7,6 +7,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useBottomNavVisible } from '@/shared/hooks/useBottomNavVisible'
 
+
 export default function RootLayout() {
   const navigate = useNavigate()
   const cartCount = useCartStore((s) => s.count)
