@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Leaf, Utensils, Milk, ShoppingBasket, GlassWater, Sparkles, Cookie, Snowflake,
-  Truck, ShieldCheck, Award, MessageCircle, ChevronRight, ChevronDown,
+  Leaf, Utensils, Truck, ShieldCheck, Award, MessageCircle, ChevronRight, ChevronDown,
   Store, Wrench, PawPrint, Zap, Car, Home as HomeIconLucide, Tag, Star,
   type LucideIcon,
 } from 'lucide-react'
@@ -20,22 +19,8 @@ import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
 const BCAT_ICON_REGISTRY: Record<string, LucideIcon> = {
   Store, Leaf, Utensils, Wrench, Zap, PawPrint,
   Car, Truck, Home: HomeIconLucide, Tag, Star,
-  Milk, ShoppingBasket, GlassWater, Sparkles, Cookie, Snowflake,
 }
 
-// ── Atajos de navegación móvil (scroll horizontal — lista plana UI-only) ──────
-type MobileNavItem = { id: string; name: string; iconName: string; slug: string | null }
-const MOBILE_BCATS: MobileNavItem[] = [
-  { id: 'mercado',   name: 'Mercado',           iconName: 'Store',          slug: null              },
-  { id: 'cat-fv',   name: 'Frutas y Verduras', iconName: 'Leaf',           slug: 'frutas-verduras' },
-  { id: 'cat-ca',   name: 'Carnes',            iconName: 'Utensils',       slug: 'carnes'          },
-  { id: 'cat-la',   name: 'Lácteos',           iconName: 'Milk',           slug: 'lacteos'         },
-  { id: 'cat-ab',   name: 'Despensa',          iconName: 'ShoppingBasket', slug: 'despensa'        },
-  { id: 'cat-be',   name: 'Bebidas',           iconName: 'GlassWater',     slug: 'bebidas'         },
-  { id: 'cat-as',   name: 'Limpieza',          iconName: 'Sparkles',       slug: 'aseo'            },
-  { id: 'cat-sn',   name: 'Snacks',            iconName: 'Cookie',         slug: null              },
-  { id: 'cat-co',   name: 'Congelados',        iconName: 'Snowflake',      slug: null              },
-]
 
 const BENEFITS: { Icon: LucideIcon; title: string; sub: string }[] = [
   { Icon: Truck,         title: 'Envío rápido',        sub: 'Entrega en 2-4h' },
@@ -59,7 +44,7 @@ export default function Home() {
 
   const cartProductIds = useMemo(() => new Set(items.map((i) => i.productId)), [items])
 
-  const handleBusinessCategory = (item: BusinessCategory | MobileNavItem) => {
+  const handleBusinessCategory = (item: BusinessCategory) => {
     if ('comingSoon' in item && item.comingSoon) return
     setActiveBusinessCategory(item.id)
     if (item.slug) navigate(`/catalog/${item.slug}`)
@@ -107,31 +92,6 @@ export default function Home() {
       {/* ── Contenido principal ──────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col gap-4 md:gap-5">
 
-        {/* Categorías horizontales móvil — ocultas (reemplazadas por BottomNavBar) */}
-        <div className="hidden">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="list" aria-label="Categorías">
-            {MOBILE_BCATS.map((cat) => {
-              const Icon = BCAT_ICON_REGISTRY[cat.iconName]
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleBusinessCategory(cat)}
-                  role="listitem"
-                  className={[
-                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border',
-                    activeBusinessCategory === cat.id
-                      ? 'bg-brand-primary text-white border-brand-primary'
-                      : 'bg-white text-brand-dark border-brand-border hover:border-brand-primary/40',
-                  ].join(' ')}
-                >
-                  {Icon && <Icon size={13} strokeWidth={2} />}
-                  <span>{cat.name}</span>
-                </button>
-              )
-            })}
-          </div>
-          <div className="absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-brand-bg to-transparent pointer-events-none" />
-        </div>
 
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <HeroCarousel slides={heroSlides} />

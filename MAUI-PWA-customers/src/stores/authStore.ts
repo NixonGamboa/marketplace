@@ -1,12 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '@/types'
-
-const DEMO_USER: User = {
-  id: 'demo-user-001',
-  name: 'Usuario Demo',
-  phone: '+573001234567',
-  isAuthenticated: true,
-}
+import { DEMO_USER } from '@/config/app'
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 

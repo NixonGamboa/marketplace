@@ -31,6 +31,7 @@ import type { OrderPayload } from '@/types/orderService'
 
 import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady } from './checkoutStore'
 import type { TimeSlot } from './checkoutStore'
+import { TIME_SLOT_LABELS } from '@/config/app'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
 import { calculateShipping } from './shipping'
@@ -51,12 +52,6 @@ function formatPhone(raw: string | undefined): string {
     return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
   }
   return raw
-}
-
-const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
-  morning:   'Mañana (8 am – 12 pm)',
-  afternoon: 'Tarde (12 pm – 5 pm)',
-  asap:      'Lo antes posible',
 }
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────

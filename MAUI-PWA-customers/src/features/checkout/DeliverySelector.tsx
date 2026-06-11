@@ -13,26 +13,7 @@ import { useId, useEffect, useRef, useState } from 'react'
 import { Package, Truck, MapPin, Loader2, ChevronRight } from 'lucide-react'
 import { useCheckoutStore } from './checkoutStore'
 import type { DeliveryMode, TimeSlot } from './checkoutStore'
-
-// ─── Sub-types ────────────────────────────────────────────────────────────────
-
-interface TimeSlotOption {
-  value: TimeSlot
-  label: string
-  description: string
-}
-
-const TIME_SLOT_OPTIONS: TimeSlotOption[] = [
-  { value: 'morning',   label: 'Mañana',          description: '8 am – 12 pm' },
-  { value: 'afternoon', label: 'Tarde',            description: '12 pm – 5 pm' },
-  { value: 'asap',      label: 'Lo antes posible', description: 'Según disponibilidad' },
-]
-
-const PICKUP_SUBTEXT: Record<TimeSlot, string> = {
-  morning:   'Recoge tu pedido entre 8 am y 12 pm',
-  afternoon: 'Recoge tu pedido entre 12 pm y 5 pm',
-  asap:      'Recoge lo antes posible',
-}
+import { TIME_SLOT_OPTIONS, PICKUP_SUBTEXT } from '@/config/app'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

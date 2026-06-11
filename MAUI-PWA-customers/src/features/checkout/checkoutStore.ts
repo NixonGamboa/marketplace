@@ -1,10 +1,10 @@
 import { create } from 'zustand'
+import type { TimeSlot, SubstitutionPref } from '@/types/orderService'
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
+export type { TimeSlot, SubstitutionPref } from '@/types/orderService'
 export type DeliveryMode = 'pickup' | 'delivery'
-export type TimeSlot = 'morning' | 'afternoon' | 'asap'
-export type SubstitutionPref = 'call_me' | 'similar' | 'remove'
 
 // ─── State ───────────────────────────────────────────────────────────────────
 

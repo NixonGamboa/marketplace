@@ -14,28 +14,15 @@ import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, MapPin, Clock, AlertCircle } from 'lucide-react'
 
 import { orderService } from '../../services/index'
-import { WHATSAPP_SUPPORT_NUMBER, MERCHANT_NAME } from '../../config/app'
+import { WHATSAPP_SUPPORT_NUMBER, MERCHANT_NAME, WA_MESSAGES, TIME_SLOT_LABELS_ORDER } from '../../config/app'
 import OrderTimeline from './OrderTimeline'
 
 import type { OrderStatus } from '../../types/orderService'
 
 // ── WhatsApp helpers ──────────────────────────────────────────────────────────
 
-/** Elimina todo carácter que no sea dígito. */
-function cleanPhone(raw: string): string {
-  return raw.replace(/\D/g, '')
-}
-
-const WA_MESSAGES: Record<OrderStatus, (id: string) => string> = {
-  received:  (id) => `Hola, acabo de hacer mi pedido ${id}. ¿Pueden confirmarlo?`,
-  confirmed: (id) => `Hola, sobre mi pedido ${id} ¿alguna actualización?`,
-  preparing: (id) => `Hola, sobre mi pedido ${id} ¿cuánto falta?`,
-  ready:     (id) => `Hola, sobre mi pedido ${id} listo para entrega`,
-  delivered: (id) => `Hola, sobre mi pedido ${id}`,
-}
-
 function buildWhatsAppUrl(orderId: string, status: OrderStatus): string {
-  const phone   = cleanPhone(WHATSAPP_SUPPORT_NUMBER)
+  const phone   = WHATSAPP_SUPPORT_NUMBER.replace(/\D/g, '')
   const message = encodeURIComponent(WA_MESSAGES[status](orderId))
   return `https://wa.me/${phone}?text=${message}`
 }
@@ -55,14 +42,6 @@ function formatDate(iso: string): string {
     return iso
   }
 }
-
-// ── TimeSlot label ────────────────────────────────────────────────────────────
-
-const TIME_SLOT_LABELS = {
-  morning:   'Recoges esta mañana',
-  afternoon: 'Recoges esta tarde',
-  asap:      'Recoges lo antes posible',
-} as const
 
 // ── Currency formatter ────────────────────────────────────────────────────────
 
@@ -267,7 +246,7 @@ export default function OrderDetailPage() {
               </p>
               {order.deliveryData.timeSlot && (
                 <p className="mt-0.5 text-xs text-brand-muted">
-                  {TIME_SLOT_LABELS[order.deliveryData.timeSlot]}
+                  {TIME_SLOT_LABELS_ORDER[order.deliveryData.timeSlot]}
                 </p>
               )}
             </div>
