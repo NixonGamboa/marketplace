@@ -24,6 +24,7 @@ export interface DeliveryData {
 }
 
 export interface OrderPayload {
+  userId: string
   items: CartItem[]
   substitutionPreference: SubstitutionPref
   deliveryType: DeliveryType
@@ -39,6 +40,7 @@ export interface OrderConfirmation {
 
 export interface Order {
   orderId: string
+  userId: string
   status: OrderStatus
   items: CartItem[]
   deliveryType: DeliveryType
@@ -53,5 +55,5 @@ export interface Order {
 export interface OrderService {
   submit(payload: OrderPayload): Promise<OrderConfirmation>
   getById(orderId: string): Promise<Order>
-  list(): Promise<Order[]>
+  list(userId?: string): Promise<Order[]>
 }

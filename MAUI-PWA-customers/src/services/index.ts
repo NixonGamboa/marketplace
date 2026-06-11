@@ -17,7 +17,8 @@ const realOrderService: OrderService = {
   getById(_orderId: string): Promise<Order> {
     throw new Error('realOrderService not yet implemented — Sprint 1 backend')
   },
-  list(): Promise<Order[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  list(_userId?: string): Promise<Order[]> {
     throw new Error('realOrderService not yet implemented — Sprint 1 backend')
   },
 }

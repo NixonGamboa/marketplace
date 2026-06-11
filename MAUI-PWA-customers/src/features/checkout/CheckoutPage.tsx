@@ -566,6 +566,7 @@ export default function CheckoutPage() {
     checkout.setSubmitting(true)
 
     const payload: OrderPayload = {
+      userId: user?.id ?? 'anonymous',
       items: cartItems.map((item) => ({
         id:            item.productId,
         qty:           item.quantity,

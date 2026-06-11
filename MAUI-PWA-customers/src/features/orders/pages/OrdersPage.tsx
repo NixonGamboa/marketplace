@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ShoppingBag } from 'lucide-react'
 import { orderService } from '@/services'
+import { useAuthStore } from '@/stores/authStore'
 import type { Order, OrderStatus } from '@/types/orderService'
 
 // ── Date helper ───────────────────────────────────────────────────────────────
@@ -103,15 +104,18 @@ function OrderCard({ order }: { order: Order }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
+  const userId = useAuthStore((state) => state.user?.id)
+
   const {
     data: orders,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ['orders'],
-    queryFn: () => orderService.list(),
+    queryKey: ['orders', userId],
+    queryFn: () => orderService.list(userId),
     staleTime: 0,
+    enabled: !!userId,
   })
 
   return (

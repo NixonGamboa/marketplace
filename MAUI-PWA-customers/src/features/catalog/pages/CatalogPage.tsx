@@ -19,7 +19,7 @@ export default function CatalogPage() {
 
   const isLoading = loadingProducts || loadingCats
 
-  // Match category by id or slug (PasillosGrid navigates with `cat.slug ?? cat.id`)
+  // Match category by id or slug (links pueden pasar cualquiera)
   const category = categories?.find(
     (cat) => cat.id === categoryId || cat.slug === categoryId,
   )

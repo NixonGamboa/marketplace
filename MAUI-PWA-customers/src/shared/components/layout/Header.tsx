@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Tag, ShoppingBag, Heart, UserRound, type LucideIcon } from 'lucide-react'
 import Icon from '../../components/ui/Icon'
 import ThemeToggle from '../ui/ThemeToggle'
@@ -100,11 +100,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
         </form>
 
         {/* Nav links — solo desktop */}
-        <nav className="hidden md:flex items-center gap-0.5 shrink-0" aria-label="Navegación principal">
-          <NavLink to="/" label="Ofertas" icon={Tag} active />
-          <NavLink to="/orders" label="Mis pedidos" icon={ShoppingBag} />
-          <NavLink to="/" label="Favoritos" icon={Heart} />
-        </nav>
+        <DesktopNav />
 
         {/* Carrito — redondo compacto en móvil, pill en desktop */}
         <button
@@ -141,20 +137,37 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
   )
 }
 
-const NavLink = ({ to, label, icon: IconComponent, active }: { to: string; label: string; icon?: LucideIcon; active?: boolean }) => (
-  <Link
-    to={to}
-    className={[
-      'px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline flex items-center gap-1.5',
-      active
-        ? 'text-brand-primary hover:bg-brand-primary/5'
-        : 'text-brand-dark/70 hover:text-brand-primary hover:bg-brand-primary/5',
-    ].join(' ')}
-  >
-    {IconComponent && <IconComponent size={15} strokeWidth={2} />}
-    {label}
-  </Link>
-)
+function DesktopNav() {
+  const { pathname } = useLocation()
+  const links: { to: string; label: string; icon: LucideIcon }[] = [
+    { to: '/ofertas',  label: 'Ofertas',     icon: Tag },
+    { to: '/orders',   label: 'Mis pedidos', icon: ShoppingBag },
+    { to: '/favoritos', label: 'Favoritos',  icon: Heart },
+  ]
+  return (
+    <nav className="hidden md:flex items-center gap-0.5 shrink-0" aria-label="Navegación principal">
+      {links.map(({ to, label, icon: IconComponent }) => {
+        const active = pathname === to || pathname.startsWith(to + '/')
+        return (
+          <Link
+            key={to}
+            to={to}
+            aria-current={active ? 'page' : undefined}
+            className={[
+              'px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline flex items-center gap-1.5',
+              active
+                ? 'text-brand-primary hover:bg-brand-primary/5'
+                : 'text-brand-dark/70 hover:text-brand-primary hover:bg-brand-primary/5',
+            ].join(' ')}
+          >
+            <IconComponent size={15} strokeWidth={2} aria-hidden="true" />
+            {label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
 
 export type { HeaderProps }
 export default Header

@@ -176,7 +176,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-brand-dark">Ofertas del día 🔥</h2>
             <button
-              onClick={() => navigate('/catalog/frutas-verduras')}
+              onClick={() => navigate('/ofertas')}
               className="text-brand-primary text-xs font-semibold hover:underline underline-offset-2 transition-colors inline-flex items-center gap-0.5"
             >
               Ver todas las ofertas <ChevronRight size={13} />

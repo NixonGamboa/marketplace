@@ -100,7 +100,7 @@ export const mockProducts: Product[] = [
     availability: 'Disponible',
   },
 
-  // ── Grano ─────────────────────────────────────────────────────────────────
+  // ── Granos (en Despensa) ──────────────────────────────────────────────────
   {
     id: 'frijol-bola-roja-500g',
     name: 'Frijol bola roja 500g',
@@ -109,7 +109,7 @@ export const mockProducts: Product[] = [
     price: 4200,
     unit: '500 g',
     imageUrl: imgFrijol,
-    categoryId: 'cat-gr',
+    categoryId: 'cat-dp',
     inStock: true,
     is_variable_weight: false,
     currency: 'COP',
@@ -132,7 +132,7 @@ export const mockProducts: Product[] = [
     price: 3800,
     unit: '500 g',
     imageUrl: 'https://placehold.co/400x400/92400e/fef3c7?text=Lenteja',
-    categoryId: 'cat-gr',
+    categoryId: 'cat-dp',
     inStock: true,
     is_variable_weight: false,
     currency: 'COP',
@@ -203,7 +203,7 @@ export const mockProducts: Product[] = [
     currency: 'COP',
   },
 
-  // ── Embutidos y Mariscos ──────────────────────────────────────────────────
+  // ── Embutidos (en Congelados) y Atún (en Despensa) ────────────────────────
   {
     id: 'chorizo-250g',
     name: 'Chorizo casero 250g',
@@ -213,7 +213,7 @@ export const mockProducts: Product[] = [
     originalPrice: 11500,
     unit: '250 g',
     imageUrl: imgChorizo,
-    categoryId: 'cat-em',
+    categoryId: 'cat-co',
     inStock: true,
     is_variable_weight: false,
     currency: 'COP',
@@ -226,7 +226,7 @@ export const mockProducts: Product[] = [
     price: 7800,
     unit: '250 g',
     imageUrl: 'https://placehold.co/400x400/fca5a5/7f1d1d?text=Salchichas',
-    categoryId: 'cat-em',
+    categoryId: 'cat-co',
     inStock: true,
     is_variable_weight: false,
     currency: 'COP',
@@ -240,7 +240,7 @@ export const mockProducts: Product[] = [
     originalPrice: 6800,
     unit: '170 g',
     imageUrl: 'https://placehold.co/400x400/bfdbfe/1e3a8a?text=Atun',
-    categoryId: 'cat-em',
+    categoryId: 'cat-dp',
     inStock: true,
     is_variable_weight: false,
     currency: 'COP',
