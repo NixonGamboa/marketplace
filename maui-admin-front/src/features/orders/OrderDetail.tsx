@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types/orderService'
-import { getOrderById, updateOrderStatus } from '@/lib/localStorage'
+import { orderRepo } from '@/services'
 import StatusBadge from './StatusBadge'
 import WhatsAppLink from './WhatsAppLink'
 import DemoSimulator from './DemoSimulator'
@@ -69,9 +69,13 @@ export default function OrderDetail() {
   const [order, setOrder] = useState<Order | null>(null)
 
   useEffect(() => {
-    if (orderId) {
-      setOrder(getOrderById(orderId))
-    }
+    if (!orderId) return
+    let cancelled = false
+    orderRepo
+      .getById(orderId)
+      .then((o) => { if (!cancelled) setOrder(o) })
+      .catch(() => { if (!cancelled) setOrder(null) })
+    return () => { cancelled = true }
   }, [orderId])
 
   if (!order) {
@@ -98,8 +102,10 @@ export default function OrderDetail() {
     if (!order) return
     const next = TRANSITIONS[order.status]
     if (!next) return
-    const updated = updateOrderStatus(order.orderId, next)
-    if (updated) setOrder(updated)
+    orderRepo
+      .updateStatus(order.orderId, next, 'demo-user')
+      .then((updated) => setOrder(updated))
+      .catch(() => { /* swallow — la página dedicada manejará errores */ })
   }
 
   return (

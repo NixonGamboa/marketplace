@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Inbox } from 'lucide-react'
 import type { Order } from '@/types/orderService'
-import { getOrders } from '@/lib/localStorage'
+import { orderRepo } from '@/services'
 import StatusBadge from './StatusBadge'
 
 const MERCHANT_NAME = 'Leche y Miel'
@@ -38,13 +38,18 @@ export default function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([])
 
   useEffect(() => {
-    setOrders(getOrders())
-
-    const interval = setInterval(() => {
-      setOrders(getOrders())
-    }, POLL_INTERVAL_MS)
-
-    return () => clearInterval(interval)
+    let cancelled = false
+    const refresh = () => {
+      orderRepo.list().then((next) => {
+        if (!cancelled) setOrders(next)
+      })
+    }
+    refresh()
+    const interval = setInterval(refresh, POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   return (

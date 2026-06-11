@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Play, Pause, CheckCircle } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
-import { updateOrderStatus } from '@/lib/localStorage'
+import { orderRepo } from '@/services'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,8 +64,10 @@ export default function DemoSimulator({
         setIsRunning(false)
         return
       }
-      const updated = updateOrderStatus(orderId, next)
-      if (updated) handleStatusChange(next)
+      orderRepo
+        .updateStatus(orderId, next, 'demo-simulator')
+        .then(() => handleStatusChange(next))
+        .catch(() => { /* el siguiente tick reintenta o se detiene en delivered */ })
     }, DEMO_INTERVAL_MS)
 
     return () => clearInterval(interval)

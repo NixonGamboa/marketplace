@@ -10,7 +10,7 @@
   "execution_strategy": "batched",
   "stats": {
     "total": 30,
-    "done": 3,
+    "done": 11,
     "by_layer": {
       "1": 27,
       "2": 0,
@@ -113,7 +113,7 @@
       "id": "TASK-004",
       "title": "Setup services/ con interfaces, delay helper y swap por flag",
       "description": "Crear estructura `maui-admin-front/src/services/`: archivos vacíos por repository, `delay.ts` con `randomDelay(300,800)`, `index.ts` con swap por `import.meta.env.VITE_DEMO_MODE`. Cada repository exporta su `interface` TypeScript (OrderRepository, CatalogRepository, etc.) más stub `realXxxRepository` que lanza `throw new Error('not implemented')`.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -147,7 +147,7 @@
       "id": "TASK-005",
       "title": "Implementar mockAuditRepository con FIFO 500",
       "description": "Implementar `log()` y `list(limit?)` sobre `localStorage['maui-admin-audit']` como array. Al insertar, si len >= 500 descartar el más viejo (FIFO). IDs generados con `crypto.randomUUID()`. Test unitario: insertar 501, verificar tope 500 y orden.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -173,7 +173,7 @@
       "id": "TASK-006",
       "title": "Implementar mockOrderRepository (refactor del lib/localStorage.ts)",
       "description": "Implementar `list/getById/updateStatus/setRealWeights/cancel` sobre `localStorage['maui-orders']` (compartido con PWA). `setRealWeights` recalcula `estimatedTotal`: items normales `qty*priceAtMoment`, items variables `kilosReal*priceAtMoment` (ADR-006). `updateStatus` y `cancel` llaman `auditRepo.log()`. Eliminar `lib/localStorage.ts` y migrar imports. Delay 300-800ms.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -206,7 +206,7 @@
       "id": "TASK-007",
       "title": "Implementar mockAuthRepository + sesión 8h",
       "description": "Lee usuarios desde `import.meta.env.VITE_ADMIN_USERS` (JSON parse) con fallback hardcoded a owner@lechemiel.demo/demo1234 (role=owner) y operator@lechemiel.demo/demo1234 (role=operator). NO se siembra rol viewer (descartado del scope). `login` valida credenciales, persiste `Session` en `sessionStorage['maui-admin-session']` con `expiresAt = now + 8h`, audit log. `getSession()` síncrono retorna null si expirada. `logout` limpia + audit.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -235,7 +235,7 @@
       "id": "TASK-008",
       "title": "Implementar mockMerchantRepository + seed L&M",
       "description": "Persiste en `localStorage['maui-admin-merchant']` un `MerchantConfig` por merchantId. Seed inicial con datos actuales de `config/whatsapp.ts` (Leche y Miel + número + dirección). `update` registra audit. Marker idempotente `maui-admin-merchant-seeded-v1`.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -264,7 +264,7 @@
       "id": "TASK-009",
       "title": "Implementar mockStoreStatusRepository + isOpenNow",
       "description": "Persiste `StoreStatus` en `localStorage['maui-admin-store']`. `isOpenNow(now)`: si override='open' → true, si 'closed' → false, si 'auto' → consultar schedule del día. Tests cubren los 3 paths + límites de horario.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -293,7 +293,7 @@
       "id": "TASK-009b",
       "title": "Helper de teléfono: normalizar, formatear, extraer últimos 4",
       "description": "Crear `lib/phone.ts` con: `normalizePhone(raw): string` (quita espacios/+/guiones y deja sólo dígitos), `formatPhonePretty(phone): string` (ej '+57 301 555 0101'), `phoneLast4(phone): string`, `phoneMatchesQuery(phone, query): boolean` con la lógica del ADR-008 (4 dígitos → endsWith, >4 → includes). Tests unitarios para los 4 helpers.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -323,7 +323,7 @@
       "id": "TASK-010",
       "title": "Implementar mockCatalogRepository + seed productos demo",
       "description": "CRUD productos/categorías sobre `localStorage['maui-admin-catalog']` con shape `{products,categories}`. Seed con ~20 productos cubriendo lácteos/abarrotes/carnes/bebidas; al menos 3 con `is_variable_weight: true` (queso campesino, frijol, chorizo). Toggle stock + upsert + delete con audit log. Marker `maui-admin-catalog-seeded-v1`.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
