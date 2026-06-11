@@ -34,6 +34,9 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 | Header responsive de una sola fila (móvil y desktop) con buscador inline |
 | `BottomNavBar` PWA-nativa (móvil/tablet `< lg`): Inicio · Ofertas · Carrito (FAB) · Mis pedidos · Favoritos |
 | Modelo de datos taxonómico: `BusinessCategoryGroup` → `BusinessCategory` (sidebar) separado de `Category` (catálogo de producto) |
+| `CatalogLandingPage` (`/catalog`) — grid de todos los pasillos; destino del CTA "Comprar en Maui" del HeroCarousel y "Ver todas las categorías" en Home |
+| `SearchPage` (`/search?q=...`) — búsqueda en tiempo real sobre `mockProducts` (normaliza acentos, busca en `name`/`name_display`/`name_legal`) |
+| `ComingSoonPage` reutilizable — renderiza `/ofertas` y `/favoritos` con CTA "Volver al inicio" |
 | `CatalogPage` (`/catalog/:categoryId`) — accesible desde "Categorías principales" en Home y desde Sidebar |
 | `ProductDetailSheet` — bottom sheet 90dvh con imagen 4:3, descripción, info nutricional, chip de disponibilidad y selector de cantidad con precio total dinámico |
 | `CheckoutPage` con 4 steps (resumen → modalidad → sustitución → confirmación) |
@@ -63,13 +66,9 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 |----------|-------|
 | Backend real (AWS SAM + Lambda + DynamoDB) | Sprint 1 — posterior a validación |
 | Magic Link / autenticación real por WhatsApp | Demo usa `DEMO_USER` pre-autenticado |
-| SearchPage | ~15 productos; los pasillos son suficientes |
-| Rutas `/ofertas`, `/favoritos`, `/search`, `/catalog` (sin id) sin contenido propio | Referenciadas por nav pero pendientes de Fase 2 |
 | Panel admin en producción (multi-dispositivo) | El admin demo usa localStorage, no escala |
 | Sesiones de validación con usuarios | Fase 2 (ver RFC §9) |
 | Go/No-Go explícito | Fase 2 |
-| Rutas `/ofertas`, `/favoritos`, `/search` | Referenciadas por BottomNav/CTAs pero pendientes de Fase 2 (resolver con placeholders o redirect) |
-| Productos con `categoryId` huérfano (no registrado en `mockCategories`) | Limpieza pendiente de `mockData.ts` antes del deploy |
 
 ---
 
@@ -409,6 +408,7 @@ Panel Admin
 | functional | approved | Nixon Gamboa | 2026-06-02T06:34:22Z |
 | functional (re-iteración Home/Layout/Taxonomía) | iterated | Nixon Gamboa | 2026-06-08 |
 | functional (iteración ProductDetailSheet, peso variable kg, dark mode, shipping calc) | iterated | Nixon Gamboa | 2026-06-10 |
+| functional (iteración routing completo: SearchPage, CatalogLandingPage, ComingSoonPage; Out of Scope actualizado) | iterated | Nixon Gamboa | 2026-06-11 |
 | technical | approved | Nixon Gamboa | 2026-06-02T06:52:00Z |
 | tasks | approved | Nixon Gamboa | 2026-06-02T07:05:00Z |
 | implementation | in-progress | — | — |

@@ -185,7 +185,7 @@ classDiagram
 | Descripción | Tipo |
 | :---- | :---- |
 | Productos `is_variable_weight: true` usan `VariableWeightSheet` (0.25–5 kg, paso 0.25). `CartItem.kilos` persiste la selección. El total usa `kilos × precio` | Negocio |
-| No se implementa SearchPage — los pasillos son suficientes para ~15 productos | Negocio |
+| `SearchPage` implementada en `/search?q=...` — filtra `mockProducts` client-side con normalización de acentos | Técnica |
 | No hay backend real — toda comunicación pasa por `mockOrderService` con delay 800–1200ms | Técnica |
 | No hay WhatsApp Magic Link real — el demo usa un usuario pre-autenticado (`DEMO_USER`) | Técnica |
 | Las imágenes del catálogo deben ser WebP, 400×400px, <30KB | Técnica |
@@ -479,14 +479,17 @@ MAUI-PWA-customers/src/                  ← path flattened (antes client/src/)
 │   ├── catalog/
 │   │   ├── pages/
 │   │   │   └── CatalogPage.tsx          ← NUEVO
+│   │   ├── pages/
+│   │   │   ├── CatalogPage.tsx          ← NUEVO (/catalog/:categoryId)
+│   │   │   ├── CatalogLandingPage.tsx   ← NUEVO (/catalog — grid 9 pasillos)
+│   │   │   └── SearchPage.tsx           ← NUEVO (/search?q=)
 │   │   ├── components/
 │   │   │   ├── ProductDetailSheet.tsx   ← NUEVO (reemplaza ProductDetailModal.tsx)
 │   │   │   ├── HeroCarousel.tsx         ← NUEVO
 │   │   │   ├── ProductCard.tsx          ← REFACTORED (FAB/Stepper/kg-pill)
 │   │   │   ├── QuantityStepper.tsx      ← NUEVO
 │   │   │   └── VariableWeightSheet.tsx  ← ACTUALIZADO (kg, createPortal)
-│   │   ├── mockData.ts                  ← ACTUALIZAR con datos reales L&M
-│   │   └── README.md
+│   │   └── mockData.ts                  ← datos reales L&M; categoryIds resueltos
 │   ├── checkout/
 │   │   ├── CheckoutPage.tsx
 │   │   ├── DeliverySelector.tsx
@@ -504,7 +507,8 @@ MAUI-PWA-customers/src/                  ← path flattened (antes client/src/)
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── RootLayout.tsx
-│   │   │   ├── Header.tsx               ← ACTUALIZADO (md:sticky)
+│   │   │   ├── Header.tsx               ← ACTUALIZADO (desktop nav /ofertas /favoritos)
+│   │   │   ├── ComingSoonPage.tsx       ← NUEVO (reutilizable — /ofertas, /favoritos)
 │   │   │   ├── Sidebar.tsx
 │   │   │   ├── SidebarSection.tsx
 │   │   │   ├── BottomNavBar.tsx         ← ACTUALIZADO (slide-out)
@@ -744,3 +748,4 @@ En el demo, los errores se capturan en el `ErrorBoundary` existente y se loguean
 | 2026-06-08 | §2.3, §2.4, §3.2, §3.6 | Sincronización post-iteración: taxonomía `BusinessCategory`/`BusinessCategoryGroup`, redesign Home, layout PWA-nativo (Header una fila + BottomNavBar con FAB + Sidebar colapsable + RootLayout), path correction `client/src/` → `src/`. |
 | 2026-06-08 | §3.2, §3.6 | `ProductCard` refactored: FAB circular + `QuantityStepper` inline (long-press). Nuevos componentes `VariableWeightSheet` (bottom sheet) y `useProductQuantity`. Home: sub-texto beneficios desde `md`; cards categoría sin bg/shadow en móvil. |
 | 2026-06-10 | §2.3, §2.4, §3.2, §3.3, §3.6, §5.1, §5.2 | `ProductDetailSheet` (bottom sheet portal 90dvh) reemplaza `ProductDetailModal`. Peso variable implementado en kg: `VariableWeightSheet` selector 0.25–5 kg, `CartItem.kilos`, `cartStore.updateKilos`. `Product` extendido con `description`, `nutritionalInfo`, `availability`. Dark mode: `themeStore`, `ThemeToggle`, `useThemeSync`. `calculateShipping()` en `checkout/shipping.ts`. Checkout simplificado: fix double-fire, `useIsDeliveryReady()`. |
+| 2026-06-11 | §2.4, §3.6 | Routing completo: `CatalogLandingPage` (`/catalog`), `SearchPage` (`/search?q=`), `ComingSoonPage` (`/ofertas`, `/favoritos`). `PasillosGrid` eliminado (huérfano post-rediseño Home). `mockOrderService.list()` acepta `userId` opcional. Seed de historial demo (3 pedidos). Header desktop: nav /ofertas y /favoritos con `useLocation`. `mockData.ts`: categoryIds huérfanos resueltos (cat-gr → cat-dp, cat-em → cat-co). |

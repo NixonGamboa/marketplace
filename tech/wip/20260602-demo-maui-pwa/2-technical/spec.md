@@ -349,8 +349,25 @@ function calculateShipping(subtotal: number): ShippingQuote
 - **UI**: Stepper vertical con animación CSS en el estado activo
 
 #### `features/orders/OrdersPage.tsx` — REEMPLAZAR placeholder
-- **Data**: `orderService.list()` vía React Query
+- **Data**: `orderService.list(userId)` vía React Query — `queryKey: ['orders', userId]`, `enabled: !!userId`
 - **UI**: Lista de pedidos del usuario (orderId, fecha, total, estado). Si está vacío: CTA "Ir al catálogo"
+
+#### `features/catalog/pages/CatalogLandingPage.tsx` — NUEVO
+- **Ruta**: `/catalog` (sin id)
+- **Data**: `useCategories()` — ordenadas por `order`
+- **UI**: Grid `3 cols sm:4 lg:5` de tarjetas con PNG circular, nombre y link a `/catalog/:slug`
+- **Destino**: CTA "Comprar en Maui" del HeroCarousel slide 1 y "Ver todas las categorías" en Home
+
+#### `features/catalog/pages/SearchPage.tsx` — NUEVO
+- **Ruta**: `/search?q=...`
+- **Data**: `useProducts()` — filtrado client-side por query param `q`
+- **Búsqueda**: normaliza acentos (`NFD + /[\u0300-\u036f]/`), busca en `name`, `name_display`, `name_legal`
+- **UI**: Skeleton mientras carga, grid de `ProductCard`, estado vacío con mensaje y CTA al home
+
+#### `shared/components/layout/ComingSoonPage.tsx` — NUEVO
+- **Rutas**: `/ofertas`, `/favoritos` (y cualquier futura ruta sin contenido)
+- **Props**: `title: string`, `description?: string`, `icon?: LucideIcon`
+- **UI**: Ícono centrado, mensaje "Próximamente", botón "Volver al inicio"
 
 ### MAUI-PWA-customers — Modificaciones
 
@@ -419,12 +436,15 @@ const mockOrderService: OrderService = {
     await delay(800)
     return readFromLocalStorage('maui-orders', orderId)
   },
-  async list(): Promise<Order[]> {
+  async list(_userId?: string): Promise<Order[]> {
     await delay(600)
     return readAllFromLocalStorage('maui-orders')
+    // userId ignorado en mock — en producción filtraría por usuario en el backend
   }
 }
 ```
+
+**Seed de historial demo**: Al cargar por primera vez (`SEED_MARKER_KEY` ausente en localStorage), `mockOrderService` genera 3 pedidos de ejemplo en estados `delivered`, `ready` y `preparing` con modalidades variadas, para que `OrdersPage` tenga contenido visible en la demo sin que el usuario complete un flujo primero.
 
 #### `services/index.ts` — NUEVO
 ```typescript
@@ -437,24 +457,19 @@ export const orderService: OrderService =
 ### MAUI-PWA-customers — Router
 
 ```typescript
-// Agregar a las rutas existentes:
+// Rutas completas (iteración 2026-06-11):
+{ path: '/',                  element: <Home /> }
+{ path: '/catalog',           element: <CatalogLandingPage /> }  // grid 9 pasillos
 { path: '/catalog/:categoryId', element: <CatalogPage /> }
-{ path: '/checkout',            element: <CheckoutPage /> }
-{ path: '/orden/:orderId',      element: <OrderDetailPage /> }
-
-// Mantener existentes:
-{ path: '/',        element: <Home /> }
-{ path: '/cart',    element: <CartPage /> }
-{ path: '/orders',  element: <OrdersPage /> }   // reemplazar contenido
-{ path: '/auth',    element: <AuthPage /> }
-{ path: '*',        element: <NotFound /> }
-
-// Pendientes — referenciadas por BottomNav / CTAs pero aún no registradas:
-//   /ofertas      (BottomNavBar slot 2)
-//   /favoritos    (BottomNavBar slot 5)
-//   /search       (RootLayout.onSearch)
-//   /catalog      (hero CTA y "Ver todas las categorías" en Home)
-// Resolver en próxima iteración: placeholders o redirect al Home.
+{ path: '/search',            element: <SearchPage /> }          // ?q= query param
+{ path: '/ofertas',           element: <ComingSoonPage title="Ofertas" icon={Tag} /> }
+{ path: '/favoritos',         element: <ComingSoonPage title="Favoritos" icon={Heart} /> }
+{ path: '/checkout',          element: <CheckoutPage /> }
+{ path: '/orden/:orderId',    element: <OrderDetailPage /> }
+{ path: '/cart',              element: <CartPage /> }
+{ path: '/orders',            element: <OrdersPage /> }
+{ path: '/auth',              element: <AuthPage /> }
+{ path: '*',                  element: <NotFound /> }
 ```
 
 ---
@@ -651,7 +666,7 @@ interface CartItem {
 interface OrderService {
   submit(payload: OrderPayload): Promise<OrderConfirmation>
   getById(orderId: string): Promise<Order>
-  list(): Promise<Order[]>
+  list(userId?: string): Promise<Order[]>  // userId para filtrar en producción; mock lo ignora
 }
 
 // Payload enviado al crear un pedido
@@ -732,8 +747,12 @@ MAUI-PWA-customers/src/
 │   │   │   ├── ProductCard.tsx                ← REFACTORED (iteración 2026-06-10)
 │   │   │   ├── QuantityStepper.tsx            ← implementado
 │   │   │   └── VariableWeightSheet.tsx        ← ACTUALIZADO (kg, createPortal, initialKilos)
-│   │   │   └── PasillosGrid.tsx               ← huérfano (decidir destino, ver TASK-029)
-│   │   └── mockData.ts                        ← incluye mockBusinessCategoryGroups + mockFeaturedProducts
+│   │   ├── pages/
+│   │   │   ├── Home.tsx                       ← REDISEÑADA
+│   │   │   ├── CatalogPage.tsx                ← implementado
+│   │   │   ├── CatalogLandingPage.tsx         ← NUEVO (grid 9 pasillos, ruta /catalog)
+│   │   │   └── SearchPage.tsx                 ← NUEVO (ruta /search?q=, filtra mockProducts)
+│   │   └── mockData.ts                        ← incluye mockBusinessCategoryGroups + mockFeaturedProducts; categoryIds resueltos
 │   │
 │   ├── checkout/
 │   │   ├── CheckoutPage.tsx                   ← SIMPLIFICADO (iteración 2026-06-10)
@@ -759,8 +778,9 @@ MAUI-PWA-customers/src/
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── RootLayout.tsx                 ← implementado
-│   │   │   ├── Header.tsx                     ← ACTUALIZADO (md:sticky)
-│   │   │   ├── Footer.tsx                     ← implementado
+│   │   │   ├── Header.tsx                     ← ACTUALIZADO (desktop nav /ofertas /favoritos con useLocation)
+│   │   │   ├── Footer.tsx                     ← ACTUALIZADO (rediseño visual 2026-06-10)
+│   │   │   ├── ComingSoonPage.tsx             ← NUEVO (reutilizable; /ofertas, /favoritos)
 │   │   │   └── BottomNavBar.tsx               ← ACTUALIZADO (slide-out via uiStore.bottomSheetOpen)
 │   │   └── ui/
 │   │       └── ThemeToggle.tsx                ← NUEVO (Sun/Moon, aria-pressed)
@@ -878,5 +898,6 @@ VITE_DEMO_MODE=true
 | technical | approved | Nixon Gamboa | 2026-06-02T06:52:00Z |
 | technical (re-iteración Home/Layout/Taxonomía DD-5, DD-6) | iterated | Nixon Gamboa | 2026-06-08 |
 | technical (iteración ProductDetailSheet, peso variable kg, dark mode, shipping, checkout simplify) | iterated | Nixon Gamboa | 2026-06-10 |
+| technical (iteración routing completo: CatalogLandingPage, SearchPage, ComingSoonPage; mockOrderService seed + userId list; PasillosGrid eliminado; Header desktop nav corrected) | iterated | Nixon Gamboa | 2026-06-11 |
 | tasks | approved | Nixon Gamboa | 2026-06-02T07:05:00Z |
 | implementation | in-progress | — | — |
