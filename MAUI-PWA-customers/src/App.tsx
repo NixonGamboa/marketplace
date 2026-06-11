@@ -32,12 +32,12 @@ export default function App() {
           <Route element={<RootLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/cart" element={<CartPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/pedidos" element={<OrdersPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/catalog" element={<CatalogLandingPage />} />
             <Route path="/catalog/:categoryId" element={<CatalogPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/orden/:orderId" element={<OrderDetailPage />} />
+            <Route path="/pedidos/:orderId" element={<OrderDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route
               path="/ofertas"

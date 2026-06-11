@@ -5,7 +5,7 @@
 
 ## Problem Statement
 
-La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor completo no funciona de punta a punta: no existe backend, el catálogo usa datos ficticios y rutas críticas como `/catalog/:categoryId`, `/checkout` y `/orden/:orderId` no están implementadas. Esto hace imposible validar si el producto resuelve el problema real antes de invertir 4–6 semanas en backend. Las fricciones de UX son 10x más baratas de corregir en la capa frontend que después de construir la infraestructura.
+La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor completo no funciona de punta a punta: no existe backend, el catálogo usa datos ficticios y rutas críticas como `/catalog/:categoryId`, `/checkout` y `/pedidos/:orderId` no están implementadas. Esto hace imposible validar si el producto resuelve el problema real antes de invertir 4–6 semanas en backend. Las fricciones de UX son 10x más baratas de corregir en la capa frontend que después de construir la infraestructura.
 
 ---
 
@@ -40,7 +40,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 | `CatalogPage` (`/catalog/:categoryId`) — accesible desde "Categorías principales" en Home y desde Sidebar |
 | `ProductDetailSheet` — bottom sheet 90dvh con imagen 4:3, descripción, info nutricional, chip de disponibilidad y selector de cantidad con precio total dinámico |
 | `CheckoutPage` con 4 steps (resumen → modalidad → sustitución → confirmación) |
-| Pantalla de confirmación + navegación `router.replace('/orden/:orderId')` |
+| Pantalla de confirmación + navegación `router.replace('/pedidos/:orderId')` |
 | `OrderDetailPage` con `OrderTimeline` de 5 estados |
 | `mockOrderService` — implementa `OrderService` con delays 800–1200ms |
 | `mockData.ts` actualizado con ~15 productos reales de Leche y Miel |
@@ -139,7 +139,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 - AC-4.6: El botón "Pedir mi Mercado" se deshabilita mientras `isSubmitting === true` (evita doble submit)
 - AC-4.7: Al tocar "Pedir mi Mercado", se llama a `mockOrderService.submit()` con delay 1200ms (simula 3G)
 - AC-4.8: El carrito se destruye **solo** al recibir respuesta exitosa del mock (simula 201)
-- AC-4.9: Tras confirmación exitosa, se navega con `router.replace('/orden/:orderId')` (nunca `push`)
+- AC-4.9: Tras confirmación exitosa, se navega con `router.replace('/pedidos/:orderId')` (nunca `push`)
 
 ---
 
@@ -164,7 +164,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 **para** tener tranquilidad sobre la entrega.
 
 **Acceptance Criteria**:
-- AC-6.1: La ruta `/orden/:orderId` existe y muestra `OrderDetailPage`
+- AC-6.1: La ruta `/pedidos/:orderId` existe y muestra `OrderDetailPage`
 - AC-6.2: `OrderTimeline` muestra los 5 estados con animación en la transición activa: `received` → `confirmed` → `preparing` → `ready` → `delivered`
 - AC-6.3: El botón de WhatsApp está prellenado con el mensaje correspondiente al estado actual
 - AC-6.4: El polling de estado usa `mockOrderService.getById()` con delay 800ms
@@ -243,7 +243,7 @@ Home
                           ├─ Step 2: DeliverySelector (pickup / domicilio)
                           ├─ Step 3: SubstitutionSelector (call_me / similar / remove)
                           └─ Step 4: CTA "Pedir mi Mercado"
-                                └─▶ Confirmación (router.replace → /orden/:orderId)
+                                └─▶ Confirmación (router.replace → /pedidos/:orderId)
                                       └─▶ OrderDetailPage — Timeline de 5 estados
 ```
 

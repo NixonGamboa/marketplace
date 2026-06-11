@@ -587,7 +587,7 @@ export default function CheckoutPage() {
       const confirmation = await orderService.submit(payload)
       clearCart()          // SOLO tras éxito
       checkout.reset()
-      navigate(`/orden/${confirmation.orderId}`, { replace: true })
+      navigate(`/pedidos/${confirmation.orderId}`, { replace: true })
     } catch {
       setSubmitError('No pudimos procesar tu pedido. Inténtalo de nuevo.')
       checkout.setSubmitting(false)

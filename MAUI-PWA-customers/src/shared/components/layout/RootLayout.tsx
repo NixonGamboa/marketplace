@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 import BottomNavBar from './BottomNavBar'
@@ -7,13 +7,18 @@ import { useCartStore } from '@/stores/cartStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useBottomNavVisible } from '@/shared/hooks/useBottomNavVisible'
 
+const FOOTER_HIDDEN_PATHS = ['/pedidos']
 
 export default function RootLayout() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const cartCount = useCartStore((s) => s.items.length)
   const cartTotal = useCartStore((s) => s.total)
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
   const bottomNavVisible = useBottomNavVisible()
+  const footerVisible = !FOOTER_HIDDEN_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + '/'),
+  )
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-dark">
@@ -33,9 +38,11 @@ export default function RootLayout() {
       >
         <Outlet />
       </main>
-      <div className="hidden md:block">
-        <Footer />
-      </div>
+      {footerVisible && (
+        <div className="hidden md:block">
+          <Footer />
+        </div>
+      )}
       <PWAUpdateBanner />
       {bottomNavVisible && <BottomNavBar />}
     </div>

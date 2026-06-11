@@ -199,7 +199,7 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
   1. Inicio → `/`
   2. Ofertas → `/ofertas` *(ruta pendiente)*
   3. Carrito → `/cart` (FAB elevado con badge `cartCount`; plano cuando vacío)
-  4. Mis pedidos → `/orders`
+  4. Mis pedidos → `/pedidos`
   5. Favoritos → `/favoritos` *(ruta pendiente)*
 - Respeta `env(safe-area-inset-bottom)` para PWA instalada
 
@@ -298,7 +298,7 @@ Secciones verticales en orden:
   2. `DeliverySelector` (pickup / domicilio)
   3. `SubstitutionSelector` (radio buttons)
   4. CTA "Pedir mi Mercado" (bloqueado hasta que los 3 steps previos estén completos)
-- **On submit**: `checkoutStore.setSubmitting(true)` → `orderService.submit(payload)` → `cartStore.clearCart()` → `router.replace('/orden/:orderId')`
+- **On submit**: `checkoutStore.setSubmitting(true)` → `orderService.submit(payload)` → `cartStore.clearCart()` → `router.replace('/pedidos/:orderId')`
 - **Guard**: Botón deshabilitado mientras `isSubmitting || !deliveryMode || !substitutionPref`
 - **Legal**: Aviso Ley 1581 visible justo encima del CTA
 
@@ -339,7 +339,7 @@ function calculateShipping(subtotal: number): ShippingQuote
 - Configurable vía `FREE_SHIPPING_THRESHOLD` y `STANDARD_SHIPPING_COST` en `config/app.ts`
 
 #### `features/orders/OrderDetailPage.tsx` — NUEVO
-- **Ruta**: `/orden/:orderId`
+- **Ruta**: `/pedidos/:orderId`
 - **Data**: `orderService.getById(orderId)` vía React Query, `refetchInterval: 5000` (polling simulado)
 - **UI**: Número de orden, `OrderTimeline`, botón WhatsApp prellenado
 
@@ -465,9 +465,9 @@ export const orderService: OrderService =
 { path: '/ofertas',           element: <ComingSoonPage title="Ofertas" icon={Tag} /> }
 { path: '/favoritos',         element: <ComingSoonPage title="Favoritos" icon={Heart} /> }
 { path: '/checkout',          element: <CheckoutPage /> }
-{ path: '/orden/:orderId',    element: <OrderDetailPage /> }
+{ path: '/pedidos/:orderId',  element: <OrderDetailPage /> }
 { path: '/cart',              element: <CartPage /> }
-{ path: '/orders',            element: <OrdersPage /> }
+{ path: '/pedidos',           element: <OrdersPage /> }
 { path: '/auth',              element: <AuthPage /> }
 { path: '*',                  element: <NotFound /> }
 ```

@@ -141,7 +141,7 @@ function DesktopNav() {
   const { pathname } = useLocation()
   const links: { to: string; label: string; icon: LucideIcon }[] = [
     { to: '/ofertas',  label: 'Ofertas',     icon: Tag },
-    { to: '/orders',   label: 'Mis pedidos', icon: ShoppingBag },
+    { to: '/pedidos',  label: 'Mis pedidos', icon: ShoppingBag },
     { to: '/favoritos', label: 'Favoritos',  icon: Heart },
   ]
   return (

@@ -64,7 +64,7 @@ Doña Carmen
 | `/catalog/:categoryId` page | Bloqueante — el usuario no puede navegar por pasillo |
 | `/search?q=` page | Bloqueante — no hay búsqueda |
 | `/checkout` page | Bloqueante — el loop de valor no cierra |
-| `/orden/:orderId` page | Bloqueante — el usuario no puede ver el estado |
+| `/pedidos/:orderId` page | Bloqueante — el usuario no puede ver el estado |
 | `OrdersPage` funcional | Importante — hoy es un placeholder vacío |
 | Datos reales de Leche y Miel | Crítico — la demo con "Producto 1" no convence |
 | Auth mock (usuario simulado) | Necesario para checkout sin backend |
@@ -128,10 +128,10 @@ Construir el backend cuesta 4–6 semanas. Si el flujo de UX tiene problemas de 
      Step 1: resumen del carrito (readonly)
      Step 2: modalidad (Recoger / Domicilio + dirección)
      Step 3: preferencia de sustitución (radio)
-     Step 4: confirmación → orden generada localmente → /orden/:id
+     Step 4: confirmación → orden generada localmente → /pedidos/:id
 
 4. Ver estado del pedido
-   /orden/:id → timeline de 5 estados → botón WhatsApp prellenado
+   /pedidos/:id → timeline de 5 estados → botón WhatsApp prellenado
 
 5. Admin demo (panel del empleado)
    /admin (proyecto separado) → ver pedido → avanzar estado → link WhatsApp

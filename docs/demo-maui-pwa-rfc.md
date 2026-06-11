@@ -25,7 +25,7 @@ El riesgo concreto: construir el backend (AWS SAM + Lambda + DynamoDB + WhatsApp
 Adicionalmente, hay gaps técnicos concretos que bloquean la demo:
 - `/catalog/:categoryId` no existe como componente de página
 - `/checkout` no está implementado
-- `/orden/:orderId` no existe
+- `/pedidos/:orderId` no existe
 - `OrdersPage` es un placeholder vacío
 - El catálogo usa productos ficticios (queso campesino, carne molida) que no son parte del inventario de Leche y Miel
 
@@ -76,7 +76,7 @@ La demo no es un prototipo de Figma ni una presentación — es una PWA real fun
 | **CU-2** | Agregar al carrito | El usuario toca `+` en un producto, el carrito flotante aparece con el total actualizado |
 | **CU-3** | Completar checkout | El usuario revisa el carrito, elige modalidad (pickup o domicilio), elige preferencia de sustitución y confirma el pedido |
 | **CU-4** | Ver confirmación | El usuario ve la pantalla de éxito con el número de orden y la instrucción "Pagas en efectivo cuando llegue tu pedido" |
-| **CU-5** | Monitorear pedido | El usuario accede a `/orden/:id`, ve el estado actual en la timeline y puede contactar a la tienda por WhatsApp |
+| **CU-5** | Monitorear pedido | El usuario accede a `/pedidos/:id`, ve el estado actual en la timeline y puede contactar a la tienda por WhatsApp |
 | **CU-6** | Empleado procesa pedido | El empleado abre el admin demo, ve el pedido entrante, avanza el estado y envía el WhatsApp correspondiente al cliente |
 | **CU-7** | Producto agotado | El usuario ve un producto con badge "Agotado" y el botón `+` deshabilitado; la UI no permite agregarlo |
 
@@ -354,7 +354,7 @@ graph TD
 | `RootLayout` | Layout raíz de la app. Renderiza `Header`, `Sidebar` (desktop), `BottomNavBar` (móvil) y el `<Outlet/>` de React Router |
 | `Header` (una fila) | Barra superior compacta con logo, buscador y CTAs. Versión móvil colapsa acciones secundarias dentro del menú |
 | `Sidebar` (desktop) | Panel lateral colapsable con `BusinessCategoryGroup`/`BusinessCategory`. Renderiza chevrons y animación de despliegue |
-| `BottomNavBar` (móvil) | Navegación inferior estilo PWA-nativa con FAB central. Respeta `env(safe-area-inset-bottom)`. Oculta en rutas modales (`/checkout`, `/orden/:id`) si aplica |
+| `BottomNavBar` (móvil) | Navegación inferior estilo PWA-nativa con FAB central. Respeta `env(safe-area-inset-bottom)`. Oculta en rutas modales (`/checkout`, `/pedidos/:id`) si aplica |
 | `HeroCarousel` | Carrusel del Home con banners horizontales. Gradiente compacto en móvil tras iteración 2026-06-08 |
 | `Home` (rediseñada) | Estructura vertical en 5 secciones: hero, categorías principales (PNG circulares 96×96), MAUI+, sidebar inline para móvil y productos destacados |
 
@@ -442,7 +442,7 @@ sequenceDiagram
     MOS->>LS: Guardar pedido en localStorage
     MOS-->>CKP: OrderConfirmation { orderId, estimatedTotal }
     CKP->>CS: clearCart() ← solo al recibir confirmación exitosa
-    CKP->>U: router.replace('/orden/:orderId')
+    CKP->>U: router.replace('/pedidos/:orderId')
 ```
 
 ### 3.5.2. CU-6: Empleado procesa pedido en admin demo

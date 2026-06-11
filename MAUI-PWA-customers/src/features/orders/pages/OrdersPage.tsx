@@ -74,7 +74,7 @@ function OrderCard({ order }: { order: Order }) {
 
   return (
     <Link
-      to={`/orden/${order.orderId}`}
+      to={`/pedidos/${order.orderId}`}
       className="block bg-white rounded-2xl border border-brand-border shadow-card p-5 min-h-20 hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
       aria-label={`Pedido ${order.orderId}, estado: ${badge.label}`}
     >

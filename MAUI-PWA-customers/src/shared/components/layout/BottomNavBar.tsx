@@ -18,7 +18,7 @@ export default function BottomNavBar() {
   const slots: NavSlot[] = [
     { to: '/',          label: 'Inicio',      icon: <Home      size={22} strokeWidth={1.8} /> },
     { to: '/ofertas',   label: 'Ofertas',     icon: <Tag       size={22} strokeWidth={1.8} /> },
-    { to: '/orders',    label: 'Mis pedidos', icon: <Package   size={22} strokeWidth={1.8} /> },
+    { to: '/pedidos',   label: 'Mis pedidos', icon: <Package   size={22} strokeWidth={1.8} /> },
     { to: '/favoritos', label: 'Favoritos',   icon: <Heart     size={22} strokeWidth={1.8} /> },
   ]
 

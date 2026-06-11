@@ -288,7 +288,7 @@
     {
       "id": "TASK-011",
       "title": "CheckoutPage con flujo completo",
-      "description": "Crear `features/checkout/CheckoutPage.tsx` para ruta `/checkout`. Una sola página con 4 secciones: resumen del carrito, `DeliverySelector`, `SubstitutionSelector`, CTA 'Pedir mi Mercado'. CTA deshabilitado si `isSubmitting || !isCheckoutReady`. Al confirmar: `orderService.submit()` → `cartStore.clearCart()` (solo si éxito) → `router.replace('/orden/:orderId')`. Aviso Ley 1581 visible encima del CTA.",
+      "description": "Crear `features/checkout/CheckoutPage.tsx` para ruta `/checkout`. Una sola página con 4 secciones: resumen del carrito, `DeliverySelector`, `SubstitutionSelector`, CTA 'Pedir mi Mercado'. CTA deshabilitado si `isSubmitting || !isCheckoutReady`. Al confirmar: `orderService.submit()` → `cartStore.clearCart()` (solo si éxito) → `router.replace('/pedidos/:orderId')`. Aviso Ley 1581 visible encima del CTA.",
       "status": "completed",
       "layer": 1,
       "complexity": "High",
@@ -308,7 +308,7 @@
         "AC-3: Aviso de Ley 1581 visible justo encima del CTA",
         "AC-4: CTA deshabilitado mientras `isSubmitting === true` (guard de doble submit)",
         "AC-5: `cartStore.clearCart()` se llama SOLO tras respuesta exitosa de `orderService.submit()`",
-        "AC-6: Tras éxito: `router.replace('/orden/:orderId')` (NO `router.push`)",
+        "AC-6: Tras éxito: `router.replace('/pedidos/:orderId')` (NO `router.push`)",
         "AC-7: Si `submit()` falla, mostrar error y permitir reintentar (no destruir el carrito)",
         "GATE: `pnpm typecheck` pasa"
       ],
@@ -363,7 +363,7 @@
     {
       "id": "TASK-014",
       "title": "OrderDetailPage con polling",
-      "description": "Crear `features/orders/OrderDetailPage.tsx` para ruta `/orden/:orderId`. Usa `orderService.getById(orderId)` con React Query (refetchInterval: 5000 — polling simulado). Renderiza `OrderTimeline` con el estado actual + botón WhatsApp prellenado con mensaje del estado actual. Manejo de orderId no encontrado.",
+      "description": "Crear `features/orders/OrderDetailPage.tsx` para ruta `/pedidos/:orderId`. Usa `orderService.getById(orderId)` con React Query (refetchInterval: 5000 — polling simulado). Renderiza `OrderTimeline` con el estado actual + botón WhatsApp prellenado con mensaje del estado actual. Manejo de orderId no encontrado.",
       "status": "completed",
       "layer": 1,
       "complexity": "Medium",
@@ -391,7 +391,7 @@
     {
       "id": "TASK-015",
       "title": "OrdersPage — lista de pedidos del usuario",
-      "description": "Reemplazar el placeholder de `features/orders/OrdersPage.tsx`. Usa `orderService.list()` vía React Query. Renderiza lista de pedidos (orderId, fecha createdAt, total estimado, estado actual). Cada item es link a `/orden/:orderId`. Estado vacío: CTA 'Ir al catálogo'.",
+      "description": "Reemplazar el placeholder de `features/orders/OrdersPage.tsx`. Usa `orderService.list()` vía React Query. Renderiza lista de pedidos (orderId, fecha createdAt, total estimado, estado actual). Cada item es link a `/pedidos/:orderId`. Estado vacío: CTA 'Ir al catálogo'.",
       "status": "completed",
       "layer": 1,
       "complexity": "Medium",
@@ -406,7 +406,7 @@
         "AC-1: `useQuery` llamando a `orderService.list()`",
         "AC-2: Lista ordenada por `createdAt` descendente (más reciente primero)",
         "AC-3: Cada item muestra orderId, fecha, total, status badge",
-        "AC-4: Cada item es `<Link to='/orden/:orderId'>`",
+        "AC-4: Cada item es `<Link to='/pedidos/:orderId'>`",
         "AC-5: Estado vacío con mensaje y CTA al home",
         "GATE: `pnpm typecheck` pasa"
       ],
@@ -418,7 +418,7 @@
     {
       "id": "TASK-016",
       "title": "Actualizar router con 3 rutas nuevas",
-      "description": "Modificar la configuración del router (probablemente en `App.tsx` o `router/`) para agregar: `/catalog/:categoryId` → `CatalogPage`, `/checkout` → `CheckoutPage`, `/orden/:orderId` → `OrderDetailPage`. Usar `React.lazy` para code-splitting de las nuevas rutas. Mantener las rutas existentes intactas.",
+      "description": "Modificar la configuración del router (probablemente en `App.tsx` o `router/`) para agregar: `/catalog/:categoryId` → `CatalogPage`, `/checkout` → `CheckoutPage`, `/pedidos/:orderId` → `OrderDetailPage`. Usar `React.lazy` para code-splitting de las nuevas rutas. Mantener las rutas existentes intactas.",
       "status": "completed",
       "layer": 1,
       "complexity": "Low",
@@ -433,9 +433,9 @@
       "acceptance_criteria": [
         "AC-1: Ruta `/catalog/:categoryId` registrada y carga `CatalogPage`",
         "AC-2: Ruta `/checkout` registrada y carga `CheckoutPage`",
-        "AC-3: Ruta `/orden/:orderId` registrada y carga `OrderDetailPage`",
+        "AC-3: Ruta `/pedidos/:orderId` registrada y carga `OrderDetailPage`",
         "AC-4: Las nuevas rutas usan `React.lazy` + `Suspense` con fallback",
-        "AC-5: Rutas existentes (`/`, `/cart`, `/orders`, `/auth`, `*`) se mantienen sin cambios",
+        "AC-5: Rutas existentes (`/`, `/cart`, `/pedidos`, `/auth`, `*`) se mantienen sin cambios",
         "GATE: `pnpm dev` arranca sin errores y las 3 nuevas rutas son accesibles"
       ],
       "references": [
