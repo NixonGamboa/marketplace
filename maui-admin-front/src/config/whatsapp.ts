@@ -1,4 +1,4 @@
-import type { OrderStatus } from '@/types/order'
+import type { OrderStatus } from '@/types/orderService'
 
 // Número real de Leche y Miel (env-driven con placeholder)
 export const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) ?? '+573000000000'

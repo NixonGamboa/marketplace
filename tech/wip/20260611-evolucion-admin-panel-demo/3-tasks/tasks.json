@@ -1,0 +1,987 @@
+{
+  "feature": "evolucion-admin-panel-demo",
+  "project_type": "mvp",
+  "platform": "frontend-web",
+  "local_config": {
+    "database": null,
+    "kv_store": null,
+    "message_queue": null
+  },
+  "execution_strategy": "batched",
+  "stats": {
+    "total": 30,
+    "done": 3,
+    "by_layer": {
+      "1": 27,
+      "2": 0,
+      "3": 3
+    }
+  },
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Extender tipos en PWA: CartItem (pesos) + Order (customerPhone)",
+      "description": "En `MAUI-PWA-customers/src/types/orderService.ts`: añadir a `CartItem` los campos opcionales `is_variable_weight`, `kilosRequested`, `kilosReal`; añadir a `Order` el campo opcional `customerPhone` (string, sólo dígitos con prefijo país sin '+' ni espacios). Documentar en JSDoc: precio por kg para items variables (ADR-006) + formato del teléfono normalizado para `wa.me`. Adicionalmente, enriquecer los 3 pedidos del seed `mockOrderService.ts` con `customerPhone` (ej '573015550101', '573015550202', '573015550303') para que el escenario de peak hour sea demostrable desde la primera carga. Cambio backward-compatible.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [],
+      "files": [
+        "MAUI-PWA-customers/src/types/orderService.ts",
+        "MAUI-PWA-customers/src/services/mockOrderService.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: CartItem incluye is_variable_weight?, kilosRequested?, kilosReal? como opcionales",
+        "AC-2: Order incluye customerPhone?: string como opcional",
+        "AC-3: JSDoc documenta convención precio por kg (ADR-006) y formato customerPhone",
+        "AC-4: Los 3 pedidos del seed PWA traen customerPhone con números demo distintos (últimos 4 dígitos únicos)",
+        "GATE: `cd MAUI-PWA-customers && pnpm typecheck` pasa sin errores"
+      ],
+      "references": [
+        "RN-3",
+        "ADR-006",
+        "ADR-007",
+        "ADR-008"
+      ],
+      "design_decisions": [
+        "ADR-006",
+        "ADR-007",
+        "ADR-008"
+      ]
+    },
+    {
+      "id": "TASK-002",
+      "title": "Replicar tipos PWA → admin + script check-types-drift",
+      "description": "Eliminar `maui-admin-front/src/types/order.ts` (drift confirmado — sin userId). Copiar literal `orderService.ts`, `catalog.ts`, `cart.ts` desde PWA a `maui-admin-front/src/types/`. Crear `scripts/check-types-drift.sh` con `diff -q` sobre los 3 archivos. Wirear en `package.json` admin: `predev` y `prebuild`.",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-001"
+      ],
+      "files": [
+        "maui-admin-front/src/types/orderService.ts",
+        "maui-admin-front/src/types/catalog.ts",
+        "maui-admin-front/src/types/cart.ts",
+        "scripts/check-types-drift.sh",
+        "maui-admin-front/package.json"
+      ],
+      "acceptance_criteria": [
+        "AC-1: types/order.ts eliminado",
+        "AC-2: 3 archivos de tipos idénticos byte-a-byte entre PWA y admin",
+        "AC-3: check-types-drift.sh imprime '✓ types in sync' y exit 0",
+        "AC-4: Modificar manualmente un campo en el admin → script falla con exit 1",
+        "GATE: `pnpm predev` desde maui-admin-front pasa"
+      ],
+      "references": [
+        "ADR-002",
+        "RT-1"
+      ],
+      "design_decisions": [
+        "ADR-002"
+      ]
+    },
+    {
+      "id": "TASK-003",
+      "title": "Tipos extendidos del admin (auth, store, merchant, audit)",
+      "description": "Crear en `maui-admin-front/src/types/` los archivos `auth.ts`, `storeStatus.ts`, `merchant.ts`, `audit.ts` con los interfaces definidos en spec técnico §5.3. NO replicar al PWA (son del admin).",
+      "status": "completed",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-002"
+      ],
+      "files": [
+        "maui-admin-front/src/types/auth.ts",
+        "maui-admin-front/src/types/storeStatus.ts",
+        "maui-admin-front/src/types/merchant.ts",
+        "maui-admin-front/src/types/audit.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Role, AdminUser, Session definidos en auth.ts",
+        "AC-2: StoreOverride, DayHours, WeeklySchedule, StoreStatus en storeStatus.ts",
+        "AC-3: MerchantConfig en merchant.ts",
+        "AC-4: AuditAction (10 valores), AuditEvent en audit.ts",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§5.3"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-004",
+      "title": "Setup services/ con interfaces, delay helper y swap por flag",
+      "description": "Crear estructura `maui-admin-front/src/services/`: archivos vacíos por repository, `delay.ts` con `randomDelay(300,800)`, `index.ts` con swap por `import.meta.env.VITE_DEMO_MODE`. Cada repository exporta su `interface` TypeScript (OrderRepository, CatalogRepository, etc.) más stub `realXxxRepository` que lanza `throw new Error('not implemented')`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-003"
+      ],
+      "files": [
+        "maui-admin-front/src/services/index.ts",
+        "maui-admin-front/src/services/delay.ts",
+        "maui-admin-front/src/services/mockOrderRepository.ts",
+        "maui-admin-front/src/services/mockCatalogRepository.ts",
+        "maui-admin-front/src/services/mockStoreStatusRepository.ts",
+        "maui-admin-front/src/services/mockAuthRepository.ts",
+        "maui-admin-front/src/services/mockMerchantRepository.ts",
+        "maui-admin-front/src/services/mockAuditRepository.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 6 interfaces TypeScript declaradas con firmas de §6 del spec técnico",
+        "AC-2: services/index.ts exporta swap por VITE_DEMO_MODE",
+        "AC-3: realXxxRepository stubs lanzan error explícito",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§6",
+        "ADR-001"
+      ],
+      "design_decisions": [
+        "ADR-001"
+      ]
+    },
+    {
+      "id": "TASK-005",
+      "title": "Implementar mockAuditRepository con FIFO 500",
+      "description": "Implementar `log()` y `list(limit?)` sobre `localStorage['maui-admin-audit']` como array. Al insertar, si len >= 500 descartar el más viejo (FIFO). IDs generados con `crypto.randomUUID()`. Test unitario: insertar 501, verificar tope 500 y orden.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-004"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockAuditRepository.ts",
+        "maui-admin-front/src/services/__tests__/mockAuditRepository.test.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: log() persiste evento con id y at generados",
+        "AC-2: list(limit) retorna últimos N en orden cronológico inverso",
+        "AC-3: Al insertar el #501, se descarta el #1",
+        "GATE: `pnpm test mockAuditRepository` pasa"
+      ],
+      "references": [
+        "RN-10",
+        "§6.6"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-006",
+      "title": "Implementar mockOrderRepository (refactor del lib/localStorage.ts)",
+      "description": "Implementar `list/getById/updateStatus/setRealWeights/cancel` sobre `localStorage['maui-orders']` (compartido con PWA). `setRealWeights` recalcula `estimatedTotal`: items normales `qty*priceAtMoment`, items variables `kilosReal*priceAtMoment` (ADR-006). `updateStatus` y `cancel` llaman `auditRepo.log()`. Eliminar `lib/localStorage.ts` y migrar imports. Delay 300-800ms.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockOrderRepository.ts",
+        "maui-admin-front/src/services/__tests__/mockOrderRepository.test.ts",
+        "maui-admin-front/src/features/orders/OrdersList.tsx",
+        "maui-admin-front/src/features/orders/OrderDetail.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: list() retorna ordenado por createdAt desc, soporta filter status/q/from/to",
+        "AC-2: setRealWeights recalcula total con fórmula ADR-006 y registra audit",
+        "AC-3: cancel() requiere reason no vacío (throw si vacío) y registra audit",
+        "AC-4: lib/localStorage.ts eliminado, sus consumers migrados a orderRepo",
+        "GATE: `pnpm test mockOrderRepository` pasa, `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§6.1",
+        "ADR-006",
+        "RT-3"
+      ],
+      "design_decisions": [
+        "ADR-001",
+        "ADR-006"
+      ]
+    },
+    {
+      "id": "TASK-007",
+      "title": "Implementar mockAuthRepository + sesión 8h",
+      "description": "Lee usuarios desde `import.meta.env.VITE_ADMIN_USERS` (JSON parse) con fallback hardcoded a owner@lechemiel.demo/demo1234 (role=owner) y operator@lechemiel.demo/demo1234 (role=operator). NO se siembra rol viewer (descartado del scope). `login` valida credenciales, persiste `Session` en `sessionStorage['maui-admin-session']` con `expiresAt = now + 8h`, audit log. `getSession()` síncrono retorna null si expirada. `logout` limpia + audit.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockAuthRepository.ts",
+        "maui-admin-front/src/services/__tests__/mockAuthRepository.test.ts",
+        "maui-admin-front/.env.example"
+      ],
+      "acceptance_criteria": [
+        "AC-1: login con credenciales válidas retorna Session con role correcto",
+        "AC-2: login con credenciales inválidas lanza error 'Credenciales inválidas'",
+        "AC-3: getSession retorna null si expiresAt en el pasado",
+        "AC-4: .env.example documenta VITE_ADMIN_USERS y VITE_DEMO_MODE",
+        "GATE: `pnpm test mockAuthRepository` pasa"
+      ],
+      "references": [
+        "§6.4",
+        "CU-1",
+        "RN-1"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-008",
+      "title": "Implementar mockMerchantRepository + seed L&M",
+      "description": "Persiste en `localStorage['maui-admin-merchant']` un `MerchantConfig` por merchantId. Seed inicial con datos actuales de `config/whatsapp.ts` (Leche y Miel + número + dirección). `update` registra audit. Marker idempotente `maui-admin-merchant-seeded-v1`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockMerchantRepository.ts",
+        "maui-admin-front/src/services/seed/merchantSeed.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: get(merchantId) retorna config sembrado",
+        "AC-2: update muta y registra audit con action merchant.config_changed",
+        "AC-3: Segunda ejecución del seed no duplica datos (marker)",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§6.5",
+        "ADR-007",
+        "CU-13"
+      ],
+      "design_decisions": [
+        "ADR-007"
+      ]
+    },
+    {
+      "id": "TASK-009",
+      "title": "Implementar mockStoreStatusRepository + isOpenNow",
+      "description": "Persiste `StoreStatus` en `localStorage['maui-admin-store']`. `isOpenNow(now)`: si override='open' → true, si 'closed' → false, si 'auto' → consultar schedule del día. Tests cubren los 3 paths + límites de horario.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockStoreStatusRepository.ts",
+        "maui-admin-front/src/services/seed/storeStatusSeed.ts",
+        "maui-admin-front/src/services/__tests__/mockStoreStatusRepository.test.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: setOverride persiste y registra audit",
+        "AC-2: setSchedule persiste 7 días",
+        "AC-3: isOpenNow respeta override='open'/'closed' sobre schedule",
+        "AC-4: isOpenNow con override='auto' lunes 10am (8-20) retorna true",
+        "AC-5: isOpenNow domingo (closed=true) retorna false",
+        "GATE: `pnpm test mockStoreStatusRepository` pasa"
+      ],
+      "references": [
+        "§6.3",
+        "CU-12"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-009b",
+      "title": "Helper de teléfono: normalizar, formatear, extraer últimos 4",
+      "description": "Crear `lib/phone.ts` con: `normalizePhone(raw): string` (quita espacios/+/guiones y deja sólo dígitos), `formatPhonePretty(phone): string` (ej '+57 301 555 0101'), `phoneLast4(phone): string`, `phoneMatchesQuery(phone, query): boolean` con la lógica del ADR-008 (4 dígitos → endsWith, >4 → includes). Tests unitarios para los 4 helpers.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-003"
+      ],
+      "files": [
+        "maui-admin-front/src/lib/phone.ts",
+        "maui-admin-front/src/lib/__tests__/phone.test.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: normalizePhone('+57 301 555-0101') === '573015550101'",
+        "AC-2: phoneLast4('573015550101') === '0101'",
+        "AC-3: phoneMatchesQuery('573015550101', '0101') === true (suffix con 4 dígitos)",
+        "AC-4: phoneMatchesQuery('573015550101', '01015') === true (includes con >4 dígitos)",
+        "AC-5: phoneMatchesQuery('573015550101', 'juan') === false (no numérico)",
+        "GATE: `pnpm test phone` pasa"
+      ],
+      "references": [
+        "§7",
+        "ADR-008"
+      ],
+      "design_decisions": [
+        "ADR-008"
+      ]
+    },
+    {
+      "id": "TASK-010",
+      "title": "Implementar mockCatalogRepository + seed productos demo",
+      "description": "CRUD productos/categorías sobre `localStorage['maui-admin-catalog']` con shape `{products,categories}`. Seed con ~20 productos cubriendo lácteos/abarrotes/carnes/bebidas; al menos 3 con `is_variable_weight: true` (queso campesino, frijol, chorizo). Toggle stock + upsert + delete con audit log. Marker `maui-admin-catalog-seeded-v1`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-005"
+      ],
+      "files": [
+        "maui-admin-front/src/services/mockCatalogRepository.ts",
+        "maui-admin-front/src/services/seed/catalogSeed.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: listProducts soporta filter categoryId y q (búsqueda en name)",
+        "AC-2: upsertProduct + deleteProduct + toggleStock registran audit",
+        "AC-3: Seed siembra ≥20 productos y ≥3 con is_variable_weight=true",
+        "AC-4: Segunda ejecución idempotente",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§6.2",
+        "CU-10",
+        "CU-11"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-011",
+      "title": "runAllSeeds.ts idempotente + entry en main.tsx",
+      "description": "Crear `services/seed/runAllSeeds.ts` que invoca usersSeed, merchantSeed, storeStatusSeed, catalogSeed (cada uno con su propio marker). Importar `runAllSeeds()` en `main.tsx` antes de `<App />`. NO toca `maui-orders` (responsabilidad del PWA).",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-007",
+        "TASK-008",
+        "TASK-009",
+        "TASK-010"
+      ],
+      "files": [
+        "maui-admin-front/src/services/seed/runAllSeeds.ts",
+        "maui-admin-front/src/services/seed/usersSeed.ts",
+        "maui-admin-front/src/main.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Primera carga en navegador limpio siembra users + merchant + store + catalog",
+        "AC-2: Segunda carga: ninguna clave seeded-v1 se reescribe (no duplica)",
+        "AC-3: maui-orders NO se toca",
+        "GATE: SC-10 y SC-11 funcionales pasan en browser test manual"
+      ],
+      "references": [
+        "§14",
+        "SC-10",
+        "SC-11"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-012",
+      "title": "AuthContext + useSession + RequireAuth role-aware",
+      "description": "`auth/AuthContext.tsx` provee `{session, login, logout}`. `useSession()` hook. `RequireAuth` recibe `role?: Role | Role[]`, redirige a `/login` si no hay sesión, a `/` si rol insuficiente (con toast 'Sin permiso'). Test RTL para guard.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-007"
+      ],
+      "files": [
+        "maui-admin-front/src/auth/AuthContext.tsx",
+        "maui-admin-front/src/auth/useSession.ts",
+        "maui-admin-front/src/auth/RequireAuth.tsx",
+        "maui-admin-front/src/auth/__tests__/RequireAuth.test.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: RequireAuth sin sesión → Navigate /login",
+        "AC-2: RequireAuth con role='owner' y session.role='operator' → Navigate / + toast 'Sin permiso'",
+        "AC-3: RequireAuth con role=['owner','operator'] y session.role='operator' → renders children",
+        "AC-4: Role NO incluye viewer (scope descartado)",
+        "GATE: `pnpm test RequireAuth` pasa"
+      ],
+      "references": [
+        "§7",
+        "CU-1",
+        "SC-1"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-013",
+      "title": "ToastProvider + componentes UI base",
+      "description": "Crear `ui/Toast.tsx` con ToastProvider (cola max 3), `ui/Modal.tsx`, `ui/ConfirmDialog.tsx`, `ui/Spinner.tsx`, `ui/EmptyState.tsx`, `ui/Tabs.tsx`, `ui/PriceInput.tsx`, `ui/WeightInput.tsx`. Sin librería externa; Tailwind + lucide-react.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-003"
+      ],
+      "files": [
+        "maui-admin-front/src/ui/Toast.tsx",
+        "maui-admin-front/src/ui/Modal.tsx",
+        "maui-admin-front/src/ui/ConfirmDialog.tsx",
+        "maui-admin-front/src/ui/Spinner.tsx",
+        "maui-admin-front/src/ui/EmptyState.tsx",
+        "maui-admin-front/src/ui/Tabs.tsx",
+        "maui-admin-front/src/ui/PriceInput.tsx",
+        "maui-admin-front/src/ui/WeightInput.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: ToastProvider expone useToast() con success/error/info",
+        "AC-2: WeightInput recibe value/suggested/onChange, valida >=0",
+        "AC-3: PriceInput formatea con separador de miles COP",
+        "GATE: `pnpm typecheck` pasa"
+      ],
+      "references": [
+        "§8",
+        "§4"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-014",
+      "title": "AppShell + Sidebar role-aware + LoginPage",
+      "description": "`shell/AppShell.tsx` con header + sidebar fija + outlet. `shell/Sidebar.tsx` con items filtrados por `session.user.role`. `features/login/LoginPage.tsx` con form email+password, llama `authRepo.login`, redirect a state.from o `/`. Wirear routing en `App.tsx` con `RequireAuth`.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-012",
+        "TASK-013"
+      ],
+      "files": [
+        "maui-admin-front/src/shell/AppShell.tsx",
+        "maui-admin-front/src/shell/Sidebar.tsx",
+        "maui-admin-front/src/features/login/LoginPage.tsx",
+        "maui-admin-front/src/App.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Sidebar para operator NO muestra catálogo/categorías/tienda/config/auditoría",
+        "AC-2: Login exitoso redirige a state.from o '/'",
+        "AC-3: Login con credenciales erradas muestra toast de error",
+        "AC-4: Logout limpia sesión y vuelve a /login",
+        "GATE: `pnpm dev` arranca y SC-13 (sesión expirada) reproducible"
+      ],
+      "references": [
+        "§7",
+        "§8",
+        "CU-1",
+        "CU-15"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-015",
+      "title": "DashboardPage con métricas del día",
+      "description": "`features/dashboard/DashboardPage.tsx` muestra: # pedidos por estado (cards), ticket promedio (calculado sobre delivered), alertas activas (pedidos en received > 5min). Datos vía `orderRepo.list()` filtrando del día actual.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-014"
+      ],
+      "files": [
+        "maui-admin-front/src/features/dashboard/DashboardPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Muestra 5 cards (received/confirmed/preparing/ready/delivered) del día",
+        "AC-2: Ticket promedio = sum(estimatedTotal de delivered) / N",
+        "AC-3: Alertas activas listan pedidos received con createdAt > 5min",
+        "GATE: typecheck + render OK en pnpm dev"
+      ],
+      "references": [
+        "CU-6",
+        "US-6"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-016",
+      "title": "OrdersListPage con tabs + búsqueda multi-campo + display ...4dig",
+      "description": "Migrar `OrdersList.tsx` existente a `features/orders/OrdersListPage.tsx`. Añadir `Tabs` por OrderStatus con count en badge. Input de búsqueda único con debounce 150ms que usa `phoneMatchesQuery` (de lib/phone.ts) cuando el query es numérico, y match case-insensitive sobre customerName + orderId cuando no lo es. Cada row muestra `{customerName} · ...{last4}` cuando hay customerPhone — reconocimiento visual sin abrir el detalle. Pedidos `received` con animación pulse para llamar la atención en peak hour.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-014",
+        "TASK-009b"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/OrdersListPage.tsx",
+        "maui-admin-front/src/features/orders/StatusBadge.tsx",
+        "maui-admin-front/src/features/orders/__tests__/OrdersListPage.test.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: 5 tabs (uno por OrderStatus) con count en badge por tab",
+        "AC-2: Búsqueda '0101' (4 dígitos) filtra por sufijo de customerPhone",
+        "AC-3: Búsqueda 'juan' (no numérico) filtra por customerName case-insensitive",
+        "AC-4: Búsqueda 'MAUI-' filtra por orderId",
+        "AC-5: Row sin customerPhone NO muestra ' · ...' (sólo nombre)",
+        "AC-6: Row con customerPhone muestra últimos 4 dígitos junto al nombre",
+        "AC-7: Pedidos received en tab activo con animación pulse",
+        "AC-8: Debounce 150ms — no se ejecuta filter en cada keystroke",
+        "GATE: SC-6 (search 'Juan') reproducible; AC-2 verificable con seed PWA"
+      ],
+      "references": [
+        "§4",
+        "CU-2",
+        "CU-7",
+        "US-2",
+        "US-7",
+        "ADR-008"
+      ],
+      "design_decisions": [
+        "ADR-008"
+      ]
+    },
+    {
+      "id": "TASK-017",
+      "title": "OrderDetailPage: pesos + cancel + contacto cliente (tap-to-call/WhatsApp)",
+      "description": "Migrar `OrderDetail.tsx`. **Pesos**: items con `is_variable_weight: true` muestran `WeightInput` precargado con `kilosRequested`; botón 'Marcar como listo' disabled si algún variable sin `kilosReal`. **Cancel**: botón abre Modal con textarea (motivo obligatorio, min 5 chars) → `orderRepo.cancel`. **Nombres reales**: items resuelven nombre vía `catalogRepo.getProduct(item.id)`. **Contacto cliente (ADR-007)**: header del pedido muestra `customerName` + `formatPhonePretty(customerPhone)`; dos CTAs primarios — `tel:{phone}` (llamar) y `wa.me/{phone}?text={mensaje según estado}` (WhatsApp al cliente). Botón secundario 'Copiar teléfono' → clipboard. Si `customerPhone` está vacío: ocultar CTAs y mostrar hint 'Sin teléfono en el pedido'. El WhatsApp del merchant NO aparece como CTA aquí (queda solo en `/configuracion`).",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-006",
+        "TASK-010",
+        "TASK-008",
+        "TASK-016",
+        "TASK-009b"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/OrderDetailPage.tsx",
+        "maui-admin-front/src/features/orders/WhatsAppLink.tsx",
+        "maui-admin-front/src/features/orders/CustomerContactBar.tsx",
+        "maui-admin-front/src/features/orders/__tests__/OrderDetailPage.test.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Items resuelven nombre desde catalogRepo (no muestra SKU crudo)",
+        "AC-2: WeightInput precargado con kilosRequested para items variables",
+        "AC-3: Botón 'Marcar como listo' disabled hasta capturar todos los kilosReal",
+        "AC-4: Cancelar con motivo <5 chars bloquea (validación + tooltip)",
+        "AC-5: Header muestra customerPhone formateado pretty (ej '+57 301 555 0101')",
+        "AC-6: Tap en CTA WhatsApp abre `wa.me/{normalizado}?text=...` con mensaje según status",
+        "AC-7: Tap en CTA llamar abre `tel:{normalizado}`",
+        "AC-8: Botón 'Copiar teléfono' deja sólo dígitos normalizados en clipboard",
+        "AC-9: Pedido sin customerPhone: CTAs ocultos + hint visible",
+        "AC-10: NINGÚN CTA en este page usa `merchant.whatsapp` (ese sólo aparece en /configuracion)",
+        "GATE: `pnpm test OrderDetailPage` pasa; SC-3/SC-4/SC-5 reproducibles"
+      ],
+      "references": [
+        "§12",
+        "§13",
+        "CU-3",
+        "CU-4",
+        "CU-5",
+        "US-4",
+        "US-5",
+        "ADR-007"
+      ],
+      "design_decisions": [
+        "ADR-006",
+        "ADR-007"
+      ]
+    },
+    {
+      "id": "TASK-018",
+      "title": "PickingListView con print + clipboard (incluye customerPhone)",
+      "description": "`features/orders/PickingListView.tsx`: tabla plana con items + qty + kilosReal. Header de la lista incluye customerName + customerPhone formateado pretty para que el operario lo lleve al piso (por si necesita llamar desde otro punto). CSS `@media print` que oculta chrome. Botón 'Imprimir' → `window.print()`. Botón 'Copiar como texto' → `navigator.clipboard.writeText(plainText)` con teléfono incluido en el texto. Insertable en OrderDetailPage como tab/sección.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-017"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/PickingListView.tsx",
+        "maui-admin-front/src/lib/print.ts",
+        "maui-admin-front/src/lib/clipboard.ts",
+        "maui-admin-front/src/index.css"
+      ],
+      "acceptance_criteria": [
+        "AC-1: print() oculta sidebar/header (@media print)",
+        "AC-2: 'Copiar' deja texto plano legible en clipboard, con customerPhone en header del texto",
+        "AC-3: Pedido sin customerPhone: no muestra línea de teléfono",
+        "GATE: SC-7 reproducible manualmente"
+      ],
+      "references": [
+        "§13",
+        "CU-8",
+        "US-8"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-019",
+      "title": "NewOrderAlert + EnableSoundGate + useNewOrdersWatcher",
+      "description": "`features/orders/useNewOrdersWatcher.ts` con `storage` event listener (ADR-003). `shell/EnableSoundGate.tsx` muestra banner hasta primer click → `enableSound()`. `features/orders/NewOrderAlert.tsx` banner en AppShell con últimos pedidos new. `lib/audio.ts` con `playNewOrderSound()`. Mantener `sessionStorage['maui-admin-known-order-ids']` para no re-alertar.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-014",
+        "TASK-006"
+      ],
+      "files": [
+        "maui-admin-front/src/features/orders/useNewOrdersWatcher.ts",
+        "maui-admin-front/src/features/orders/NewOrderAlert.tsx",
+        "maui-admin-front/src/shell/EnableSoundGate.tsx",
+        "maui-admin-front/src/lib/audio.ts",
+        "maui-admin-front/public/sounds/new-order.mp3",
+        "maui-admin-front/src/features/orders/__tests__/useNewOrdersWatcher.test.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Disparar storage event 'maui-orders' con nuevo pedido received → onNew se llama 1 vez",
+        "AC-2: Disparar segunda vez con mismo pedido → onNew NO se llama (known set)",
+        "AC-3: enableSound() sólo después de gesto de usuario",
+        "AC-4: Banner NewOrderAlert lista pedidos new mostrando customerName + ...{last4} (si phone) para identificación inmediata sin abrir el detalle",
+        "AC-5: Banner ofrece tap directo a OrderDetailPage del pedido",
+        "GATE: `pnpm test useNewOrdersWatcher` pasa; SC-2 (3 pedidos, 3 sonidos) reproducible"
+      ],
+      "references": [
+        "§10",
+        "§11",
+        "ADR-003",
+        "RT-2",
+        "US-2"
+      ],
+      "design_decisions": [
+        "ADR-003"
+      ]
+    },
+    {
+      "id": "TASK-020",
+      "title": "HistoricoPage con filtro por rango de fechas",
+      "description": "`features/historico/HistoricoPage.tsx`: 2 inputs date (from/to), botón aplicar → `orderRepo.list({from, to})`. Tabla con orderId, customer, total, status. Default últimos 30 días.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-014",
+        "TASK-006"
+      ],
+      "files": [
+        "maui-admin-front/src/features/historico/HistoricoPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: from/to filtran createdAt en repo",
+        "AC-2: Sin pedidos en rango → EmptyState",
+        "GATE: typecheck + render OK"
+      ],
+      "references": [
+        "CU-9",
+        "US-9"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-021",
+      "title": "CatalogoPage + ProductFormModal + StockToggle",
+      "description": "`features/catalogo/CatalogoPage.tsx` lista productos con búsqueda+filter por categoría. Toggle stock inline (mutación rápida). 'Nuevo producto' / 'Editar' abren `ProductFormModal` (campos del Product type). 'Eliminar' con ConfirmDialog. Solo accesible a owner.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "High",
+      "depends_on": [
+        "TASK-010",
+        "TASK-014",
+        "TASK-013"
+      ],
+      "files": [
+        "maui-admin-front/src/features/catalogo/CatalogoPage.tsx",
+        "maui-admin-front/src/features/catalogo/ProductFormModal.tsx",
+        "maui-admin-front/src/features/catalogo/StockToggle.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Crear producto persiste y aparece en lista + audit log",
+        "AC-2: Toggle stock inline persiste sin recargar la página",
+        "AC-3: Editar precio inline registra audit (SC-8 reproducible)",
+        "AC-4: Eliminar requiere confirmación",
+        "GATE: SC-8 reproducible en dev"
+      ],
+      "references": [
+        "CU-10",
+        "US-10"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-022",
+      "title": "CategoriasPage CRUD simple",
+      "description": "`features/categorias/CategoriasPage.tsx` lista + crear + editar + eliminar categorías. Solo nombre + icon name (string de lucide). Solo owner.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-010",
+        "TASK-014"
+      ],
+      "files": [
+        "maui-admin-front/src/features/categorias/CategoriasPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: CRUD completo funciona y registra audit",
+        "AC-2: Eliminar categoría con productos asociados muestra warning",
+        "GATE: typecheck pasa"
+      ],
+      "references": [
+        "CU-11",
+        "US-11"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-023",
+      "title": "TiendaPage con override + horario semanal",
+      "description": "`features/tienda/TiendaPage.tsx`: 3 radios (auto/open/closed) para override, 7 filas de horario (open/close/closed por día). Botón 'Guardar' → `storeRepo.setSchedule + setOverride`. Banner superior en AppShell que lee `isOpenNow()` y muestra Cerrada en rojo si aplica.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-009",
+        "TASK-014"
+      ],
+      "files": [
+        "maui-admin-front/src/features/tienda/TiendaPage.tsx",
+        "maui-admin-front/src/shell/AppShell.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Cambiar override a 'closed' → banner AppShell refleja Cerrada en <30s (SC-9)",
+        "AC-2: Editar horario lunes 8→10 persiste y se refleja",
+        "AC-3: Audit registra store.override_changed y store.schedule_changed",
+        "GATE: SC-9 reproducible"
+      ],
+      "references": [
+        "CU-12",
+        "US-12"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-024",
+      "title": "ConfigPage + ResetDemoButton",
+      "description": "`features/configuracion/ConfigPage.tsx` muestra form editable de MerchantConfig (name/whatsapp/address) + sección 'Demo' con `ResetDemoButton`. Reset: ConfirmDialog → limpia todas las claves `maui-admin-*` y `maui-orders*` → recarga. Solo owner.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Medium",
+      "depends_on": [
+        "TASK-008",
+        "TASK-014"
+      ],
+      "files": [
+        "maui-admin-front/src/features/configuracion/ConfigPage.tsx",
+        "maui-admin-front/src/features/configuracion/ResetDemoButton.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Editar whatsapp + guardar → reflejado en WhatsApp link de OrderDetailPage",
+        "AC-2: Reset demo → tras recarga se ejecutan seeds, estado limpio (SC-12)",
+        "AC-3: ConfirmDialog bloquea reset accidental",
+        "GATE: SC-12 reproducible"
+      ],
+      "references": [
+        "§14",
+        "CU-13",
+        "US-13"
+      ],
+      "design_decisions": [
+        "ADR-007"
+      ]
+    },
+    {
+      "id": "TASK-025",
+      "title": "AuditPage lista eventos del audit log",
+      "description": "`features/auditoria/AuditPage.tsx` muestra tabla con últimos 200 eventos (action, user, targetId, at, meta). Filtro por action. Solo owner.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-005",
+        "TASK-014"
+      ],
+      "files": [
+        "maui-admin-front/src/features/auditoria/AuditPage.tsx"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Lista eventos ordenados por at desc",
+        "AC-2: Filtro por action filtra en cliente",
+        "GATE: typecheck pasa"
+      ],
+      "references": [
+        "CU-14",
+        "US-14"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-026",
+      "title": "Setup vitest + RTL + tests críticos faltantes",
+      "description": "Añadir `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` a devDependencies. Configurar `vitest.config.ts`. Wirear `package.json` scripts `test` y `test:watch`. Verificar que todos los tests `__tests__/*.test.ts(x)` creados por tasks anteriores pasan.",
+      "status": "pending",
+      "layer": 1,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-005",
+        "TASK-006",
+        "TASK-007",
+        "TASK-009",
+        "TASK-012",
+        "TASK-017",
+        "TASK-019"
+      ],
+      "files": [
+        "maui-admin-front/package.json",
+        "maui-admin-front/vitest.config.ts",
+        "maui-admin-front/src/test-setup.ts"
+      ],
+      "acceptance_criteria": [
+        "AC-1: `pnpm test` ejecuta toda la suite sin error",
+        "AC-2: Coverage de las 7 áreas críticas (§15) ≥ 80% líneas",
+        "GATE: `pnpm test` pasa con exit 0"
+      ],
+      "references": [
+        "§15"
+      ],
+      "design_decisions": [
+        "ADR-005"
+      ]
+    },
+    {
+      "id": "TASK-027",
+      "title": "Code review — lint + typecheck + tests + complejidad",
+      "description": "Ejecutar `pnpm lint`, `pnpm typecheck`, `pnpm test` desde `maui-admin-front/`. Revisar complejidad ciclomática de OrderDetailPage y useNewOrdersWatcher (los dos más complejos). Refactor si una función supera CC>10. Validar que `check-types-drift.sh` pasa.",
+      "status": "pending",
+      "layer": 3,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-026"
+      ],
+      "files": [],
+      "acceptance_criteria": [
+        "GATE: `pnpm lint` exit 0",
+        "GATE: `pnpm typecheck` exit 0",
+        "GATE: `pnpm test` exit 0",
+        "GATE: `bash scripts/check-types-drift.sh` exit 0",
+        "AC-1: Ninguna función con CC>10 sin justificación documentada"
+      ],
+      "references": [
+        "§15"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-028",
+      "title": "Performance review — bundle, audio, watcher",
+      "description": "Medir `pnpm build` → tamaño del bundle (objetivo <300KB gzipped). Verificar que `storage` event no dispara fetch en loop si llegan N pedidos seguidos. Verificar que `audio.play()` no acumula instancias.",
+      "status": "pending",
+      "layer": 3,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-027"
+      ],
+      "files": [],
+      "acceptance_criteria": [
+        "AC-1: Bundle gzipped < 300KB",
+        "AC-2: 5 storage events en 1s → orderRepo.list se llama ≤5 veces (no loop)",
+        "AC-3: 10 plays consecutivos → 1 sola instancia HTMLAudioElement",
+        "GATE: `pnpm build` exit 0"
+      ],
+      "references": [
+        "§18 RT-5",
+        "§18 RT-7"
+      ],
+      "design_decisions": []
+    },
+    {
+      "id": "TASK-029",
+      "title": "Security review — XSS, env vars, scope localStorage",
+      "description": "Auditar inputs de texto libre (motivo cancelación, product name, customer search): renderizar siempre con interpolación segura de React (no `dangerouslySetInnerHTML`). Verificar que `VITE_ADMIN_USERS` no se loguea en consola en build prod. Documentar limitación localStorage en `MAUI-CONTEXT.md` (datos en plano accesibles vía DevTools — aceptado para demo).",
+      "status": "pending",
+      "layer": 3,
+      "complexity": "Low",
+      "depends_on": [
+        "TASK-027"
+      ],
+      "files": [
+        "MAUI-PWA-customers/MAUI-CONTEXT.md"
+      ],
+      "acceptance_criteria": [
+        "AC-1: Grep en el código: ningún `dangerouslySetInnerHTML`",
+        "AC-2: `pnpm build` no incluye console.log con credenciales",
+        "AC-3: MAUI-CONTEXT.md documenta limitación seguridad demo (R-6 + RT-4)",
+        "GATE: revisión manual aprobada"
+      ],
+      "references": [
+        "§18",
+        "R-6"
+      ],
+      "design_decisions": []
+    }
+  ],
+  "dependency_graph": {
+    "by_layer": {
+      "1": {
+        "level_0": [
+          "TASK-001"
+        ],
+        "level_1": [
+          "TASK-002"
+        ],
+        "level_2": [
+          "TASK-003"
+        ],
+        "level_3": [
+          "TASK-004",
+          "TASK-013"
+        ],
+        "level_4": [
+          "TASK-005",
+          "TASK-009b"
+        ],
+        "level_5": [
+          "TASK-006",
+          "TASK-007",
+          "TASK-008",
+          "TASK-009",
+          "TASK-010"
+        ],
+        "level_6": [
+          "TASK-011",
+          "TASK-012"
+        ],
+        "level_7": [
+          "TASK-014"
+        ],
+        "level_8": [
+          "TASK-015",
+          "TASK-016",
+          "TASK-019",
+          "TASK-020",
+          "TASK-021",
+          "TASK-022",
+          "TASK-023",
+          "TASK-024",
+          "TASK-025"
+        ],
+        "level_9": [
+          "TASK-017"
+        ],
+        "level_10": [
+          "TASK-018"
+        ],
+        "level_11": [
+          "TASK-026"
+        ]
+      },
+      "3": {
+        "level_0": [
+          "TASK-027"
+        ],
+        "level_1": [
+          "TASK-028",
+          "TASK-029"
+        ]
+      }
+    }
+  }
+}

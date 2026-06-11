@@ -1,4 +1,4 @@
-import type { Order, OrderStatus } from '@/types/order'
+import type { Order, OrderStatus } from '@/types/orderService'
 
 const STORAGE_KEY = 'maui-orders'
 

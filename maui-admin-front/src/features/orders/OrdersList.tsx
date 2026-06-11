@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Inbox } from 'lucide-react'
-import type { Order } from '@/types/order'
+import type { Order } from '@/types/orderService'
 import { getOrders } from '@/lib/localStorage'
 import StatusBadge from './StatusBadge'
 

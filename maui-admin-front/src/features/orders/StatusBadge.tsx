@@ -1,4 +1,4 @@
-import type { OrderStatus } from '@/types/order'
+import type { OrderStatus } from '@/types/orderService'
 
 interface StatusConfig {
   label: string

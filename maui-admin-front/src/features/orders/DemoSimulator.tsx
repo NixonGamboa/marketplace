@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Play, Pause, CheckCircle } from 'lucide-react'
-import type { OrderStatus } from '@/types/order'
+import type { OrderStatus } from '@/types/orderService'
 import { updateOrderStatus } from '@/lib/localStorage'
 
 // ---------------------------------------------------------------------------

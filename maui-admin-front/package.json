@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "bash ../scripts/check-types-drift.sh",
     "dev": "vite --port 5174",
+    "prebuild": "bash ../scripts/check-types-drift.sh",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import type { Order, OrderStatus } from '@/types/order'
+import type { Order, OrderStatus } from '@/types/orderService'
 import { getOrderById, updateOrderStatus } from '@/lib/localStorage'
 import StatusBadge from './StatusBadge'
 import WhatsAppLink from './WhatsAppLink'
