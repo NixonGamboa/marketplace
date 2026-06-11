@@ -7,7 +7,8 @@ import { useCartStore } from '@/stores/cartStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useBottomNavVisible } from '@/shared/hooks/useBottomNavVisible'
 
-const FOOTER_HIDDEN_PATHS = ['/pedidos']
+const FOOTER_HIDDEN_PATHS = ['/pedidos', '/auth']
+const HEADER_HIDDEN_PATHS = ['/auth']
 
 export default function RootLayout() {
   const navigate = useNavigate()
@@ -19,18 +20,23 @@ export default function RootLayout() {
   const footerVisible = !FOOTER_HIDDEN_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + '/'),
   )
+  const headerVisible = !HEADER_HIDDEN_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + '/'),
+  )
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-dark">
-      <Header
-        cartCount={cartCount}
-        cartTotal={cartTotal}
-        onCartClick={() => navigate('/cart')}
-        onSearch={(q) => {
-          setSearchQuery(q)
-          navigate(`/search?q=${encodeURIComponent(q)}`)
-        }}
-      />
+      {headerVisible && (
+        <Header
+          cartCount={cartCount}
+          cartTotal={cartTotal}
+          onCartClick={() => navigate('/cart')}
+          onSearch={(q) => {
+            setSearchQuery(q)
+            navigate(`/search?q=${encodeURIComponent(q)}`)
+          }}
+        />
+      )}
       <main
         role="main"
         className="flex-1 main-bottom-padding lg:pb-0"

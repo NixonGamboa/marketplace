@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Tag, ShoppingBag, Heart, UserRound, type LucideIcon } from 'lucide-react'
 import Icon from '../../components/ui/Icon'
 import ThemeToggle from '../ui/ThemeToggle'
+import { useAuthStore } from '@/stores/authStore'
 import logoIsotipo from '@/assets/logo/isotipo.png'
 import logoLogotipo from '@/assets/logo/logotipo.png'
 import logoImagotipo from '@/assets/logo/imagotipo.png'
+
+function getInitial(name: string) {
+  const trimmed = name.trim()
+  return trimmed ? trimmed[0].toUpperCase() : ''
+}
 
 interface HeaderProps {
   cartCount?: number
@@ -23,6 +29,14 @@ const formatCOP = (value: number) =>
 
 const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderProps) => {
   const [query, setQuery] = useState('')
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const initial = user ? getInitial(user.name) : ''
+
+  const handleAvatarClick = () => {
+    navigate(isAuthenticated ? '/perfil' : '/auth')
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,12 +139,19 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
         {/* Theme toggle — oculto hasta completar estilos dark mode */}
         <span className="hidden"><ThemeToggle /></span>
 
-        {/* Avatar usuario — visible siempre, compacto en móvil */}
+        {/* Avatar usuario — abre perfil si está autenticado, login si no */}
         <button
-          aria-label="Perfil de usuario"
-          className="flex shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-2xl bg-brand-primary/10 items-center justify-center hover:bg-brand-primary/20 transition-colors"
+          onClick={handleAvatarClick}
+          aria-label={isAuthenticated ? `Perfil de ${user?.name ?? 'usuario'}` : 'Ingresar con WhatsApp'}
+          className="flex shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-2xl bg-brand-primary/10 items-center justify-center hover:bg-brand-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
         >
-          <UserRound size={18} strokeWidth={1.8} className="text-brand-primary" aria-hidden="true" />
+          {isAuthenticated && initial ? (
+            <span className="text-brand-primary text-sm font-bold leading-none select-none" aria-hidden="true">
+              {initial}
+            </span>
+          ) : (
+            <UserRound size={18} strokeWidth={1.8} className="text-brand-primary" aria-hidden="true" />
+          )}
         </button>
       </div>
     </header>

@@ -11,6 +11,7 @@ const Home = lazy(() => import('./features/catalog/pages/Home'))
 const CartPage = lazy(() => import('./features/cart/pages/CartPage'))
 const OrdersPage = lazy(() => import('./features/orders/pages/OrdersPage'))
 const AuthPage = lazy(() => import('./features/auth/pages/AuthPage'))
+const ProfilePage = lazy(() => import('./features/auth/pages/ProfilePage'))
 const CatalogPage = lazy(() => import('./features/catalog/pages/CatalogPage'))
 const CheckoutPage = lazy(() => import('./features/checkout/CheckoutPage'))
 const OrderDetailPage = lazy(() => import('./features/orders/OrderDetailPage'))
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/pedidos" element={<OrdersPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/catalog" element={<CatalogLandingPage />} />
             <Route path="/catalog/:categoryId" element={<CatalogPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
