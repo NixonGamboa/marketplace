@@ -137,7 +137,7 @@
     {
       "id": "TASK-005",
       "title": "mockData.ts con catálogo real de Leche y Miel",
-      "description": "Reemplazar productos ficticios en `features/catalog/mockData.ts` con ~15 productos reales de Leche y Miel. Cada producto: id, name, name_display, name_legal, price, unit, imageUrl (WebP), categoryId, inStock, is_variable_weight: false, badge, currency: 'COP'. Confirmar pasillos con el aliado o documentar como pendiente. Incluir al menos un producto con `inStock: false` para validar US-3.",
+      "description": "Reemplazar productos ficticios en `features/catalog/mockData.ts` con ~15 productos reales de Leche y Miel. Cada producto: id, name, name_display, name_legal, price, unit, imageUrl (WebP), categoryId, inStock, is_variable_weight, badge, currency: 'COP'. Al menos un producto con `is_variable_weight: true` (ej. queso campesino) para habilitar E2E-7. Confirmar pasillos con el aliado o documentar como pendiente. Incluir al menos un producto con `inStock: false` para validar US-3.",
       "status": "completed",
       "layer": 1,
       "complexity": "Medium",
@@ -147,7 +147,7 @@
       ],
       "acceptance_criteria": [
         "AC-1: Al menos 15 productos con datos reales (o realistas si datos del aliado pendientes)",
-        "AC-2: Todos los productos tienen `is_variable_weight: false` y `currency: 'COP'`",
+        "AC-2: Todos los productos tienen `currency: 'COP'`. Al menos un producto tiene `is_variable_weight: true` (ej. queso campesino) para habilitar E2E-7",
         "AC-3: Al menos 1 producto con `inStock: false` para validar el badge 'Agotado'",
         "AC-4: Categorías corresponden a pasillos reales de L&M (o placeholders documentados)",
         "GATE: `pnpm typecheck` pasa"

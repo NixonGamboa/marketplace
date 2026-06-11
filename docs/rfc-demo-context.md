@@ -1,6 +1,8 @@
 # Contexto RFC — Sprint DEMO: MAUI PWA Customers
 
 > **Propósito de este documento:** Insumo técnico y de producto para el RFC del Sprint DEMO de MAUI PWA Customers. Consolida el estado actual del proyecto, el objetivo de la demo, los principios de ingeniería que guían las decisiones y el alcance de lo que se construye en esta fase.
+>
+> ⚠️ **Nota histórica (2026-06-10):** Este documento refleja el estado previo a las iteraciones del 2026-06-08 y 2026-06-10. Las secciones sobre peso variable (`is_variable_weight`) y `ProductDetailModal` están desactualizadas. Para el estado actual, ver el **RFC aprobado** (`demo-maui-pwa-rfc.md`) y los specs en `tech/wip/20260602-demo-maui-pwa/`.
 
 ---
 

@@ -8,8 +8,10 @@
 Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% construido) y scaffoldea el panel admin demo desde cero en `maui-admin-front/`. Ambas apps comparten `localStorage` como mecanismo de comunicación. No hay backend — toda la capa de datos usa `mockOrderService` con delays que simulan 3G.
 
 **Apps afectadas**:
-- `MAUI-PWA-customers/client/` — PWA React 19 existente
+- `MAUI-PWA-customers/` — PWA React 19 existente (estructura aplanada: `src/` en la raíz tras commit `ebcf57b`)
 - `maui-admin-front/` — Panel admin nuevo (Vite + React 19 + TypeScript + TailwindCSS)
+
+> **Nota de iteración (2026-06-08)**: La Home, el Layout (Header de una fila, BottomNav PWA, RootLayout) y el modelo de datos (`BusinessCategory`/`BusinessCategoryGroup` vs `Category`) fueron rediseñados después de la aprobación original. Las demás vistas (Catalog, Cart, Checkout, Orders, Auth) aún están pendientes de iteración.
 
 **Principio de swapeo**: Al llegar el Sprint 1 de backend, el único cambio es reemplazar `mockOrderService` por `realOrderService` en `services/index.ts`. Ningún componente requiere modificación.
 
@@ -24,12 +26,21 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
          ┌──────────────────────────────────────────┐
          │  React 19 + Vite + React Router DOM v7   │
          │                                          │
-         │  features/catalog  features/checkout     │
-         │  features/orders   features/auth         │
-         │  features/cart                           │
+         │  features/catalog/{pages, components}    │
+         │  features/checkout  features/cart        │
+         │  features/orders    features/auth        │
+         │                                          │
+         │  shared/components/layout                │
+         │    Header · Footer · RootLayout          │
+         │    BottomNavBar (PWA móvil < lg)         │
          │                                          │
          │  stores: cartStore · checkoutStore       │
          │          authStore · uiStore             │
+         │                                          │
+         │  hooks/useCatalog.ts                     │
+         │    useProducts · useFeaturedProducts     │
+         │    useCategories                         │
+         │    useBusinessCategoryGroups             │
          │                                          │
          │  services/index.ts (VITE_DEMO_MODE)      │
          │    └── mockOrderService ──────────────▶  │
@@ -52,7 +63,7 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
   mockData.ts ──▶ React Query (catalog)
                         │
                         ▼
-                   ProductCard / ProductDetailModal
+                   ProductCard / ProductDetailSheet
                         │ addItem()
                         ▼
                    cartStore (Zustand persist)
@@ -138,21 +149,147 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
 
 ---
 
+### DD-5: Taxonomía `BusinessCategory` vs `Category`
+
+**Seleccionado**: Dos tipos distintos en el modelo de datos — `BusinessCategory` (vertical de plataforma, sidebar) y `Category` (pasillo de producto, catálogo).
+
+**Options Considered**:
+- Option A (seleccionada): Tipos separados con propósito distinto — refleja la visión MAUI multi-vertical/multi-aliado desde el inicio
+- Option B: Tipo único `Category` con un flag `kind: 'business' | 'product'` — más simple a corto plazo pero mezcla preocupaciones de plataforma y aliado en un solo modelo
+- Option C: Solo `Category` y derivar el sidebar de un agrupamiento ad-hoc — colapsa la jerarquía en runtime y obstaculiza la futura entrada de otras verticales (Restaurantes, Servicios, Comunidad)
+
+**Trade-offs Accepted**: Duplica conceptualmente la palabra "categoría"; requiere disciplina del equipo para no mezclarlos en código ni en copy. Documentado en la memoria del proyecto y en CLAUDE.md raíz.
+
+**Rationale**: MAUI no es app de supermercado — es plataforma que conecta usuarios con soluciones locales. El sidebar muestra verticales (Mercado, Restaurantes, Servicios, Comunidad); el catálogo muestra pasillos de un aliado específico (Leche y Miel). El modelo refleja esa separación desde el demo para evitar refactor cuando entren más verticales.
+
+---
+
+### DD-6: Navegación dual desktop / PWA-móvil
+
+**Seleccionado**: Sidebar desktop (`≥ lg`) + `BottomNavBar` PWA (`< lg`) — Header de una sola fila compartido entre ambos breakpoints.
+
+**Options Considered**:
+- Option A (seleccionada): Dual nav por breakpoint — patrón PWA-nativo Android/iOS
+- Option B: Hamburger drawer único para ambos — ahorra código pero rompe la affordance móvil esperada de e-commerce
+- Option C: Header con tabs horizontales — funcional pero ocupa altura valiosa en móvil y no es PWA-nativo
+
+**Trade-offs Accepted**: Dos componentes de navegación a mantener. El sidebar y la BottomNav muestran cosas distintas (verticales de plataforma vs accesos rápidos) — esto es intencional, no inconsistencia.
+
+**Rationale**: La PWA debe sentirse nativa al instalarse en Android. `BottomNavBar` con FAB de carrito + `safe-area-inset-bottom` replica patrones nativos de e-commerce móvil; el sidebar desktop aprovecha el ancho disponible para mostrar la oferta completa de la plataforma.
+
+---
+
 ## Component Architecture
+
+### MAUI-PWA-customers — Layout & Navegación (iteración 2026-06-08)
+
+#### `shared/components/layout/RootLayout.tsx` — NUEVO
+- Wrapper de todas las rutas con layout completo (excepto `*`)
+- Renderiza: `Header` · `<main><Outlet/></main>` · `Footer` (oculto en `lg:hidden`) · `PWAUpdateBanner` · `BottomNavBar` condicional
+- Padding inferior dinámico: `paddingBottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))`
+- Hook `useBottomNavVisible()` controla la visibilidad de la BottomNav por ruta
+
+#### `shared/components/layout/Header.tsx` — NUEVO
+- Una sola fila en todos los breakpoints (`h-14 md:h-16`)
+- **Móvil**: `imagotipo.png` · buscador `flex-1` · carrito redondo 40×40 · avatar
+- **Desktop (`≥ md`)**: `isotipo.png` (en caja) + `logotipo.png` + subtítulo "En alianza con Leche y Miel" · buscador · nav (Ofertas, Mis pedidos, Favoritos) · carrito pill con total COP · avatar
+
+#### `shared/components/layout/BottomNavBar.tsx` — NUEVO (PWA móvil/tablet)
+- Visible `lg:hidden`. 5 slots fijos:
+  1. Inicio → `/`
+  2. Ofertas → `/ofertas` *(ruta pendiente)*
+  3. Carrito → `/cart` (FAB elevado con badge `cartCount`; plano cuando vacío)
+  4. Mis pedidos → `/orders`
+  5. Favoritos → `/favoritos` *(ruta pendiente)*
+- Respeta `env(safe-area-inset-bottom)` para PWA instalada
+
+---
+
+### MAUI-PWA-customers — Home (iteración 2026-06-08)
+
+#### `features/catalog/pages/Home.tsx` — REDISEÑADA
+Secciones verticales en orden:
+
+1. **`HeroCarousel`** — 2 slides autoplay 5 s, pause on hover/focus
+2. **"Beneficios para ti"** — grid de 4 tarjetas (Truck · ShieldCheck · Award · MessageCircle) definido inline en `BENEFITS`. Sub-texto de cada tarjeta visible solo desde `md` (`hidden md:block`)
+3. **"Categorías principales"** — scroll horizontal en móvil / `md:grid-cols-9` en desktop. PNG circular 96×96 (`w-24 h-24`) desde `useCategories()` con `shadow-[0_4px_14px_rgba(99,102,241,0.25)]`. En móvil las cards de categoría son `shrink-0 w-[80px]` sin bg/borde/sombra; en desktop (`md:`) se añaden `bg-white rounded-xl border shadow-card hover:shadow-card-hover`
+4. **"Ofertas del día 🔥"** — `grid-cols-2 md:grid-cols-3 xl:grid-cols-5`. Slot 1 fijo: `MauiPlusCard`. Slots 2–5: productos de `useFeaturedProducts()`
+5. **Trust bar** (solo desktop) — 3 frases en `TRUST`
+
+**Sidebar desktop** (`<aside className="hidden lg:flex">`): mapea `useBusinessCategoryGroups()` → `SidebarSection` colapsable + tarjeta promo "Envío gratis $30.000" con imagen `promoEnvioGratis`.
+
+#### `features/catalog/components/HeroCarousel.tsx` — NUEVO
+- 2 slides definidos en `assets/hero/index.ts`:
+  1. "Maui y Leche y Miel, más cerca de ti" — eyebrow "Juntos por Dolores, Tolima", CTA `/catalog`
+  2. "Productos frescos todos los días" — CTA `/catalog/lacteos`
+- Gradiente horizontal `bg-gradient-to-r` con más opacidad blanca en móvil para legibilidad
+- Badge circular 72×72 oculto en móvil (`hidden md:flex`)
+- Dots/pills inferiores; flechas prev/next solo desktop
+
+#### `SidebarSection` (inline en `Home.tsx`) — NUEVO
+- Renderiza un `BusinessCategoryGroup` con header colapsable
+- Chevron animado: `-rotate-180` cuando `expanded === true` (default true)
+- Items con `comingSoon: true` → badge "Próximamente" + `aria-disabled` (no navegan)
+- Estilo activo: `bg-brand-primary-light text-brand-primary font-semibold`
+
+#### `MauiPlusCard` (inline en `Home.tsx`) — NUEVO
+- Tarjeta promo con gradiente brand-primary/secondary
+- Imagen `bannerAhorraMauiPlus` con overlay
+- Ocupa el primer slot del grid "Ofertas del día"
+
+---
+
+## Component Architecture (resto — sin cambios respecto a la aprobación original)
 
 ### MAUI-PWA-customers — Nuevos componentes
 
-#### `features/catalog/CatalogPage.tsx` — NUEVO
+#### `features/catalog/pages/CatalogPage.tsx` — NUEVO
 - **Ruta**: `/catalog/:categoryId`
 - **Props**: `categoryId` (desde `useParams`)
-- **Data**: `useProducts({ categoryId })` — React Query, `staleTime: 5min`
+- **Data**: `useProducts()` (sin argumentos) + filtrado por `categoryId` dentro del componente — React Query, `staleTime: 5min`
 - **UI**: Grid de `ProductCard`, skeleton loaders mientras carga, estado vacío si no hay productos
-- **Behavior**: Al tocar una card → abre `ProductDetailModal`
+- **Behavior**: Al tocar la imagen o nombre del producto → abre `ProductDetailSheet`
 
-#### `features/catalog/ProductDetailModal.tsx` — NUEVO
-- **Props**: `product: Product`, `isOpen: boolean`, `onClose: () => void`
-- **UI**: Modal centrado, imagen WebP 400×400, nombre, precio/unidad, botón de agregar con contador (+/-), botón cerrar
-- **Behavior**: Llama `cartStore.addItem()`, muestra quantity actual en el counter
+#### `features/catalog/components/ProductDetailSheet.tsx` — NUEVO (reemplaza `ProductDetailModal.tsx`, eliminado)
+- **Props**: `open`, `onClose`, `name`, `image`, `price`, `originalPrice?`, `unit?`, `currency?`, `description?`, `nutritionalInfo?`, `availability?`, `inStock?`, `is_variable_weight?`, `badge?`, `cartQuantity`, `onAdd(qty)`, `onOpenWeightSheet?`
+- **UI**: `createPortal` al body, overlay + panel deslizable a 90dvh. Imagen en relación 4:3 (`aspect-[4/3]`). Descripción, tabla de info nutricional (si existe), chip de disponibilidad (`availabilityChip()`). Footer sticky con `QuantityStepper` y CTA
+- **Stepper**: `localQty` inicializado con `Math.max(1, cartQuantity)`. Botón `−` → `Trash2` rojo cuando `localQty === 1`. CTA → "Eliminar del carrito" cuando `localQty === 0`. Precio dinámico en CTA: `localQty × price`
+- **availability chip**: "Disponible" → `bg-emerald-50 text-emerald-700`; "Pocas unidades" → `bg-amber-50 text-amber-700`; otros → `bg-gray-100 text-gray-500`
+- **BottomNavBar**: lee `uiStore.bottomSheetOpen`; se desliza fuera de vista (`transition-transform translate-y-full`) mientras cualquier sheet está abierto
+- **Header**: `md:sticky` — no sticky en móvil para no competir con el sheet a 90dvh
+
+#### `features/catalog/components/ProductCard.tsx` — REFACTORED (iteración 2026-06-10)
+- **Comportamiento CTA** (fila inferior precio + acción):
+  - `inStock === true` + `is_variable_weight === false` + `quantity === 0` → FAB `+` circular (`w-9 h-9 rounded-full bg-brand-primary`)
+  - `inStock === true` + `is_variable_weight === false` + `quantity > 0` → `<QuantityStepper>` inline
+  - `inStock === true` + `is_variable_weight === true` + `kilosInCart === 0` → FAB `+` abre `<VariableWeightSheet>`
+  - `inStock === true` + `is_variable_weight === true` + `kilosInCart > 0` → pill `"{X} kg [+]"` (abre sheet con `initialKilos` precargado)
+  - `inStock === false` → texto "Sin stock" (compact inline, no botón)
+- **Tap imagen/nombre**: abre `<ProductDetailSheet>` para ver detalle
+- **Hook**: usa `useProductQuantity(id)` — lee `quantity` y `kilos` desde `cartStore`
+- **Badge color**: `badge === "Local"` → `bg-emerald-600`; otros → `bg-brand-primary`
+- **Layout**: precio y CTA en fila `flex items-end justify-between`; el CTA no es ancho completo
+
+#### `features/catalog/components/QuantityStepper.tsx` — NUEVO
+- **Props**: `quantity`, `onIncrement`, `onDecrement`, `disabled?`
+- **UI**: Pill `bg-brand-primary rounded-full h-9` con botones `−` / contador / `+` en blanco
+- **Long-press**: hold 1 s → repite cada 300 ms (`setTimeout` + `setInterval` en `onPointerDown/Up/Leave/Cancel`)
+- **Accesibilidad**: `role="group"` con `aria-label="Cantidad: {quantity}"`; `touchAction: manipulation` para evitar zoom en iOS
+
+#### `features/catalog/components/VariableWeightSheet.tsx` — ACTUALIZADO
+- **Props**: `open`, `onClose`, `productName`, `pricePerUnit`, `currency?`, `initialKilos?`, `onConfirm(kilos: number)`
+- **UI**: `createPortal` al body. Selector **0.25–5 kg** (paso 0.25). Precio estimado en COP en tiempo real (`kilos × pricePerUnit`)
+- **`initialKilos`**: precarga el selector cuando ya hay kilos en el carrito (reabrir para editar)
+- **`useEffect`** solo dispara en `[open]` para evitar reset al reeditar
+- **Nota**: `safe-area-inset-bottom` en `paddingBottom`; bloquea scroll del body mientras abierto
+- **TASK-031 completado**: `onConfirm(kilos)` persiste kilogramos en `CartItem.kilos`; `cartStore` acumula correctamente
+
+#### `shared/hooks/useProductQuantity.ts` — ACTUALIZADO
+- **Firma**: `useProductQuantity(productId: string | undefined) → { quantity, kilos, increment, decrement }`
+- **`quantity`**: `cartStore.items.find(i => i.productId === id)?.quantity ?? 0`
+- **`kilos`**: `cartStore.items.find(i => i.productId === id)?.kilos ?? 0`
+- **increment**: `cartStore.updateQuantity(id, quantity + 1)`
+- **decrement**: `quantity <= 1` → `cartStore.removeItem(id)`; else `cartStore.updateQuantity(id, quantity - 1)`
 
 #### `features/checkout/CheckoutPage.tsx` — NUEVO
 - **Ruta**: `/checkout`
@@ -175,10 +312,31 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
 - **UI**: 3 radio buttons — "Llámame", "Producto similar", "Eliminar del pedido"
 - **Behavior**: Nada se puede avanzar sin seleccionar una opción
 
-#### `features/checkout/checkoutStore.ts` — NUEVO
+#### `features/checkout/checkoutStore.ts` — ACTUALIZADO
 - **State**: `deliveryMode`, `timeSlot`, `address`, `lat?`, `lng?`, `substitutionPref`, `customerName`, `isSubmitting`
 - **Actions**: `setDeliveryMode()`, `setSubstitutionPref()`, `setSubmitting()`, `reset()`
+- **Hook derivado**: `useIsDeliveryReady()` — gate del step de entrega con guard `address.trim()` para domicilio
 - **Persistencia**: NINGUNA (store efímero, sin middleware `persist`)
+
+#### `features/checkout/DeliverySelector.tsx` — ACTUALIZADO
+- Fix: `setTimeout` para focus reemplazado por `useEffect`
+- Comentarios estructurales removidos (código más limpio)
+
+#### `features/checkout/SubstitutionSelector.tsx` — ACTUALIZADO
+- Fix double-fire: removido `onClick` redundante en `<label>` (conflicto con `htmlFor` + `onChange`)
+
+#### `features/checkout/shipping.ts` — NUEVO
+```typescript
+interface ShippingQuote {
+  cost: number          // 0 si es gratis
+  isFree: boolean       // true cuando subtotal >= FREE_SHIPPING_THRESHOLD
+  freeThreshold: number // umbral configurado (útil para "te faltan $X")
+}
+// Regla: subtotal >= 30_000 → gratis; subtotal < 30_000 → $3_000
+function calculateShipping(subtotal: number): ShippingQuote
+```
+- Pura, sin dependencias de UI ni stores
+- Configurable vía `FREE_SHIPPING_THRESHOLD` y `STANDARD_SHIPPING_COST` en `config/app.ts`
 
 #### `features/orders/OrderDetailPage.tsx` — NUEVO
 - **Ruta**: `/orden/:orderId`
@@ -201,7 +359,7 @@ Esta feature completa el frontend de la PWA MAUI Customers (brownfield, ~55% con
 - Confirmar pasillos reales con el aliado antes del deploy
 - Formato de imagen: WebP 400×400px < 30KB
 
-#### `features/auth/authStore.ts` — ACTUALIZAR
+#### `stores/authStore.ts` — ACTUALIZAR
 ```typescript
 // Agregar cuando VITE_DEMO_MODE=true:
 const DEMO_USER: User = {
@@ -220,6 +378,29 @@ const DEMO_USER: User = {
 #### `config/app.ts` — ACTUALIZAR
 - `WHATSAPP_SUPPORT_NUMBER`: reemplazar por número real de Leche y Miel
 - `WHATSAPP_ORDER_NUMBER`: número para notificaciones de pedidos
+
+#### `stores/cartStore.ts` — ACTUALIZADO
+- **Nueva acción**: `updateKilos(productId, kilos)` — si `kilos <= 0` llama `removeItem`; else actualiza `CartItem.kilos` con `roundKg(kilos)`
+- **`calcTotals`**: usa `kilos ?? 1` para `is_variable_weight`; `quantity` para el resto
+- **`addItem`**: acumula kilos en el mismo ítem si ya existe (`roundKg((i.kilos ?? 0) + item.kilos)`)
+- **Helper interno**: `roundKg = (v) => parseFloat(v.toFixed(2))` (evita errores de punto flotante)
+- **`lastUpdated`**: nuevo campo para lógica de `clearIfStale` (30 días)
+
+#### `shared/utils/formatPrice.ts` — NUEVO
+- `Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })`
+- Consolida 3 copias locales que existían en `ProductDetailSheet`, `CartPage` y `CheckoutPage`
+
+#### `stores/themeStore.ts` — NUEVO
+- Zustand `persist` (key: `maui-theme`). `theme: 'light' | 'dark'`, `toggleTheme()`, `setTheme(t)`
+
+#### `shared/components/ui/ThemeToggle.tsx` — NUEVO
+- Botón `Sun`/`Moon` (Lucide) con `aria-label` y `aria-pressed`. Estilos `bg-brand-primary/10`
+
+#### `shared/hooks/useThemeSync.ts` — NUEVO
+- `useEffect` que sincroniza `document.documentElement.classList.toggle('dark', theme === 'dark')` cuando cambia `themeStore.theme`
+
+#### `hooks/useCart.ts` — ACTUALIZADO
+- Expone `updateKilos` junto a las demás acciones del `cartStore`
 
 ### MAUI-PWA-customers — Nuevos archivos de servicio
 
@@ -267,6 +448,13 @@ export const orderService: OrderService =
 { path: '/orders',  element: <OrdersPage /> }   // reemplazar contenido
 { path: '/auth',    element: <AuthPage /> }
 { path: '*',        element: <NotFound /> }
+
+// Pendientes — referenciadas por BottomNav / CTAs pero aún no registradas:
+//   /ofertas      (BottomNavBar slot 2)
+//   /favoritos    (BottomNavBar slot 5)
+//   /search       (RootLayout.onSearch)
+//   /catalog      (hero CTA y "Ver todas las categorías" en Home)
+// Resolver en próxima iteración: placeholders o redirect al Home.
 ```
 
 ---
@@ -388,6 +576,77 @@ const MESSAGES: Record<OrderStatus, (name: string, orderId: string) => string> =
 ### Interfaces compartidas (mismas en PWA y admin)
 
 ```typescript
+// ─── Catálogo (definidas en src/types/catalog.ts) ─────────────────────────
+
+// Producto del catálogo de un aliado
+interface Product {
+  id: string
+  name: string
+  price: number
+  unit: string
+  imageUrl: string
+  categoryId: string          // FK a Category.id
+  inStock: boolean
+  is_variable_weight: boolean
+  // opcionales
+  name_display?: string       // nombre corto UI
+  name_legal?: string         // nombre largo recibos
+  originalPrice?: number      // precio tachado
+  badge?: string
+  currency?: string
+  description?: string
+  nutritionalInfo?: {
+    calories?: string
+    protein?: string
+    fat?: string
+    carbs?: string
+    fiber?: string
+  }
+  availability?: string       // "Disponible" | "Pocas unidades" | "Agotado"
+}
+
+// Catálogo del aliado: agrupaciones de producto (pasillos)
+interface Category {
+  id: string
+  name: string
+  icon?: string
+  slug?: string
+  illustrationUrl?: string    // PNG circular 96×96 ("Categorías principales" Home)
+  order?: number
+}
+
+// Plataforma MAUI: vertical de plataforma (sidebar)
+interface BusinessCategory {
+  id: string
+  name: string
+  iconName: string            // resuelto vía BCAT_ICON_REGISTRY a LucideIcon
+  slug: string | null         // null = no navega aún
+  comingSoon: boolean
+}
+
+// Plataforma MAUI: agrupación de verticales (sección colapsable del sidebar)
+interface BusinessCategoryGroup {
+  id: string
+  label: string               // "Comprar" | "Servicios" | "Comunidad" | ...
+  order: number
+  items: BusinessCategory[]
+}
+
+// ─── Pedidos (definidas en src/types/order.ts) ────────────────────────────
+
+// Ítem en el carrito (definido en src/types/cart.ts)
+interface CartItem {
+  productId: string
+  name: string
+  imageUrl: string
+  price: number
+  price_at_moment: number
+  unit: string
+  quantity: number
+  is_variable_weight: boolean
+  kilos?: number              // solo para is_variable_weight === true
+}
+
 // Contrato del servicio de pedidos
 interface OrderService {
   submit(payload: OrderPayload): Promise<OrderConfirmation>
@@ -443,7 +702,7 @@ interface Order {
 | `VITE_DEMO_MODE` | `"true"` | `"false"` |
 | `VITE_API_URL` | no requerida en demo | URL del backend real |
 
-Archivo: `MAUI-PWA-customers/client/.env.demo`
+Archivo: `MAUI-PWA-customers/.env.demo`
 ```
 VITE_DEMO_MODE=true
 ```
@@ -456,41 +715,91 @@ VITE_DEMO_MODE=true
 
 ---
 
-## File Structure (cambios en MAUI-PWA-customers)
+## File Structure (estado actual tras iteración 2026-06-08)
+
+> **Path correction**: el repo fue aplanado (`client/src/` → `src/`) en commit `ebcf57b`.
 
 ```
-MAUI-PWA-customers/client/src/
+MAUI-PWA-customers/src/
 ├── features/
 │   ├── catalog/
-│   │   ├── CatalogPage.tsx          ← NUEVO
-│   │   ├── ProductDetailModal.tsx   ← NUEVO
-│   │   ├── mockData.ts              ← ACTUALIZAR con datos reales L&M
-│   │   ├── Home.tsx                 ← sin cambios (ya implementado)
-│   │   ├── ProductCard.tsx          ← sin cambios
-│   │   └── hooks/                   ← sin cambios
-│   ├── checkout/                    ← NUEVO directorio completo
-│   │   ├── CheckoutPage.tsx
-│   │   ├── DeliverySelector.tsx
-│   │   ├── SubstitutionSelector.tsx
-│   │   └── checkoutStore.ts
+│   │   ├── pages/
+│   │   │   ├── Home.tsx                       ← REDISEÑADA (sidebar + 4 secciones + carrusel)
+│   │   │   └── CatalogPage.tsx                ← implementado (useProducts sin args + filtro)
+│   │   ├── components/
+│   │   │   ├── HeroCarousel.tsx               ← implementado
+│   │   │   ├── ProductDetailSheet.tsx         ← NUEVO (reemplaza ProductDetailModal.tsx, eliminado)
+│   │   │   ├── ProductCard.tsx                ← REFACTORED (iteración 2026-06-10)
+│   │   │   ├── QuantityStepper.tsx            ← implementado
+│   │   │   └── VariableWeightSheet.tsx        ← ACTUALIZADO (kg, createPortal, initialKilos)
+│   │   │   └── PasillosGrid.tsx               ← huérfano (decidir destino, ver TASK-029)
+│   │   └── mockData.ts                        ← incluye mockBusinessCategoryGroups + mockFeaturedProducts
+│   │
+│   ├── checkout/
+│   │   ├── CheckoutPage.tsx                   ← SIMPLIFICADO (iteración 2026-06-10)
+│   │   ├── DeliverySelector.tsx               ← ACTUALIZADO (useEffect, sin setTimeout)
+│   │   ├── SubstitutionSelector.tsx           ← ACTUALIZADO (fix double-fire)
+│   │   ├── checkoutStore.ts                   ← ACTUALIZADO (+useIsDeliveryReady)
+│   │   └── shipping.ts                        ← NUEVO (calculateShipping, ShippingQuote)
+│   │
 │   ├── orders/
-│   │   ├── OrdersPage.tsx           ← REEMPLAZAR placeholder
-│   │   ├── OrderDetailPage.tsx      ← NUEVO
-│   │   └── OrderTimeline.tsx        ← NUEVO
+│   │   ├── pages/
+│   │   │   ├── OrdersPage.tsx
+│   │   │   └── OrderDetailPage.tsx
+│   │   ├── OrderTimeline.tsx
+│   │   └── ReorderBanner.tsx                  ← existe (no en spec original)
+│   │
 │   ├── auth/
-│   │   └── authStore.ts             ← ACTUALIZAR: DEMO_USER
+│   │   └── pages/AuthPage.tsx
+│   │
 │   └── cart/
-│       └── CartPage.tsx             ← FIX: CTA "Pedir mi Mercado"
+│       └── pages/CartPage.tsx
+│
+├── shared/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── RootLayout.tsx                 ← implementado
+│   │   │   ├── Header.tsx                     ← ACTUALIZADO (md:sticky)
+│   │   │   ├── Footer.tsx                     ← implementado
+│   │   │   └── BottomNavBar.tsx               ← ACTUALIZADO (slide-out via uiStore.bottomSheetOpen)
+│   │   └── ui/
+│   │       └── ThemeToggle.tsx                ← NUEVO (Sun/Moon, aria-pressed)
+│   ├── hooks/
+│   │   ├── useProductQuantity.ts              ← ACTUALIZADO (expone kilos)
+│   │   └── useThemeSync.ts                    ← NUEVO (toggle .dark en documentElement)
+│   └── utils/
+│       └── formatPrice.ts                     ← NUEVO (Intl.NumberFormat es-CO centralizado)
+│
+├── hooks/
+│   └── useCatalog.ts                          ← useProducts · useFeaturedProducts
+│                                                useCategories · useBusinessCategoryGroups
+│
+├── types/
+│   ├── catalog.ts                             ← Product · Category · BusinessCategory · BusinessCategoryGroup
+│   └── order.ts                               ← Order · OrderPayload · OrderStatus
+│
+├── stores/
+│   ├── authStore.ts                           ← DEMO_USER cuando VITE_DEMO_MODE=true
+│   ├── cartStore.ts                           ← ACTUALIZADO (updateKilos, calcTotals kg, roundKg)
+│   ├── themeStore.ts                          ← NUEVO (Zustand persist, light|dark)
+│   └── uiStore.ts                            ← ACTUALIZADO (bottomSheetOpen)
 │
 ├── services/
-│   ├── mockOrderService.ts          ← NUEVO
-│   ├── index.ts                     ← NUEVO (VITE_DEMO_MODE switch)
-│   └── api.ts                       ← sin cambios
+│   ├── mockOrderService.ts
+│   ├── index.ts                               ← VITE_DEMO_MODE switch
+│   └── api.ts
 │
-├── router/                          ← ACTUALIZAR: agregar 3 rutas nuevas
+├── assets/
+│   ├── categories/ (9 PNG: bebidas, congelados, despensa, electro,
+│   │                herramientas, jugueteria, lacteos, limpieza, snacks)
+│   ├── hero/ (hero-parque.png, hero-supermercado-abarrotes.png)
+│   ├── banners/ahorra-maui-plus.png
+│   └── promos/envio-gratis.png
 │
-└── config/
-    └── app.ts                       ← ACTUALIZAR: WhatsApp real de L&M
+├── config/
+│   └── app.ts                                 ← WHATSAPP_SUPPORT_NUMBER
+│
+└── App.tsx                                    ← Router con lazy + RootLayout wrapper
 ```
 
 ---
@@ -499,10 +808,14 @@ MAUI-PWA-customers/client/src/
 
 | Hook | staleTime | refetchInterval | Source |
 |------|-----------|-----------------|--------|
-| `useProducts({ categoryId })` | 5 min | — | `mockData.ts` |
+| `useProducts()` (sin args; filtro por `categoryId` en `CatalogPage`) | 5 min | — | `mockData.ts` |
+| `useFeaturedProducts()` (filtro `inStock` en mock) | 5 min | — | `mockData.ts` |
 | `useCategories()` | 10 min | — | `mockData.ts` |
+| `useBusinessCategoryGroups()` | 10 min | — | `mockData.ts` |
 | `useOrder(orderId)` | 0 | 5000ms (polling) | `mockOrderService.getById` |
 | `useOrders()` | 0 | — | `mockOrderService.list` |
+
+> Todos los hooks viven en `src/hooks/useCatalog.ts` (catálogo) o consumen `orderService` directamente desde los componentes (pedidos).
 
 ---
 
@@ -563,5 +876,7 @@ VITE_DEMO_MODE=true
 |-------|--------|-------------|-------------|
 | functional | approved | Nixon Gamboa | 2026-06-02T06:34:22Z |
 | technical | approved | Nixon Gamboa | 2026-06-02T06:52:00Z |
-| tasks | pending | — | — |
-| implementation | pending | — | — |
+| technical (re-iteración Home/Layout/Taxonomía DD-5, DD-6) | iterated | Nixon Gamboa | 2026-06-08 |
+| technical (iteración ProductDetailSheet, peso variable kg, dark mode, shipping, checkout simplify) | iterated | Nixon Gamboa | 2026-06-10 |
+| tasks | approved | Nixon Gamboa | 2026-06-02T07:05:00Z |
+| implementation | in-progress | — | — |

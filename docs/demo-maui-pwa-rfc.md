@@ -99,6 +99,9 @@ classDiagram
         +Boolean is_variable_weight
         +String badge
         +String currency
+        +String description
+        +Object nutritionalInfo
+        +String availability
     }
 
     class Category {
@@ -108,13 +111,32 @@ classDiagram
         +Number order
     }
 
+    class BusinessCategory {
+        +String id
+        +String name
+        +String slug
+        +String iconName
+        +String route
+        +Boolean active
+    }
+
+    class BusinessCategoryGroup {
+        +String id
+        +String label
+        +Number order
+        +BusinessCategory[] items
+    }
+
     class CartItem {
         +String productId
         +String name
+        +String imageUrl
         +Number price
         +Number price_at_moment
         +String unit
         +Number quantity
+        +Boolean is_variable_weight
+        +Number kilos
     }
 
     class Order {
@@ -143,15 +165,18 @@ classDiagram
     CartItem --> Product : referencia
     Order "1" --> "many" CartItem : incluye
     CheckoutState --> Order : genera
+    BusinessCategoryGroup "1" --> "many" BusinessCategory : agrupa
 ```
 
 ### 2.3.2. Catálogo de Elementos
 
 | Elemento | Descripción |
 | :---- | :---- |
-| `Product` | Producto del catálogo de Leche y Miel. `is_variable_weight` siempre `false` en el demo |
-| `Category` | Pasillo de la tienda (pendiente confirmar con el aliado cuáles son los reales) |
-| `CartItem` | Ítem en el carrito. Incluye `price_at_moment` para snapshot de precio al momento de agregar |
+| `Product` | Producto del catálogo de Leche y Miel. `is_variable_weight: true` para productos vendidos por peso (ej. queso campesino). Campos opcionales: `description`, `nutritionalInfo`, `availability` |
+| `Category` | Pasillo de la tienda (agrupación de producto dentro del aliado L&M) |
+| `BusinessCategory` | Vertical de la plataforma MAUI (groceries, farmacia, mascotas, …). Aparece en sidebar/menú y enruta a un sub-marketplace. Independiente de los pasillos de un aliado |
+| `BusinessCategoryGroup` | Agrupación lógica de `BusinessCategory` (p. ej. "Compras", "Servicios"). Se usa para renderizar secciones colapsables en el sidebar |
+| `CartItem` | Ítem en el carrito. `price_at_moment` es snapshot de precio al agregar. `kilos` solo para `is_variable_weight === true`; el total calcula `kilos × precio` en ese caso |
 | `Order` | Pedido generado localmente por el mock. En producción vendrá del backend |
 | `CheckoutState` | Store efímero de Zustand que vive solo durante el flujo de checkout |
 
@@ -159,7 +184,7 @@ classDiagram
 
 | Descripción | Tipo |
 | :---- | :---- |
-| Todos los productos tienen `is_variable_weight: false` — funcionalidad fuera del scope del demo | Negocio |
+| Productos `is_variable_weight: true` usan `VariableWeightSheet` (0.25–5 kg, paso 0.25). `CartItem.kilos` persiste la selección. El total usa `kilos × precio` | Negocio |
 | No se implementa SearchPage — los pasillos son suficientes para ~15 productos | Negocio |
 | No hay backend real — toda comunicación pasa por `mockOrderService` con delay 800–1200ms | Técnica |
 | No hay WhatsApp Magic Link real — el demo usa un usuario pre-autenticado (`DEMO_USER`) | Técnica |
@@ -169,6 +194,11 @@ classDiagram
 | `router.replace()` en la pantalla de confirmación — nunca `router.push()` | Técnica |
 | El carrito se destruye solo al recibir respuesta exitosa del mock (simulando el 201) | Técnica |
 | Las categorías del catálogo deben ser los pasillos reales de Leche y Miel, confirmados con el aliado | Negocio |
+| Dark mode disponible vía `ThemeToggle` en el Header. Preferencia persistida en `localStorage` key `maui-theme`. Clase `.dark` sincronizada en `document.documentElement` vía `useThemeSync` | UX |
+| Envío gratis cuando el subtotal >= $30.000 COP; costo estándar $3.000. Calculado por `calculateShipping()` en `features/checkout/shipping.ts`. Configurable vía `FREE_SHIPPING_THRESHOLD` y `STANDARD_SHIPPING_COST` en `config/app.ts` | Negocio |
+| Nunca mezclar `BusinessCategory` (vertical de plataforma) con `Category` (pasillo de producto del aliado). El sidebar/menú principal renderiza `BusinessCategory`; las tarjetas de catálogo de un aliado renderizan `Category` | Negocio / Técnica |
+| Layout PWA-nativo: `Header` de una sola fila + `BottomNavBar` con FAB en móvil + `Sidebar` colapsable en desktop. Respetar `env(safe-area-inset-bottom)` al renderizar el bottom nav cuando la PWA está instalada | Técnica |
+| Las imágenes circulares de categorías principales (Home) son PNG 96×96 con fondo transparente. Se cargan desde `assets/` como módulo importado para que Vite las versione | Técnica |
 
 ## 2.5. Atributos de Calidad
 
@@ -182,6 +212,7 @@ classDiagram
 | **QA-6** | Offline | Carga desde caché | El home y el catálogo son visibles sin conexión desde el Service Worker | CU-1 |
 | **QA-7** | Confianza | Pago explícito | El usuario ve "Pagas en efectivo cuando llegue tu pedido" antes de confirmar | CU-4 |
 | **QA-8** | Legal | Consentimiento datos | El aviso de Ley 1581 es visible antes del CTA en el checkout | CU-3 |
+| **QA-9** | PWA-nativa | BottomNav accesible | `BottomNavBar` respeta `env(safe-area-inset-bottom)`; sin scroll horizontal en móvil; FAB carrito en zona del pulgar | CU-1, CU-2 |
 
 ---
 
@@ -250,7 +281,7 @@ graph TD
     subgraph features/catalog
         HP[Home Page]
         CP[CatalogPage ← NUEVO]
-        PDM[ProductDetailModal ← NUEVO]
+        PDM[ProductDetailSheet ← NUEVO]
         PC[ProductCard]
         MD2[mockData.ts ← ACTUALIZAR]
     end
@@ -277,9 +308,17 @@ graph TD
         API[api.ts ← EXISTENTE]
     end
 
+    subgraph shared/components/layout
+        RL[RootLayout ← NUEVO]
+        HD[Header una fila ← NUEVO]
+        SB[Sidebar desktop ← NUEVO]
+        BNB[BottomNavBar + FAB ← NUEVO]
+    end
+
     subgraph shared
         FCB[FloatingCartBar ← EXISTENTE]
         EB[ErrorBoundary ← EXISTENTE]
+        HC[HeroCarousel ← NUEVO]
     end
 
     HP --> CP
@@ -299,7 +338,7 @@ graph TD
 | Nombre | Descripción |
 | :---- | :---- |
 | `CatalogPage` | Grid de productos por pasillo. Recibe `categoryId` desde la ruta. Skeleton loaders obligatorios |
-| `ProductDetailModal` | Modal centrado con imagen grande, nombre, precio y botón de agregar con contador |
+| `ProductDetailSheet` | Bottom sheet (`createPortal`, 90dvh) con imagen 4:3, descripción, info nutricional, chip de disponibilidad y selector de cantidad. Precio total dinámico en CTA. Reemplaza `ProductDetailModal` |
 | `CheckoutPage` | Flujo de 4 steps en una sola página. Orquesta `DeliverySelector`, `SubstitutionSelector` y el submit |
 | `DeliverySelector` | Selector de modalidad: pickup (3 bandas de hora) vs domicilio (dirección + geolocalización) |
 | `SubstitutionSelector` | Radio buttons con las 3 opciones de sustitución. Bloquea el CTA hasta que se elija una |
@@ -308,6 +347,16 @@ graph TD
 | `OrderTimeline` | Componente visual del stepper de estados con animación en la transición |
 | `mockOrderService` | Implementa la interfaz `OrderService` con delays que simulan latencia 3G |
 | `authStore` (actualizado) | Expone `DEMO_USER` pre-autenticado. Sin Magic Link real en la demo |
+| `ProductCard` (refactored) | FAB `+` circular cuando `quantity === 0`; se reemplaza por `QuantityStepper` cuando `quantity > 0`. Badge "Local" en verde. Precio y CTA en la misma fila |
+| `QuantityStepper` | Pill `bg-brand-primary` con botones −/+. Soporta long-press (1 s delay, repite 300 ms) |
+| `VariableWeightSheet` | Bottom sheet para selección de kilogramos (0.25–5 kg, paso 0.25). Precio estimado en COP en tiempo real. `initialKilos` precarga al editar. `createPortal` al body. `safe-area-inset-bottom` respetado |
+| `useProductQuantity` | Hook que expone `quantity`, `kilos`, `increment` y `decrement` desde `cartStore` |
+| `RootLayout` | Layout raíz de la app. Renderiza `Header`, `Sidebar` (desktop), `BottomNavBar` (móvil) y el `<Outlet/>` de React Router |
+| `Header` (una fila) | Barra superior compacta con logo, buscador y CTAs. Versión móvil colapsa acciones secundarias dentro del menú |
+| `Sidebar` (desktop) | Panel lateral colapsable con `BusinessCategoryGroup`/`BusinessCategory`. Renderiza chevrons y animación de despliegue |
+| `BottomNavBar` (móvil) | Navegación inferior estilo PWA-nativa con FAB central. Respeta `env(safe-area-inset-bottom)`. Oculta en rutas modales (`/checkout`, `/orden/:id`) si aplica |
+| `HeroCarousel` | Carrusel del Home con banners horizontales. Gradiente compacto en móvil tras iteración 2026-06-08 |
+| `Home` (rediseñada) | Estructura vertical en 5 secciones: hero, categorías principales (PNG circulares 96×96), MAUI+, sidebar inline para móvil y productos destacados |
 
 ## 3.3. Schema / Contrato de Datos
 
@@ -425,43 +474,91 @@ sequenceDiagram
 ### 3.6.1. Representación
 
 ```
-MAUI-PWA-customers/client/src/
+MAUI-PWA-customers/src/                  ← path flattened (antes client/src/)
 ├── features/
 │   ├── catalog/
-│   │   ├── CatalogPage.tsx          ← NUEVO
-│   │   ├── ProductDetailModal.tsx   ← NUEVO
-│   │   ├── mockData.ts              ← ACTUALIZAR con datos reales L&M
+│   │   ├── pages/
+│   │   │   └── CatalogPage.tsx          ← NUEVO
+│   │   ├── components/
+│   │   │   ├── ProductDetailSheet.tsx   ← NUEVO (reemplaza ProductDetailModal.tsx)
+│   │   │   ├── HeroCarousel.tsx         ← NUEVO
+│   │   │   ├── ProductCard.tsx          ← REFACTORED (FAB/Stepper/kg-pill)
+│   │   │   ├── QuantityStepper.tsx      ← NUEVO
+│   │   │   └── VariableWeightSheet.tsx  ← ACTUALIZADO (kg, createPortal)
+│   │   ├── mockData.ts                  ← ACTUALIZAR con datos reales L&M
 │   │   └── README.md
-│   ├── checkout/                    ← NUEVO directorio
+│   ├── checkout/
 │   │   ├── CheckoutPage.tsx
 │   │   ├── DeliverySelector.tsx
 │   │   ├── SubstitutionSelector.tsx
-│   │   └── checkoutStore.ts
+│   │   ├── checkoutStore.ts
+│   │   └── shipping.ts                  ← NUEVO (calculateShipping)
 │   ├── orders/
-│   │   ├── OrdersPage.tsx           ← REEMPLAZAR placeholder
-│   │   ├── OrderDetailPage.tsx      ← NUEVO
-│   │   └── OrderTimeline.tsx        ← NUEVO
-│   ├── auth/
-│   │   └── authStore.ts             ← ACTUALIZAR: agregar DEMO_USER
-│   └── cart/
-│       └── CartPage.tsx             ← FIX: CTA "Pedir mi Mercado"
+│   │   ├── OrdersPage.tsx               ← REEMPLAZAR placeholder
+│   │   ├── OrderDetailPage.tsx          ← NUEVO
+│   │   └── OrderTimeline.tsx            ← NUEVO
+│   └── auth/
+│       └── pages/AuthPage.tsx
+│
+├── shared/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── RootLayout.tsx
+│   │   │   ├── Header.tsx               ← ACTUALIZADO (md:sticky)
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── SidebarSection.tsx
+│   │   │   ├── BottomNavBar.tsx         ← ACTUALIZADO (slide-out)
+│   │   │   └── FloatingCartBar.tsx
+│   │   └── ui/
+│   │       └── ThemeToggle.tsx          ← NUEVO
+│   ├── hooks/
+│   │   ├── useProductQuantity.ts        ← ACTUALIZADO (expone kilos)
+│   │   └── useThemeSync.ts             ← NUEVO
+│   └── utils/
+│       └── formatPrice.ts              ← NUEVO
+│
+├── hooks/                               ← NUEVO directorio
+│   ├── useCatalog.ts
+│   ├── useFeaturedProducts.ts
+│   └── useBusinessCategoryGroups.ts
+│
+├── types/                               ← NUEVO directorio
+│   ├── catalog.ts                       ← Product, Category, BusinessCategory…
+│   └── order.ts
+│
+├── stores/
+│   ├── cartStore.ts                     ← ACTUALIZADO (updateKilos, calcTotals kg)
+│   ├── authStore.ts                     ← DEMO_USER cuando VITE_DEMO_MODE=true
+│   ├── themeStore.ts                    ← NUEVO (Zustand persist, light|dark)
+│   └── uiStore.ts                       ← ACTUALIZADO (bottomSheetOpen)
+│
+├── assets/                              ← NUEVO: PNG circulares categorías
+│   └── categories/*.png
 │
 ├── services/
-│   ├── mockOrderService.ts          ← NUEVO
-│   └── api.ts                       ← EXISTENTE (sin cambios)
+│   ├── mockOrderService.ts              ← NUEVO
+│   └── api.ts                           ← EXISTENTE (sin cambios)
 │
 └── config/
-    └── app.ts                       ← FIX: número real de L&M
+    └── app.ts                           ← FIX: número real de L&M
 ```
 
 ### 3.6.2. Catálogo de Elementos
 
 | Nombre | Descripción |
 | :---- | :---- |
+| `features/catalog/components/QuantityStepper.tsx` | Counter pill inline. Reemplaza el FAB cuando `quantity > 0` |
+| `features/catalog/components/VariableWeightSheet.tsx` | Bottom sheet para productos de peso variable (0.25–5 kg, paso 0.25). `onConfirm(kilos)` persiste en `CartItem.kilos`; `cartStore.updateKilos()` permite editar desde `CartItemRow`. Precio estimado en COP en tiempo real. Implementado. |
+| `shared/hooks/useProductQuantity.ts` | Expone `quantity`, `kilos`, `increment` y `decrement` por `productId` desde `cartStore` |
 | `features/checkout/` | Nuevo directorio. Contiene toda la lógica y UI del flujo de pedido |
 | `services/mockOrderService.ts` | Implementa `OrderService`. Único archivo a reemplazar cuando llegue el backend real |
 | `CartPage.tsx` | Fix: CTA actual dice "Confirmar pedido" → debe decir "Pedir mi Mercado" |
 | `config/app.ts` | Fix: número de WhatsApp y teléfono deben ser los reales de Leche y Miel |
+| `shared/components/layout/` | Layout PWA-nativo: `RootLayout`, `Header` (una fila), `Sidebar` colapsable desktop, `BottomNavBar` con FAB en móvil |
+| `hooks/` | Hooks de datos sobre React Query: `useCatalog`, `useFeaturedProducts`, `useBusinessCategoryGroups` |
+| `types/` | Tipos compartidos del dominio frontend: `Product`, `Category`, `BusinessCategory`, `BusinessCategoryGroup`, `Order` |
+| `stores/` | Stores Zustand centralizados (`cartStore`, `authStore`). Migrados desde `features/*/store.ts` |
+| `assets/categories/` | PNG circulares 96×96 con fondo transparente para las categorías principales del Home |
 
 ## 3.7. Estrategia Multi-entorno
 
@@ -511,7 +608,7 @@ export const orderService: OrderService =
 
 El `mockOrderService` implementa la misma interfaz TypeScript que el servicio real futuro. Al agregar el backend, se agrega `realOrderService.ts` con la misma firma y se cambia el export en `services/index.ts`. Ningún componente requiere modificación.
 
-El campo `is_variable_weight` se mantiene en el tipo `Product` con valor `false` en todos los productos del demo. Cuando un aliado futuro requiera esta funcionalidad, se activa condicionalmente sin cambios en el modelo de datos.
+El campo `is_variable_weight` está activo en el demo para productos como queso campesino. `CartItem.kilos` persiste la selección; `cartStore.updateKilos()` permite editarla desde `CartItemRow`. Cuando un aliado futuro requiera más productos por peso, solo se actualiza `mockData.ts` — sin cambios en el modelo de datos.
 
 ## 5.2. Escenarios de Calidad / Testing
 
@@ -523,7 +620,8 @@ El campo `is_variable_weight` se mantiene en el tipo `Product` con valor `false`
 | **SC-4** | Usuario presiona Atrás desde la confirmación → cae en Home, no en el checkout ya enviado | CU-4 |
 | **SC-5** | Usuario recarga la pantalla de confirmación → el número de orden sigue visible | CU-4 |
 | **SC-6** | Producto con `inStock: false` → botón `+` oculto, badge "Agotado" visible | CU-7 |
-| **SC-7** | Empleado avanza estado sin ingresar pesos → el pedido avanza normalmente (peso variable fuera de scope) | CU-6 |
+| **SC-7** | Usuario selecciona 0.75 kg de queso campesino → carrito muestra subtotal correcto (`kilos × precio`) | CU-2 |
+| **SC-8b** | Usuario edita el peso desde `CartItemRow` → `VariableWeightSheet` reabre con `initialKilos` precargado | CU-2 |
 | **SC-8** | Catálogo cargado desde caché sin conexión → el usuario ve los productos disponibles | CU-1 |
 
 ## 5.3. Estrategia de Validación
@@ -540,6 +638,12 @@ La calidad del demo no se mide con tests automatizados sino con validación de c
 **Sesión con el aliado (empleado de Leche y Miel):**
 - Walkthrough previo del admin antes de la sesión con clientes
 - El empleado procesa 3 pedidos de prueba sin instrucciones del facilitador
+
+**Antes de la sesión — simulación de red degradada:**
+Para validar la experiencia en condiciones reales de Dolores, ejecutar al menos un flujo completo (Home → Checkout → Confirmación) con latencia de red alta. Opciones:
+- Chrome DevTools → Network → "Slow 3G" (75 Kbps download)
+- Desactivar WiFi y usar datos móviles 3G en el dispositivo Android de prueba
+- El mock tiene delay 800–1200ms; en 3G real pueden darse picos de 3–5s en pasos con `mockOrderService.submit()`
 
 **Protocolo del facilitador ante situaciones:**
 
@@ -637,3 +741,6 @@ En el demo, los errores se capturan en el `ErrorBoundary` existente y se loguean
 |-------|---------|------------------------|
 | 2026-05-12 | Todas | Versión inicial |
 | 2026-06-02 | Todas | Aprobación. Delimitación Fase 1 (implementación) / Fase 2 (validación con usuarios). Agregada §9. |
+| 2026-06-08 | §2.3, §2.4, §3.2, §3.6 | Sincronización post-iteración: taxonomía `BusinessCategory`/`BusinessCategoryGroup`, redesign Home, layout PWA-nativo (Header una fila + BottomNavBar con FAB + Sidebar colapsable + RootLayout), path correction `client/src/` → `src/`. |
+| 2026-06-08 | §3.2, §3.6 | `ProductCard` refactored: FAB circular + `QuantityStepper` inline (long-press). Nuevos componentes `VariableWeightSheet` (bottom sheet) y `useProductQuantity`. Home: sub-texto beneficios desde `md`; cards categoría sin bg/shadow en móvil. |
+| 2026-06-10 | §2.3, §2.4, §3.2, §3.3, §3.6, §5.1, §5.2 | `ProductDetailSheet` (bottom sheet portal 90dvh) reemplaza `ProductDetailModal`. Peso variable implementado en kg: `VariableWeightSheet` selector 0.25–5 kg, `CartItem.kilos`, `cartStore.updateKilos`. `Product` extendido con `description`, `nutritionalInfo`, `availability`. Dark mode: `themeStore`, `ThemeToggle`, `useThemeSync`. `calculateShipping()` en `checkout/shipping.ts`. Checkout simplificado: fix double-fire, `useIsDeliveryReady()`. |

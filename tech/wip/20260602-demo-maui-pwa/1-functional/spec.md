@@ -15,6 +15,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 2. Reemplazar el catálogo ficticio con datos reales de Leche y Miel (fotos, precios, nombres verificados)
 3. Desplegar en una URL pública instalable como PWA
 4. Garantizar que el swap mock → backend real sea un cambio de import, sin tocar componentes
+5. Establecer una taxonomía clara que separe `BusinessCategory` (verticales de plataforma MAUI: Mercado, Restaurantes, Servicios, Comunidad) de `Category` (agrupaciones de producto dentro del aliado), preparada para multi-aliado en producción
 
 ---
 
@@ -28,8 +29,13 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 
 | Incluido |
 |----------|
-| Componente `CatalogPage` con grid por pasillo (`/catalog/:categoryId`) |
-| `ProductDetailModal` con imagen, precio y botón de agregar |
+| Home rediseñada con secciones: `HeroCarousel` · "Beneficios para ti" · "Categorías principales" (PNGs circulares) · `MauiPlusCard` · "Ofertas del día" |
+| Sidebar desktop con `BusinessCategoryGroup` colapsable (`SidebarSection` con chevron animado) |
+| Header responsive de una sola fila (móvil y desktop) con buscador inline |
+| `BottomNavBar` PWA-nativa (móvil/tablet `< lg`): Inicio · Ofertas · Carrito (FAB) · Mis pedidos · Favoritos |
+| Modelo de datos taxonómico: `BusinessCategoryGroup` → `BusinessCategory` (sidebar) separado de `Category` (catálogo de producto) |
+| `CatalogPage` (`/catalog/:categoryId`) — accesible desde "Categorías principales" en Home y desde Sidebar |
+| `ProductDetailSheet` — bottom sheet 90dvh con imagen 4:3, descripción, info nutricional, chip de disponibilidad y selector de cantidad con precio total dinámico |
 | `CheckoutPage` con 4 steps (resumen → modalidad → sustitución → confirmación) |
 | Pantalla de confirmación + navegación `router.replace('/orden/:orderId')` |
 | `OrderDetailPage` con `OrderTimeline` de 5 estados |
@@ -58,10 +64,12 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 | Backend real (AWS SAM + Lambda + DynamoDB) | Sprint 1 — posterior a validación |
 | Magic Link / autenticación real por WhatsApp | Demo usa `DEMO_USER` pre-autenticado |
 | SearchPage | ~15 productos; los pasillos son suficientes |
-| Productos con `is_variable_weight: true` | Fuera del scope del demo |
+| Rutas `/ofertas`, `/favoritos`, `/search`, `/catalog` (sin id) sin contenido propio | Referenciadas por nav pero pendientes de Fase 2 |
 | Panel admin en producción (multi-dispositivo) | El admin demo usa localStorage, no escala |
 | Sesiones de validación con usuarios | Fase 2 (ver RFC §9) |
 | Go/No-Go explícito | Fase 2 |
+| Rutas `/ofertas`, `/favoritos`, `/search` | Referenciadas por BottomNav/CTAs pero pendientes de Fase 2 (resolver con placeholders o redirect) |
+| Productos con `categoryId` huérfano (no registrado en `mockCategories`) | Limpieza pendiente de `mockData.ts` antes del deploy |
 
 ---
 
@@ -74,10 +82,11 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 **para** encontrar lo que necesito sin instrucciones adicionales.
 
 **Acceptance Criteria**:
-- AC-1.1: La Home muestra las categorías reales de Leche y Miel (pasillos confirmados con el aliado)
+- AC-1.1: La Home muestra la sección "Categorías principales" con tarjetas circulares (PNG por categoría) que navegan a `/catalog/:categoryId`. También está accesible desde el Sidebar desktop bajo la `BusinessCategory` "Mercado"
 - AC-1.2: Al tocar un pasillo, se navega a `/catalog/:categoryId` con el grid de productos de esa categoría
-- AC-1.3: Cada card muestra foto WebP, nombre, precio y unidad
-- AC-1.4: Al tocar una card, se abre `ProductDetailModal` con imagen grande y botón de agregar con contador
+- AC-1.3: Cada card muestra foto WebP, nombre, precio, unidad y badge si aplica (badge `"Local"` se renderiza en verde `bg-emerald-600`; otros badges en `bg-brand-primary`)
+- AC-1.4: La card incluye un FAB `+` circular en la esquina inferior derecha; al tocarlo se agrega al carrito. Cuando ya hay unidades, el FAB se reemplaza por `QuantityStepper` (+/−) inline. Para productos `is_variable_weight`, el FAB abre `VariableWeightSheet`; cuando hay kilos en carrito muestra un pill "{X} kg [+]"
+- AC-1.5b: Tocar la imagen o el nombre del producto abre `ProductDetailSheet` — bottom sheet a 90dvh con imagen 4:3, descripción, información nutricional (calorías/proteínas/grasas/carbohidratos/fibra si aplica), chip de disponibilidad y selector de cantidad en el footer. El botón principal muestra el precio total dinámico (`qty × precio`). Decrementar a 0 convierte el CTA en "Eliminar del carrito"
 - AC-1.5: El catálogo usa skeleton loaders mientras carga; staleTime de React Query: 5 min
 - AC-1.6: El catálogo es visible sin conexión (Service Worker CacheFirst para assets)
 
@@ -90,11 +99,16 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 **para** armar mi pedido antes de ir al checkout.
 
 **Acceptance Criteria**:
-- AC-2.1: Al tocar `+` en un producto, se agrega al `cartStore` y aparece la `FloatingCartBar`
+- AC-2.1: Al tocar el FAB `+` circular en la card (cuando `quantity === 0`), el producto se agrega al `cartStore`; el FAB se reemplaza por `QuantityStepper`. La `FloatingCartBar` aparece con el total actualizado
 - AC-2.2: La `FloatingCartBar` muestra el total actualizado en tiempo real
 - AC-2.3: El carrito persiste en `localStorage` (key: `maui-cart`); sobrevive cierres de app y recargas
 - AC-2.4: El carrito se recupera al volver a abrir la app después de un cierre accidental
 - AC-2.5: Los items del carrito incluyen `price_at_moment` (snapshot de precio al momento de agregar)
+- AC-2.6: `QuantityStepper` permite ajustar la cantidad directamente desde la card; soporta long-press (retardo 1 s, luego repite cada 300 ms)
+- AC-2.7: Decrementar a 0 unidades elimina el ítem del carrito (`removeItem`)
+- AC-2.8: Productos `is_variable_weight: true` abren `VariableWeightSheet` al tocar el FAB. El selector permite elegir entre 0.25 y 5 kg (paso 0.25) con precio estimado en COP en tiempo real
+- AC-2.9: Los kilos seleccionados se persisten en `CartItem.kilos`. Desde `CartItemRow` aparece un botón editable "{X} kg [lápiz]" que reabre el sheet con el peso precargado
+- AC-2.10: El total del carrito y del checkout calcula `kilos × precio` para ítems de peso variable; `qty × precio` para el resto
 
 ---
 
@@ -187,6 +201,35 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 
 ---
 
+### US-9 — Navegación PWA-nativa en móvil
+
+**Como** usuario móvil de la PWA instalada,
+**quiero** una barra inferior con acceso rápido a Inicio, Ofertas, Carrito, Mis pedidos y Favoritos,
+**para** moverme entre secciones sin abrir un menú.
+
+**Acceptance Criteria**:
+- AC-9.1: `BottomNavBar` visible en breakpoints `< lg`, oculta en desktop
+- AC-9.2: Slot Carrito es FAB elevado con badge cuando `cartCount > 0`; plano cuando el carrito está vacío
+- AC-9.3: El Footer se oculta en móvil (`lg:hidden`) para no competir con la BottomNav
+- AC-9.4: Padding inferior dinámico usa `calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))` para respetar el safe area de la PWA instalada
+- AC-9.5: El Header es de una sola fila (`h-14 md:h-16`) tanto en móvil como en desktop
+
+---
+
+### US-10 — Sidebar de verticales de plataforma (desktop)
+
+**Como** usuario desktop,
+**quiero** ver las verticales de MAUI agrupadas (Comprar / Servicios / Comunidad) con secciones colapsables,
+**para** descubrir el alcance de la plataforma más allá del supermercado.
+
+**Acceptance Criteria**:
+- AC-10.1: Cada `BusinessCategoryGroup` se renderiza como `SidebarSection` colapsable con chevron animado (`-rotate-180` cuando expanded)
+- AC-10.2: `BusinessCategory` con `comingSoon: true` muestra badge "Próximamente" y no navega (`aria-disabled`)
+- AC-10.3: El item activo destaca con `bg-brand-primary-light text-brand-primary font-semibold`
+- AC-10.4: El sidebar es visible sólo en `lg` y superior
+
+---
+
 ## User Experience
 
 ### Flujo principal del cliente
@@ -194,7 +237,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 ```
 Home
   └─▶ Pasillo (CatalogPage /catalog/:categoryId)
-        └─▶ ProductDetailModal (modal sobre el catálogo)
+        └─▶ ProductDetailSheet (bottom sheet 90dvh — imagen 4:3, detalle, selector cantidad)
               └─▶ CartPage / FloatingCartBar (CTA: "Ver mi Canasta")
                     └─▶ CheckoutPage (/checkout)
                           ├─ Step 1: Resumen del carrito
@@ -237,7 +280,13 @@ Panel Admin
 | CTA del checkout siempre "Pedir mi Mercado" — prohibida la palabra "Pagar" | Negocio |
 | Aviso Ley 1581 visible antes del CTA en el checkout | Legal |
 | Catálogo con pasillos reales de Leche y Miel (confirmados con el aliado) | Negocio |
-| `is_variable_weight` siempre `false` en el demo | Negocio |
+| Peso variable implementado — `VariableWeightSheet` selector 0.25–5 kg (paso 0.25). `CartItem.kilos` persiste la selección. Productos con `is_variable_weight: true` muestran kg en el carrito y en el checkout | Negocio |
+| Dark mode disponible vía `ThemeToggle` en el Header — preferencia persistida en `localStorage` (`maui-theme`). La clase `.dark` se sincroniza en `document.documentElement` | UX |
+| Envío gratis a partir de $30.000 de subtotal; costo de envío estándar $3.000. Calculado por `calculateShipping()` desde `features/checkout/shipping.ts` | Negocio |
+| Taxonomía: `BusinessCategory` = vertical de plataforma (sidebar); `Category` = pasillo de producto (catálogo). Nunca mezclar | Negocio |
+| Header de una sola fila tanto móvil como desktop (`h-14 md:h-16`) | UX |
+| Imágenes de "Categorías principales": PNG circular 96×96 con `shadow-[0_4px_14px_rgba(99,102,241,0.25)]` brand | Diseño |
+| BottomNavBar visible `< lg`; Footer oculto en móvil para no competir | UX |
 
 ---
 
@@ -253,6 +302,7 @@ Panel Admin
 | QA-6 | Offline | Home y catálogo visibles desde cache sin conexión |
 | QA-7 | Confianza | "Pagas en efectivo cuando llegue tu pedido" visible antes de confirmar |
 | QA-8 | Legal | Aviso Ley 1581 visible antes del CTA en el checkout |
+| QA-9 | PWA-nativa | BottomNav respeta `env(safe-area-inset-bottom)`; sin scroll horizontal en móvil; FAB carrito accesible con el pulgar |
 
 ---
 
@@ -306,6 +356,7 @@ Panel Admin
 | E2E-4 | Navegación post-confirmación | 🟡 Alto |
 | E2E-5 | Producto agotado | 🟡 Alto |
 | E2E-6 | Catálogo offline | 🟡 Alto |
+| E2E-7 | Producto de peso variable (kg) | 🟡 Alto |
 
 ### E2E-1: Flujo completo punta a punta 🔴
 
@@ -337,6 +388,12 @@ Panel Admin
 
 **Resultado esperado**: Badge "Agotado" visible. Botón `+` oculto o deshabilitado. No se puede agregar al carrito.
 
+### E2E-7: Producto de peso variable
+
+**Pasos**: Navegar al catálogo → encontrar un producto con `is_variable_weight: true` (queso campesino) → tocar FAB → seleccionar 0.75 kg → confirmar → ver carrito → tocar el botón de edición kg → ajustar a 1.5 kg → verificar que el total se actualiza
+
+**Resultado esperado**: El pill en la card muestra "0.75 kg". El carrito muestra "× 0.75 kg" con subtotal correcto. Tras la edición, el subtotal refleja 1.5 kg × precio unitario.
+
 ### E2E-6: Catálogo offline
 
 **Pasos**: Cargar la app con conexión → Desactivar conexión → Navegar al catálogo
@@ -350,6 +407,8 @@ Panel Admin
 | Stage | Status | Approved By | Approved At |
 |-------|--------|-------------|-------------|
 | functional | approved | Nixon Gamboa | 2026-06-02T06:34:22Z |
-| technical | pending | — | — |
-| tasks | pending | — | — |
-| implementation | pending | — | — |
+| functional (re-iteración Home/Layout/Taxonomía) | iterated | Nixon Gamboa | 2026-06-08 |
+| functional (iteración ProductDetailSheet, peso variable kg, dark mode, shipping calc) | iterated | Nixon Gamboa | 2026-06-10 |
+| technical | approved | Nixon Gamboa | 2026-06-02T06:52:00Z |
+| tasks | approved | Nixon Gamboa | 2026-06-02T07:05:00Z |
+| implementation | in-progress | — | — |
