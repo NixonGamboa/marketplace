@@ -12,7 +12,7 @@ interface NavSlot {
 export default function BottomNavBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const cartCount = useCartStore((s) => s.count)
+  const cartCount = useCartStore((s) => s.items.length)
   const bottomSheetOpen = useUIStore((s) => s.bottomSheetOpen)
 
   const slots: NavSlot[] = [
@@ -27,7 +27,7 @@ export default function BottomNavBar() {
       role="navigation"
       aria-label="Navegación principal"
       className={[
-        'lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-brand-border overflow-visible shadow-[0_-2px_12px_rgba(15,23,42,0.08)]',
+        'lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-brand-surface border-t border-brand-border overflow-visible shadow-[0_-2px_12px_rgba(15,23,42,0.08)]',
         'transition-transform duration-300 ease-in-out',
         bottomSheetOpen ? 'translate-y-full' : 'translate-y-0',
       ].join(' ')}
@@ -59,12 +59,12 @@ export default function BottomNavBar() {
             <button
               onClick={() => navigate('/cart')}
               aria-label={`Carrito, ${cartCount} productos`}
-              className="relative w-14 h-14 rounded-full bg-brand-primary shadow-brand-md flex items-center justify-center border-4 border-white -translate-y-[14px] transition-transform active:scale-95"
+              className="relative w-14 h-14 rounded-full bg-brand-primary shadow-brand-md flex items-center justify-center border-4 border-brand-bg -translate-y-[14px] transition-transform active:scale-95"
             >
               <ShoppingCart size={22} strokeWidth={1.8} className="text-white" aria-hidden="true" />
               <span
                 aria-hidden="true"
-                className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 flex items-center justify-center rounded-full bg-white text-brand-primary text-[10px] font-bold px-1 shadow-brand-sm"
+                className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 flex items-center justify-center rounded-full bg-brand-surface text-brand-primary text-[10px] font-bold px-1 shadow-brand-sm"
               >
                 {cartCount > 99 ? '99+' : cartCount}
               </span>

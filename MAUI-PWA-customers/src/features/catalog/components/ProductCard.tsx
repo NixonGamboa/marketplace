@@ -74,7 +74,6 @@ const ProductCard = ({
       className={[
         'group relative flex flex-col rounded-2xl border border-brand-border bg-white',
         'shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 overflow-hidden',
-        'focus-within:ring-2 focus-within:ring-brand-primary focus-within:ring-offset-2',
         !inStock && 'opacity-60',
         className,
       ]

@@ -8,7 +8,6 @@ const roundKg = (v: number) => parseFloat(v.toFixed(2))
 interface CartStore {
   items: CartItem[]
   total: number
-  count: number
   lastUpdated: number | null
   addItem: (item: CartItem) => void
   removeItem: (productId: string) => void
@@ -24,7 +23,6 @@ function calcTotals(items: CartItem[]) {
       const qty = i.is_variable_weight ? (i.kilos ?? 1) : i.quantity
       return acc + i.price_at_moment * qty
     }, 0),
-    count: items.reduce((acc, i) => acc + i.quantity, 0),
   }
 }
 
@@ -33,7 +31,6 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       total: 0,
-      count: 0,
       lastUpdated: null,
 
       addItem: (item) => {
@@ -76,7 +73,7 @@ export const useCartStore = create<CartStore>()(
         set({ items, ...calcTotals(items), lastUpdated: Date.now() })
       },
 
-      clearCart: () => set({ items: [], total: 0, count: 0, lastUpdated: null }),
+      clearCart: () => set({ items: [], total: 0, lastUpdated: null }),
 
       clearIfStale: () => {
         const { lastUpdated } = get()

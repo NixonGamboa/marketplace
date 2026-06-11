@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   safelist: [
     // Clases generadas dinámicamente por Carousel (widthClasses + controlsBreakpoint)
     'sm:basis-1/2', 'sm:basis-1/3', 'sm:basis-1/4', 'sm:basis-1/5', 'sm:basis-1/6',
@@ -13,19 +14,19 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary:        '#5B3DF5', // morado principal MAUI — CTAs, precios, focus rings
-          'primary-dark': '#4A30D4', // hover/pressed
-          'primary-light':'#EEF2FF', // chips seleccionados, fondos suaves
-          secondary:      '#7C5CFF', // morado secundario
-          bg:             '#F8F9FC', // fondo de página
-          surface:        '#FFFFFF', // cards, modales, inputs
-          dark:           '#1F2937', // texto principal
-          muted:          '#6B7280', // texto secundario
-          border:         '#E8EAF3', // bordes de cards, divisores
-          warning:        '#C2410C', // badge peso variable
-          'warning-bg':   '#FFF7ED', // fondo del badge warning
-          error:          '#B91C1C', // estado cerrado, errores
-          whatsapp:       '#25D366', // sin cambio
+          primary:        'rgb(var(--brand-primary) / <alpha-value>)',
+          'primary-dark': 'rgb(var(--brand-primary-dark) / <alpha-value>)',
+          'primary-light':'rgb(var(--brand-primary-light) / <alpha-value>)',
+          secondary:      'rgb(var(--brand-secondary) / <alpha-value>)',
+          bg:             'rgb(var(--brand-bg) / <alpha-value>)',
+          surface:        'rgb(var(--brand-surface) / <alpha-value>)',
+          dark:           'rgb(var(--brand-dark) / <alpha-value>)',
+          muted:          'rgb(var(--brand-muted) / <alpha-value>)',
+          border:         'rgb(var(--brand-border) / <alpha-value>)',
+          warning:        'rgb(var(--brand-warning) / <alpha-value>)',
+          'warning-bg':   'rgb(var(--brand-warning-bg) / <alpha-value>)',
+          error:          'rgb(var(--brand-error) / <alpha-value>)',
+          whatsapp:       '#25D366',
         },
         gray: {
           50:  '#F8FAFC',
@@ -44,11 +45,11 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       boxShadow: {
-        'brand-sm':   '0 2px 8px rgba(67, 56, 202, 0.18)',
-        'brand-md':   '0 8px 32px rgba(67, 56, 202, 0.28)',
-        'card':       '0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04)',
-        'card-hover': '0 4px 16px rgba(15, 23, 42, 0.10)',
-        'elevated':   '0 10px 40px rgba(15, 23, 42, 0.12)',
+        'brand-sm':   'var(--shadow-brand-sm)',
+        'brand-md':   'var(--shadow-brand-md)',
+        'card':       'var(--shadow-card)',
+        'card-hover': 'var(--shadow-card-hover)',
+        'elevated':   'var(--shadow-elevated)',
       },
       borderRadius: {
         '2xl': '1rem',
@@ -71,12 +72,22 @@ export default {
           from: { opacity: '0', transform: 'scale(0.96)' },
           to:   { opacity: '1', transform: 'scale(1)' },
         },
+        'slide-in-right': {
+          from: { opacity: '0.4', transform: 'translateX(100%)' },
+          to:   { opacity: '1',   transform: 'translateX(0)' },
+        },
+        'slide-in-left': {
+          from: { opacity: '0.4', transform: 'translateX(-100%)' },
+          to:   { opacity: '1',   transform: 'translateX(0)' },
+        },
       },
       animation: {
         'fade-in':         'fade-in 0.2s ease',
         'slide-in-top':    'slide-in-top 0.25s ease',
         'slide-in-bottom': 'slide-in-bottom 0.25s ease',
         'scale-in':        'scale-in 0.2s ease',
+        'slide-in-right':  'slide-in-right 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+        'slide-in-left':   'slide-in-left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
       },
       zIndex: {
         60: '60',

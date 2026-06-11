@@ -10,7 +10,7 @@ import { useBottomNavVisible } from '@/shared/hooks/useBottomNavVisible'
 
 export default function RootLayout() {
   const navigate = useNavigate()
-  const cartCount = useCartStore((s) => s.count)
+  const cartCount = useCartStore((s) => s.items.length)
   const cartTotal = useCartStore((s) => s.total)
   const setSearchQuery = useUIStore((s) => s.setSearchQuery)
   const bottomNavVisible = useBottomNavVisible()

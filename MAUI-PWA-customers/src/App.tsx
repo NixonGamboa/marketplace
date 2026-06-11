@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import RootLayout from './shared/components/layout/RootLayout'
 import NotFound from './shared/components/layout/NotFound'
 import { ErrorBoundary } from './shared/components/ErrorBoundary'
+import { useThemeSync } from './shared/hooks/useThemeSync'
 
 const Home = lazy(() => import('./features/catalog/pages/Home'))
 const CartPage = lazy(() => import('./features/cart/pages/CartPage'))
@@ -19,6 +20,7 @@ const PageFallback = () => (
 )
 
 export default function App() {
+  useThemeSync()
   return (
     <ErrorBoundary>
       <Suspense fallback={<PageFallback />}>

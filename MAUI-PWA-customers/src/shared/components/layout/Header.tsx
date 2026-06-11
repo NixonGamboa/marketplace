@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Tag, ShoppingBag, Heart, UserRound, type LucideIcon } from 'lucide-react'
 import Icon from '../../components/ui/Icon'
+import ThemeToggle from '../ui/ThemeToggle'
 import logoIsotipo from '@/assets/logo/isotipo.png'
 import logoLogotipo from '@/assets/logo/logotipo.png'
 import logoImagotipo from '@/assets/logo/imagotipo.png'
@@ -31,7 +32,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
 
   return (
     <header
-      className="md:sticky md:top-0 md:z-40 w-full bg-white border-b border-brand-border shadow-sm"
+      className="md:sticky md:top-0 md:z-40 w-full bg-brand-surface border-b border-brand-border shadow-sm"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       {/* Fila única (mobile y desktop comparten la misma fila) */}
@@ -52,7 +53,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
           />
 
           {/* Desktop: isotipo en caja + logotipo + subtitle */}
-          <div className="hidden md:flex items-center justify-center p-1.5 rounded-xl border border-brand-border bg-white shadow-sm">
+          <div className="hidden md:flex items-center justify-center p-1.5 rounded-xl border border-brand-border bg-brand-surface shadow-sm">
             <img
               src={logoIsotipo}
               alt="MAUI"
@@ -93,7 +94,7 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
               onChange={(e) => setQuery(e.target.value)}
               type="search"
               placeholder="Buscar productos..."
-              className="w-full pl-9 pr-3 py-2 md:py-2.5 rounded-xl bg-gray-100 text-brand-dark text-sm placeholder:text-gray-400 outline-none border-0 focus:ring-2 focus:ring-brand-primary/30 transition-shadow"
+              className="w-full pl-9 pr-3 py-2 md:py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/60 text-brand-dark text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none border-0 focus:ring-2 focus:ring-brand-primary/30 transition-shadow"
             />
           </div>
         </form>
@@ -118,12 +119,15 @@ const Header = ({ cartCount = 0, cartTotal = 0, onCartClick, onSearch }: HeaderP
           {cartCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -top-2 -right-2 min-w-[1.25rem] h-5 flex items-center justify-center rounded-full bg-white text-brand-primary text-[10px] font-bold px-1 shadow-brand-sm"
+              className="absolute -top-2 -right-2 min-w-[1.25rem] h-5 flex items-center justify-center rounded-full bg-brand-surface text-brand-primary text-[10px] font-bold px-1 shadow-brand-sm"
             >
               {cartCount > 99 ? '99+' : cartCount}
             </span>
           )}
         </button>
+
+        {/* Theme toggle — oculto hasta completar estilos dark mode */}
+        <span className="hidden"><ThemeToggle /></span>
 
         {/* Avatar usuario — visible siempre, compacto en móvil */}
         <button

@@ -18,3 +18,9 @@ export const MERCHANT_NAME = 'Leche y Miel'
 export const SEARCH_PLACEHOLDER = `Buscar en ${APP_NAME}`
 export const HERO_AUTOPLAY_INTERVAL = 6000
 export const CART_BADGE_MAX = 99
+
+// ─── Envío ───────────────────────────────────────────────────────────────────
+/** Subtotal del carrito (COP) a partir del cual el envío es gratis */
+export const FREE_SHIPPING_THRESHOLD = 30_000
+/** Costo estándar de envío (COP) cuando el subtotal no alcanza el umbral */
+export const STANDARD_SHIPPING_COST = 3_000
