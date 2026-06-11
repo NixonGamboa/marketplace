@@ -16,4 +16,3 @@ Do not mix languages in specs. Technical terms (API, REST, CRUD, mock, store) st
 - Never create files under `tech/specs/`, `tech/wip/`, or `tech/features/` manually
 - Always go through the `/tech.start` workflow
 - Respect the phased workflow — don't skip phases
-- Before implementing any view: read `MAUI-PWA-customers/tareas/design/ui-rules.md`

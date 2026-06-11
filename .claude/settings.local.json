@@ -1,4 +1,7 @@
 {
+  "env": {
+    "PATH": "/c/Program Files/nodejs:/usr/local/bin:/usr/bin:/bin:/c/Windows/System32"
+  },
   "permissions": {
     "allow": [
       "Bash(git checkout *)",
@@ -35,7 +38,37 @@
       "Bash(grep -v \"^d.*\\\\\\\\.$\")",
       "Bash(rm -rf node_modules .vite .DS_Store dist dev-dist package-lock.json)",
       "Bash(rm -rf client/node_modules client/dist client/dev-dist)",
-      "Bash(grep -E \"node_modules|\\\\\\\\.vite|\\\\\\\\.DS_Store|^d.*dist\")"
+      "Bash(grep -E \"node_modules|\\\\\\\\.vite|\\\\\\\\.DS_Store|^d.*dist\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(npm *)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"D:\\\\Market\\\\final\\\\MAUI-PWA-customers\"; npx tsc --noEmit 2>&1 | Select-Object -First 50)",
+      "PowerShell(npm run *)",
+      "WebFetch(domain:localhost)",
+      "Bash(git commit -m ' *)",
+      "PowerShell(cd D:\\\\Market\\\\final\\\\MAUI-PWA-customers; $env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; node --version 2>&1)",
+      "PowerShell(cd D:\\\\Market\\\\final\\\\MAUI-PWA-customers; $env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit 2>&1 | Select-Object -First 60)",
+      "PowerShell(cd D:\\\\Market\\\\final\\\\MAUI-PWA-customers; $env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; node node_modules\\\\vite\\\\bin\\\\vite.js build 2>&1 | Select-Object -Last 20)",
+      "Bash(npm run *)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" /d/Market/final/MAUI-PWA-customers/node_modules/.bin/tsc --noEmit)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" /d/Market/final/MAUI-PWA-customers/node_modules/typescript/bin/tsc --noEmit --project /d/Market/final/MAUI-PWA-customers/tsconfig.json)",
+      "Read(//c/Program Files/nodejs//**)",
+      "Read(//c/Users/Nixon/AppData/Roaming/**)",
+      "Read(//c/Users/Nixon/**)",
+      "Bash(npm --prefix \"D:/Market/final/MAUI-PWA-customers\" run build)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "PowerShell($content = Get-Content \"D:\\\\Market\\\\final\\\\MAUI-PWA-customers\\\\node_modules\\\\lucide-react\\\\dist\\\\lucide-react.js\" -Raw; [regex]::Matches\\($content, 'WashingMachine|Microwave|Refrigerator|Blender|Toaster|AirVent|Printer|Monitor|Tv2?'\\) | ForEach-Object { $_.Value } | Sort-Object -Unique)",
+      "PowerShell($content = Get-Content \"D:\\\\Market\\\\final\\\\MAUI-PWA-customers\\\\node_modules\\\\lucide-react\\\\dist\\\\lucide-react.d.ts\" -Raw; [regex]::Matches\\($content, 'WashingMachine|Microwave|Refrigerator|Blender|AirVent|Printer|Tv2?|Monitor|Plug'\\) | ForEach-Object { $_.Value } | Sort-Object -Unique)",
+      "Bash(xargs grep *)",
+      "Bash(xargs ls *)",
+      "Bash(/c/Program Files/nodejs/node.exe *)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|css\\)$\")",
+      "Bash(\"/c/Program Files/nodejs/npx.cmd\" tsc --noEmit)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" node_modules/.bin/tsc --noEmit)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(git *)"
     ]
   }
 }
