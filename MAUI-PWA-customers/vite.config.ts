@@ -65,7 +65,20 @@ export default defineConfig(() => ({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB — hero images are large
+        // Excluye el admin del precache: es una app independiente injertada en
+        // dist/admin/ que sirve su propio bundle. No debe entrar al SW de la PWA.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        globIgnores: ['admin/**/*'],
+        // Deja que el browser haga fetch directo al servidor para /admin/*
+        // sin que el navigateFallback del SW devuelva index.html de la PWA.
+        navigateFallbackDenylist: [/^\/admin/, /^\/sw\.js$/, /^\/workbox-/],
+        // Toma control inmediato del cliente, reemplaza SW viejos sin recarga.
+        // Necesario para que quien tenía la PWA v1 registrada vea el fix del
+        // navigateFallbackDenylist sin unregister manual.
+        skipWaiting: true,
+        clientsClaim: true,
+        // Fuerza limpieza de precaches viejos que puedan tener /admin/* cacheado.
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'image',
