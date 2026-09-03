@@ -1,4 +1,17 @@
+/**
+ * Adaptador local del catálogo compartido para la PWA.
+ *
+ * - `mockCategories` y `mockProducts` provienen del baseline en
+ *   `@shared/catalog`, la fuente autoritativa consumida también por el admin.
+ * - Aquí decoramos categorías con `illustrationUrl` (imports locales de Vite)
+ *   y sobrescribimos `imageUrl` de productos con imports locales cuando existen,
+ *   para que Vite versione las imágenes.
+ * - En el build unificado (mismo origin admin + PWA), los productos sin foto
+ *   local caen a placeholders del baseline.
+ */
+
 import type { Product, Category, BusinessCategoryGroup } from '@/types'
+import { sharedProducts, sharedCategories } from '@shared/catalog'
 import { categoryImages } from '@/assets/categories'
 import imgLeche from '@/assets/products/lacteos/leche.png'
 import imgQuesoCampesino from '@/assets/products/lacteos/queso-campesino.png'
@@ -8,321 +21,45 @@ import imgArroz from '@/assets/products/abarrotes/arroz.png'
 import imgAceiteGirasol from '@/assets/products/abarrotes/aceite-girasol.png'
 import imgChorizo from '@/assets/products/carnes/chorizo.webp'
 
-// ─── Categorías ───────────────────────────────────────────────────────────────
+// ─── Categorías: decoradas con illustrationUrl local ──────────────────────────
 
-export const mockCategories: Category[] = [
-  { id: 'cat-la', name: 'Lácteos',           slug: 'lacteos',           illustrationUrl: categoryImages.lacteos,      order: 1 },
-  { id: 'cat-be', name: 'Bebidas',           slug: 'bebidas',           illustrationUrl: categoryImages.bebidas,      order: 2 },
-  { id: 'cat-dp', name: 'Despensa',          slug: 'despensa',          illustrationUrl: categoryImages.despensa,     order: 3 },
-  { id: 'cat-as', name: 'Limpieza',          slug: 'aseo',              illustrationUrl: categoryImages.limpieza,     order: 4 },
-  { id: 'cat-sn', name: 'Snacks',            slug: 'snacks',            illustrationUrl: categoryImages.snacks,       order: 5 },
-  { id: 'cat-co', name: 'Congelados',        slug: 'congelados',        illustrationUrl: categoryImages.congelados,   order: 6 },
-  { id: 'cat-el', name: 'Electrodomésticos', slug: 'electrodomesticos', illustrationUrl: categoryImages.electro,      order: 7 },
-  { id: 'cat-hr', name: 'Herramientas',      slug: 'herramientas',      illustrationUrl: categoryImages.herramientas, order: 8 },
-  { id: 'cat-ju', name: 'Juguetería',        slug: 'jugueteria',        illustrationUrl: categoryImages.jugueteria,   order: 9 },
-]
+const CATEGORY_ILLUSTRATIONS: Record<string, string | undefined> = {
+  'cat-la': categoryImages.lacteos,
+  'cat-be': categoryImages.bebidas,
+  'cat-dp': categoryImages.despensa,
+  'cat-as': categoryImages.limpieza,
+  'cat-sn': categoryImages.snacks,
+  'cat-co': categoryImages.congelados,
+  'cat-el': categoryImages.electro,
+  'cat-hr': categoryImages.herramientas,
+  'cat-ju': categoryImages.jugueteria,
+}
 
-// ─── Productos ────────────────────────────────────────────────────────────────
-// TODO: reemplazar imageUrl con imágenes reales 400×400 < 30KB por imagen.
-//       Convenio: src/assets/products/<categoria>/<nombre>.webp
+export const mockCategories: Category[] = sharedCategories.map((c) => ({
+  ...c,
+  illustrationUrl: CATEGORY_ILLUSTRATIONS[c.id],
+})) as Category[]
 
-export const mockProducts: Product[] = [
-  // ── Lácteos ──────────────────────────────────────────────────────────────
-  {
-    id: 'leche-entera-1l',
-    name: 'Leche entera pasteurizada 1L',
-    name_display: 'Leche Entera',
-    name_legal: 'Leche entera pasteurizada UHT 1 litro',
-    price: 4500,
-    originalPrice: 5800,
-    unit: '1 L',
-    imageUrl: imgLeche,
-    categoryId: 'cat-la',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    description: 'Leche entera pasteurizada de alta calidad. Ideal para toda la familia: rica en calcio, proteínas y vitaminas esenciales.',
-    nutritionalInfo: {
-      serving: 'Por 240ml',
-      calories: 150,
-      protein: '8g',
-      fat: '8g',
-      carbs: '12g',
-      fiber: '0g',
-    },
-    availability: 'Disponible',
-  },
-  {
-    id: 'queso-campesino-250g',
-    name: 'Queso campesino fresco',
-    name_display: 'Queso Campesino',
-    name_legal: 'Queso campesino fresco artesanal',
-    price: 7500,
-    unit: 'Por Kilogramo',
-    imageUrl: imgQuesoCampesino,
-    categoryId: 'cat-la',
-    inStock: true,
-    is_variable_weight: true,
-    currency: 'COP',
-    badge: 'Local',
-    description: 'Queso fresco artesanal elaborado con leche local. Sin conservantes, con sabor auténtico de la región.',
-    nutritionalInfo: {
-      serving: 'Por 30g',
-      calories: 90,
-      protein: '6g',
-      fat: '7g',
-      carbs: '1g',
-      fiber: '0g',
-    },
-    availability: 'Pocas unidades',
-  },
-  {
-    id: 'yogurt-natural-1l',
-    name: 'Yogurt natural 1L',
-    name_display: 'Yogurt Natural',
-    name_legal: 'Yogurt natural entero sin azúcar 1 litro',
-    price: 8200,
-    unit: '1 L',
-    imageUrl: imgYogurt,
-    categoryId: 'cat-la',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    description: 'Yogurt natural entero sin azúcar añadida. Con cultivos vivos activos que favorecen la digestión.',
-    nutritionalInfo: {
-      serving: 'Por 200g',
-      calories: 120,
-      protein: '6g',
-      fat: '4g',
-      carbs: '14g',
-      fiber: '0g',
-    },
-    availability: 'Disponible',
-  },
+// ─── Productos: imageUrl sobrescrito con imports locales cuando aplica ────────
 
-  // ── Granos (en Despensa) ──────────────────────────────────────────────────
-  {
-    id: 'frijol-bola-roja-500g',
-    name: 'Frijol bola roja 500g',
-    name_display: 'Frijol Bola Roja',
-    name_legal: 'Frijol bola roja seco 500 gramos',
-    price: 4200,
-    unit: '500 g',
-    imageUrl: imgFrijol,
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    description: 'Frijol bola roja seco, seleccionado y limpio. Fuente natural de proteína vegetal y fibra.',
-    nutritionalInfo: {
-      serving: 'Por 100g (seco)',
-      calories: 337,
-      protein: '22g',
-      fat: '1.2g',
-      carbs: '60g',
-      fiber: '15g',
-    },
-    availability: 'Disponible',
-  },
-  {
-    id: 'lenteja-500g',
-    name: 'Lenteja 500g',
-    name_display: 'Lenteja',
-    name_legal: 'Lenteja seca 500 gramos',
-    price: 3800,
-    unit: '500 g',
-    imageUrl: 'https://placehold.co/400x400/92400e/fef3c7?text=Lenteja',
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
+const PRODUCT_IMAGE_OVERRIDES: Record<string, string> = {
+  'leche-entera-1l':       imgLeche,
+  'queso-campesino-250g':  imgQuesoCampesino,
+  'yogurt-natural-1l':     imgYogurt,
+  'frijol-bola-roja-500g': imgFrijol,
+  'arroz-1kg':             imgArroz,
+  'aceite-girasol-1l':     imgAceiteGirasol,
+  'chorizo-250g':          imgChorizo,
+}
 
-  // ── Despensa ──────────────────────────────────────────────────────────────
-  {
-    id: 'arroz-1kg',
-    name: 'Arroz blanco 1kg',
-    name_display: 'Arroz',
-    name_legal: 'Arroz blanco pulido extra 1 kilogramo',
-    price: 5500,
-    originalPrice: 7000,
-    unit: '1 kg',
-    imageUrl: imgArroz,
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    description:
-      'Arroz blanco pulido extra, grano largo. Cocción suelta y sabor neutro, perfecto para acompañar cualquier plato.',
-    nutritionalInfo: {
-      serving: 'Por 100g (cocido)',
-      calories: 130,
-      protein: '2.7g',
-      fat: '0.3g',
-      carbs: '28g',
-      fiber: '0.4g',
-    },
-    availability: 'Disponible',
-  },
-  {
-    id: 'aceite-girasol-1l',
-    name: 'Aceite de girasol 1L',
-    name_display: 'Aceite Girasol',
-    name_legal: 'Aceite vegetal de girasol refinado 1 litro',
-    price: 12000,
-    originalPrice: 15000,
-    unit: '1 L',
-    imageUrl: imgAceiteGirasol,
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    description:
-      'Aceite de girasol refinado, bajo en grasas saturadas. Ideal para frituras y aderezos de ensaladas.',
-    nutritionalInfo: {
-      serving: 'Por 15ml',
-      calories: 130,
-      protein: '0g',
-      fat: '14g',
-      carbs: '0g',
-      fiber: '0g',
-    },
-    availability: 'Disponible',
-  },
-  {
-    id: 'azucar-1kg',
-    name: 'Azúcar blanca 1kg',
-    name_display: 'Azúcar',
-    name_legal: 'Azúcar blanca refinada 1 kilogramo',
-    price: 4800,
-    unit: '1 kg',
-    imageUrl: 'https://placehold.co/400x400/f9fafb/374151?text=Azucar',
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-
-  // ── Embutidos (en Congelados) y Atún (en Despensa) ────────────────────────
-  {
-    id: 'chorizo-250g',
-    name: 'Chorizo casero 250g',
-    name_display: 'Chorizo',
-    name_legal: 'Chorizo de cerdo artesanal 250g',
-    price: 9000,
-    originalPrice: 11500,
-    unit: '250 g',
-    imageUrl: imgChorizo,
-    categoryId: 'cat-co',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-  {
-    id: 'salchichas-viena-250g',
-    name: 'Salchichas tipo viena 250g',
-    name_display: 'Salchichas Viena',
-    name_legal: 'Salchichas tipo viena de cerdo y res 250g',
-    price: 7800,
-    unit: '250 g',
-    imageUrl: 'https://placehold.co/400x400/fca5a5/7f1d1d?text=Salchichas',
-    categoryId: 'cat-co',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-  {
-    id: 'atun-lata-170g',
-    name: 'Atún en agua 170g',
-    name_display: 'Atún',
-    name_legal: 'Atún aleta amarilla en agua 170 gramos',
-    price: 5500,
-    originalPrice: 6800,
-    unit: '170 g',
-    imageUrl: 'https://placehold.co/400x400/bfdbfe/1e3a8a?text=Atun',
-    categoryId: 'cat-dp',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    badge: 'Oferta',
-  },
-
-  // ── Bebidas ───────────────────────────────────────────────────────────────
-  {
-    id: 'gaseosa-cola-2l',
-    name: 'Gaseosa cola 2L',
-    name_display: 'Gaseosa Cola',
-    name_legal: 'Bebida gaseosa sabor cola 2 litros',
-    price: 6500,
-    unit: '2 L',
-    imageUrl: 'https://placehold.co/400x400/dc2626/fff1f2?text=Gaseosa',
-    categoryId: 'cat-be',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-  {
-    id: 'agua-botella-600ml',
-    name: 'Agua purificada 600ml',
-    name_display: 'Agua Purificada',
-    name_legal: 'Agua purificada en botella 600 mililitros',
-    price: 2000,
-    unit: '600 ml',
-    imageUrl: 'https://placehold.co/400x400/e0f2fe/0c4a6e?text=Agua',
-    categoryId: 'cat-be',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-
-  // ── Aseo ──────────────────────────────────────────────────────────────────
-  {
-    id: 'detergente-1kg',
-    name: 'Detergente en polvo 1kg',
-    name_display: 'Detergente',
-    name_legal: 'Detergente en polvo multiuso 1 kilogramo',
-    price: 11500,
-    originalPrice: 14000,
-    unit: '1 kg',
-    imageUrl: 'https://placehold.co/400x400/4f46e5/eef2ff?text=Detergente',
-    categoryId: 'cat-as',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-  {
-    id: 'jabon-bano-3pack',
-    name: 'Jabón de baño x3 unidades',
-    name_display: 'Jabón de Baño',
-    name_legal: 'Jabón de baño en barra 3 unidades 100g c/u',
-    price: 8500,
-    unit: 'x3 und',
-    imageUrl: 'https://placehold.co/400x400/d1fae5/064e3b?text=Jabon',
-    categoryId: 'cat-as',
-    inStock: false,
-    is_variable_weight: false,
-    currency: 'COP',
-  },
-
-  // ── Electrodomésticos ─────────────────────────────────────────────────────
-  {
-    id: 'nevera-haceb-250l',
-    name: 'Nevera 250L Haceb',
-    name_display: 'Nevera 250L',
-    name_legal: 'Refrigerador doméstico 250 litros marca Haceb',
-    price: 1350000,
-    originalPrice: 1650000,
-    unit: 'unidad',
-    imageUrl: 'https://placehold.co/400x400/e2e8f0/1e293b?text=Nevera',
-    categoryId: 'cat-el',
-    inStock: true,
-    is_variable_weight: false,
-    currency: 'COP',
-    badge: 'Oferta',
-  },
-]
+export const mockProducts: Product[] = sharedProducts.map((p) => ({
+  ...p,
+  imageUrl: PRODUCT_IMAGE_OVERRIDES[p.id] ?? p.imageUrl,
+})) as Product[]
 
 // ─── Business Category Groups (menú lateral) ──────────────────────────────────
+// Estos NO viven en shared/ porque son específicos de la PWA (verticales de
+// plataforma, no del catálogo del aliado).
 
 export const mockBusinessCategoryGroups: BusinessCategoryGroup[] = [
   {
@@ -362,9 +99,9 @@ export const mockBusinessCategoryGroups: BusinessCategoryGroup[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Productos disponibles para el carrusel "Lo que no puede faltar" */
-export const mockFeaturedProducts = mockProducts.filter(p => p.inStock)
+export const mockFeaturedProducts = mockProducts.filter((p) => p.inStock)
 
 /** Productos por categoría */
 export function getProductsByCategory(categoryId: string): Product[] {
-  return mockProducts.filter(p => p.categoryId === categoryId && p.inStock)
+  return mockProducts.filter((p) => p.categoryId === categoryId && p.inStock)
 }
