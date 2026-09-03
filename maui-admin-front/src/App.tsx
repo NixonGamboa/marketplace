@@ -1,24 +1,103 @@
+/**
+ * @spec §3, §7 — Árbol de rutas del panel admin.
+ * Proveedor de contexto: ToastProvider > AuthProvider > Routes.
+ */
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import OrdersList from './features/orders/OrdersList'
-import OrderDetail from './features/orders/OrderDetail'
+import { ToastProvider } from '@/ui/Toast'
+import { AuthProvider } from '@/auth/AuthContext'
+import { RequireAuth } from '@/auth/RequireAuth'
+import { AppShell } from '@/shell/AppShell'
+import { LoginPage } from '@/features/login/LoginPage'
+import { EmptyState } from '@/ui/EmptyState'
+
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { OrdersListPage } from '@/features/orders/OrdersListPage'
+import { OrderDetailPage } from '@/features/orders/OrderDetailPage'
+import { HistoricoPage } from '@/features/historico/HistoricoPage'
+import { CatalogoPage } from '@/features/catalogo/CatalogoPage'
+import { CategoriasPage } from '@/features/categorias/CategoriasPage'
+import { TiendaPage } from '@/features/tienda/TiendaPage'
+import { ConfigPage } from '@/features/configuracion/ConfigPage'
+import { AuditPage } from '@/features/auditoria/AuditPage'
+
+function NotFound() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <EmptyState
+        title="Página no encontrada"
+        description="La ruta que buscas no existe."
+      />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <header className="border-b bg-white">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-            <h1 className="text-lg font-bold text-gray-900">MAUI Admin</h1>
-            <span className="text-sm text-gray-500">· Leche y Miel</span>
-          </div>
-        </header>
-        <main className="max-w-3xl mx-auto px-4 py-6">
+      <ToastProvider>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<OrdersList />} />
-            <Route path="/pedido/:orderId" element={<OrderDetail />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              element={
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/pedidos" element={<OrdersListPage />} />
+              <Route path="/pedidos/:orderId" element={<OrderDetailPage />} />
+              <Route path="/historico" element={<HistoricoPage />} />
+              <Route
+                path="/catalogo"
+                element={
+                  <RequireAuth role="owner">
+                    <CatalogoPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/categorias"
+                element={
+                  <RequireAuth role="owner">
+                    <CategoriasPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tienda"
+                element={
+                  <RequireAuth role="owner">
+                    <TiendaPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/configuracion"
+                element={
+                  <RequireAuth role="owner">
+                    <ConfigPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/auditoria"
+                element={
+                  <RequireAuth role="owner">
+                    <AuditPage />
+                  </RequireAuth>
+                }
+              />
+            </Route>
+            <Route path="*" element={<NotFound />} />
           </Routes>
-        </main>
-      </div>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   )
 }
