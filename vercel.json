@@ -3,5 +3,9 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "MAUI-PWA-customers/dist",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    { "source": "/admin/:path*", "destination": "/admin/index.html" },
+    { "source": "/((?!admin/).*)", "destination": "/index.html" }
+  ]
 }
