@@ -3,7 +3,7 @@
 > Items capturados durante el desarrollo. Usa `/tech.backlog` para gestionar.
 
 **Last Updated**: 2026-06-10
-**Total Items**: 2 (2 TODO, 0 DEBT, 0 IDEA)
+**Total Items**: 3 (2 TODO, 1 DEBT, 0 IDEA)
 
 ---
 
@@ -37,7 +37,20 @@
 
 ## 🔧 Technical Debt
 
-_(sin items)_
+### DEBT-001: Evidencia fotográfica de pesos reales en OrderDetail (admin)
+- **Priority**: Medium
+- **Status**: pending
+- **Created**: 2026-06-11
+- **Origin**: análisis PO `docs/rq-PO-admin-panel-fase0.md` §1 ("subir fotos de calidad")
+- **Context**: El objetivo del admin según el contexto MAUI incluye "subir fotos de calidad" como evidencia del peso real capturado en items `is_variable_weight` (queso campesino, frijol, chorizo). Sin almacenamiento real (S3/CDN) no tiene ROI en la demo con mocks — la foto se perdería al limpiar localStorage o explotaría el cap de 5MB. La feature `evolucion-admin-panel-demo` (2026-06-11) deja la captura de peso vía `WeightInput` pero sin foto. Implementar cuando haya storage real en Sprint 1.
+- **Affected Files**: `maui-admin-front/src/features/orders/OrderDetailPage.tsx`, `maui-admin-front/src/types/orderService.ts` (campo `evidencePhotoUrl?: string` en CartItem o nivel order), backend de uploads (Sprint 1)
+- **Complexity**: M
+- **Blocker**: requiere capa de Object Storage real; no se implementa con mocks
+- **Acceptance criteria (al tomarla)**:
+  - Operator puede tomar foto con la cámara de la tablet desde OrderDetail (input file con `capture="environment"`)
+  - Foto persistida vía upload al storage real
+  - Foto visible en histórico y picking list
+  - Evidencia incluida en audit event `order.weights_set`
 
 ---
 

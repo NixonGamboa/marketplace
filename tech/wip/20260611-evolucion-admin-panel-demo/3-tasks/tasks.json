@@ -10,7 +10,7 @@
   "execution_strategy": "batched",
   "stats": {
     "total": 30,
-    "done": 11,
+    "done": 30,
     "by_layer": {
       "1": 27,
       "2": 0,
@@ -351,7 +351,7 @@
       "id": "TASK-011",
       "title": "runAllSeeds.ts idempotente + entry en main.tsx",
       "description": "Crear `services/seed/runAllSeeds.ts` que invoca usersSeed, merchantSeed, storeStatusSeed, catalogSeed (cada uno con su propio marker). Importar `runAllSeeds()` en `main.tsx` antes de `<App />`. NO toca `maui-orders` (responsabilidad del PWA).",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -382,7 +382,7 @@
       "id": "TASK-012",
       "title": "AuthContext + useSession + RequireAuth role-aware",
       "description": "`auth/AuthContext.tsx` provee `{session, login, logout}`. `useSession()` hook. `RequireAuth` recibe `role?: Role | Role[]`, redirige a `/login` si no hay sesión, a `/` si rol insuficiente (con toast 'Sin permiso'). Test RTL para guard.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -412,7 +412,7 @@
       "id": "TASK-013",
       "title": "ToastProvider + componentes UI base",
       "description": "Crear `ui/Toast.tsx` con ToastProvider (cola max 3), `ui/Modal.tsx`, `ui/ConfirmDialog.tsx`, `ui/Spinner.tsx`, `ui/EmptyState.tsx`, `ui/Tabs.tsx`, `ui/PriceInput.tsx`, `ui/WeightInput.tsx`. Sin librería externa; Tailwind + lucide-react.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -444,7 +444,7 @@
       "id": "TASK-014",
       "title": "AppShell + Sidebar role-aware + LoginPage",
       "description": "`shell/AppShell.tsx` con header + sidebar fija + outlet. `shell/Sidebar.tsx` con items filtrados por `session.user.role`. `features/login/LoginPage.tsx` con form email+password, llama `authRepo.login`, redirect a state.from o `/`. Wirear routing en `App.tsx` con `RequireAuth`.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -476,7 +476,7 @@
       "id": "TASK-015",
       "title": "DashboardPage con métricas del día",
       "description": "`features/dashboard/DashboardPage.tsx` muestra: # pedidos por estado (cards), ticket promedio (calculado sobre delivered), alertas activas (pedidos en received > 5min). Datos vía `orderRepo.list()` filtrando del día actual.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -501,7 +501,7 @@
       "id": "TASK-016",
       "title": "OrdersListPage con tabs + búsqueda multi-campo + display ...4dig",
       "description": "Migrar `OrdersList.tsx` existente a `features/orders/OrdersListPage.tsx`. Añadir `Tabs` por OrderStatus con count en badge. Input de búsqueda único con debounce 150ms que usa `phoneMatchesQuery` (de lib/phone.ts) cuando el query es numérico, y match case-insensitive sobre customerName + orderId cuando no lo es. Cada row muestra `{customerName} · ...{last4}` cuando hay customerPhone — reconocimiento visual sin abrir el detalle. Pedidos `received` con animación pulse para llamar la atención en peak hour.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -540,7 +540,7 @@
       "id": "TASK-017",
       "title": "OrderDetailPage: pesos + cancel + contacto cliente (tap-to-call/WhatsApp)",
       "description": "Migrar `OrderDetail.tsx`. **Pesos**: items con `is_variable_weight: true` muestran `WeightInput` precargado con `kilosRequested`; botón 'Marcar como listo' disabled si algún variable sin `kilosReal`. **Cancel**: botón abre Modal con textarea (motivo obligatorio, min 5 chars) → `orderRepo.cancel`. **Nombres reales**: items resuelven nombre vía `catalogRepo.getProduct(item.id)`. **Contacto cliente (ADR-007)**: header del pedido muestra `customerName` + `formatPhonePretty(customerPhone)`; dos CTAs primarios — `tel:{phone}` (llamar) y `wa.me/{phone}?text={mensaje según estado}` (WhatsApp al cliente). Botón secundario 'Copiar teléfono' → clipboard. Si `customerPhone` está vacío: ocultar CTAs y mostrar hint 'Sin teléfono en el pedido'. El WhatsApp del merchant NO aparece como CTA aquí (queda solo en `/configuracion`).",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "High",
       "depends_on": [
@@ -588,7 +588,7 @@
       "id": "TASK-018",
       "title": "PickingListView con print + clipboard (incluye customerPhone)",
       "description": "`features/orders/PickingListView.tsx`: tabla plana con items + qty + kilosReal. Header de la lista incluye customerName + customerPhone formateado pretty para que el operario lo lleve al piso (por si necesita llamar desde otro punto). CSS `@media print` que oculta chrome. Botón 'Imprimir' → `window.print()`. Botón 'Copiar como texto' → `navigator.clipboard.writeText(plainText)` con teléfono incluido en el texto. Insertable en OrderDetailPage como tab/sección.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -617,7 +617,7 @@
       "id": "TASK-019",
       "title": "NewOrderAlert + EnableSoundGate + useNewOrdersWatcher",
       "description": "`features/orders/useNewOrdersWatcher.ts` con `storage` event listener (ADR-003). `shell/EnableSoundGate.tsx` muestra banner hasta primer click → `enableSound()`. `features/orders/NewOrderAlert.tsx` banner en AppShell con últimos pedidos new. `lib/audio.ts` con `playNewOrderSound()`. Mantener `sessionStorage['maui-admin-known-order-ids']` para no re-alertar.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "High",
       "depends_on": [
@@ -655,7 +655,7 @@
       "id": "TASK-020",
       "title": "HistoricoPage con filtro por rango de fechas",
       "description": "`features/historico/HistoricoPage.tsx`: 2 inputs date (from/to), botón aplicar → `orderRepo.list({from, to})`. Tabla con orderId, customer, total, status. Default últimos 30 días.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -680,7 +680,7 @@
       "id": "TASK-021",
       "title": "CatalogoPage + ProductFormModal + StockToggle",
       "description": "`features/catalogo/CatalogoPage.tsx` lista productos con búsqueda+filter por categoría. Toggle stock inline (mutación rápida). 'Nuevo producto' / 'Editar' abren `ProductFormModal` (campos del Product type). 'Eliminar' con ConfirmDialog. Solo accesible a owner.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "High",
       "depends_on": [
@@ -710,7 +710,7 @@
       "id": "TASK-022",
       "title": "CategoriasPage CRUD simple",
       "description": "`features/categorias/CategoriasPage.tsx` lista + crear + editar + eliminar categorías. Solo nombre + icon name (string de lucide). Solo owner.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -735,7 +735,7 @@
       "id": "TASK-023",
       "title": "TiendaPage con override + horario semanal",
       "description": "`features/tienda/TiendaPage.tsx`: 3 radios (auto/open/closed) para override, 7 filas de horario (open/close/closed por día). Botón 'Guardar' → `storeRepo.setSchedule + setOverride`. Banner superior en AppShell que lee `isOpenNow()` y muestra Cerrada en rojo si aplica.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -762,7 +762,7 @@
       "id": "TASK-024",
       "title": "ConfigPage + ResetDemoButton",
       "description": "`features/configuracion/ConfigPage.tsx` muestra form editable de MerchantConfig (name/whatsapp/address) + sección 'Demo' con `ResetDemoButton`. Reset: ConfirmDialog → limpia todas las claves `maui-admin-*` y `maui-orders*` → recarga. Solo owner.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Medium",
       "depends_on": [
@@ -792,7 +792,7 @@
       "id": "TASK-025",
       "title": "AuditPage lista eventos del audit log",
       "description": "`features/auditoria/AuditPage.tsx` muestra tabla con últimos 200 eventos (action, user, targetId, at, meta). Filtro por action. Solo owner.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -817,7 +817,7 @@
       "id": "TASK-026",
       "title": "Setup vitest + RTL + tests críticos faltantes",
       "description": "Añadir `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` a devDependencies. Configurar `vitest.config.ts`. Wirear `package.json` scripts `test` y `test:watch`. Verificar que todos los tests `__tests__/*.test.ts(x)` creados por tasks anteriores pasan.",
-      "status": "pending",
+      "status": "completed",
       "layer": 1,
       "complexity": "Low",
       "depends_on": [
@@ -850,7 +850,7 @@
       "id": "TASK-027",
       "title": "Code review — lint + typecheck + tests + complejidad",
       "description": "Ejecutar `pnpm lint`, `pnpm typecheck`, `pnpm test` desde `maui-admin-front/`. Revisar complejidad ciclomática de OrderDetailPage y useNewOrdersWatcher (los dos más complejos). Refactor si una función supera CC>10. Validar que `check-types-drift.sh` pasa.",
-      "status": "pending",
+      "status": "completed",
       "layer": 3,
       "complexity": "Low",
       "depends_on": [
@@ -873,7 +873,7 @@
       "id": "TASK-028",
       "title": "Performance review — bundle, audio, watcher",
       "description": "Medir `pnpm build` → tamaño del bundle (objetivo <300KB gzipped). Verificar que `storage` event no dispara fetch en loop si llegan N pedidos seguidos. Verificar que `audio.play()` no acumula instancias.",
-      "status": "pending",
+      "status": "completed",
       "layer": 3,
       "complexity": "Low",
       "depends_on": [
@@ -896,7 +896,7 @@
       "id": "TASK-029",
       "title": "Security review — XSS, env vars, scope localStorage",
       "description": "Auditar inputs de texto libre (motivo cancelación, product name, customer search): renderizar siempre con interpolación segura de React (no `dangerouslySetInnerHTML`). Verificar que `VITE_ADMIN_USERS` no se loguea en consola en build prod. Documentar limitación localStorage en `MAUI-CONTEXT.md` (datos en plano accesibles vía DevTools — aceptado para demo).",
-      "status": "pending",
+      "status": "completed",
       "layer": 3,
       "complexity": "Low",
       "depends_on": [
