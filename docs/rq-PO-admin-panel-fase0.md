@@ -63,7 +63,7 @@ El roadmap propone "user/pass hardcodeado vía env". Para demo realista propongo
 | **Ruta protegida** | `<RequireAuth role="operator">` envolviendo rutas; redirect a `/login` |
 | **Audit log mock** | array en localStorage `maui-admin-audit` con `{user, action, orderId, at}` — cada cambio de estado lo registra. Da realismo y prepara el evento para Sprint 1 |
 | **Multi-tenant placeholder** | guardar `merchantId` en sesión aunque hoy solo exista L&M; evita rework |
-| **Producción (Sprint 1+)** | Cognito + ID token JWT con claim `role`; el `RequireAuth` lee el claim — la firma del hook no cambia |
+| **Producción (Sprint 1+)** | Auth provider real (stack en `docs/adr-001-vercel-postgres-first.md`) emitiendo JWT con claim `role`; el `RequireAuth` lee el claim — la firma del hook no cambia |
 
 Esto es **mock**, pero deja el contrato listo para el backend (mismas firmas, mismas guards).
 

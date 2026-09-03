@@ -80,5 +80,6 @@ Consecuencias aceptadas para el demo:
 - El hash del password NO se calcula: `mockAuthRepository` compara texto plano contra
   `VITE_ADMIN_USERS` (env) o su fallback de fábrica. No es un modelo de auth productivo.
 - La demo NO debe desplegarse con datos sensibles reales. Cuando llegue Sprint 1 y
-  `VITE_DEMO_MODE=false`, `services/index.ts` conmuta al `realXxxRepository` (Cognito
-  + backend) y esta capa desaparece.
+  `VITE_DEMO_MODE=false`, `services/index.ts` conmuta al `realXxxRepository`
+  (auth provider real + backend — stack en `docs/adr-001-vercel-postgres-first.md`)
+  y esta capa desaparece.

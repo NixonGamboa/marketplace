@@ -5,6 +5,8 @@
 
 > Estas features no se eliminaron del producto — se pospusieron para reducir el riesgo en el F&F inicial. Cada una tiene un criterio de activación basado en evidencia real, no en el calendario.
 
+> **Nota 2026-09-03:** Las menciones a "DynamoDB" y "AWS" en este documento reflejan el stack originalmente planeado. Para el arranque del backend real se adoptó Vercel Functions + Postgres (Neon) — ver `docs/adr-001-vercel-postgres-first.md`. Léanse como "backend real / BD administrada" hasta que se decida activar la migración a AWS.
+
 ---
 
 ## FEAT-007 v2: Auth Magic Link Completo

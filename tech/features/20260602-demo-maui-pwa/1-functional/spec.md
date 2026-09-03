@@ -64,7 +64,7 @@ La PWA MAUI Customers tiene ~55% del frontend construido pero el flujo de valor 
 
 | Excluido | Razón |
 |----------|-------|
-| Backend real (AWS SAM + Lambda + DynamoDB) | Sprint 1 — posterior a validación |
+| Backend real (stack en `docs/adr-001-vercel-postgres-first.md`) | Sprint 1 — posterior a validación |
 | Magic Link / autenticación real por WhatsApp | Demo usa `DEMO_USER` pre-autenticado |
 | Panel admin en producción (multi-dispositivo) | El admin demo usa localStorage, no escala |
 | Sesiones de validación con usuarios | Fase 2 (ver RFC §9) |
