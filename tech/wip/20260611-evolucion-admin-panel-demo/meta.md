@@ -90,5 +90,34 @@ phase_3_tasks_approved_by: Nixon Gamboa
 phase_3_tasks_approved_at: 2026-06-11
 phase_3_tasks_total: 30
 phase_3_tasks_strategy: batched
-phase_4_implementation: pending
+phase_4_implementation: completed
+phase_4_implementation_completed_at: 2026-09-03
 ```
+
+## Post-Approval Enhancements
+
+Trabajo hecho después de cerrar los 30 tasks originales pero antes de `/tech.finish`.
+Motivación: la Fase 2 del RFC (validación con usuarios reales de Dolores) requiere
+que PWA y admin funcionen como un flujo end-to-end sobre una URL pública única.
+Con los 30 tasks originales, ambos apps quedaban en orígenes distintos, sin
+compartir `localStorage`, y el catálogo del admin era placeholder — el operario
+veía SKUs crudos al llegar pedidos reales.
+
+| # | Cambio | Commit | Motivación |
+|---|---|---|---|
+| E-1 | Baseline compartido `shared/catalog/` con productos y categorías reales de L&M consumido por PWA y admin | `2d1259f` | Resolver SKU→nombre real en admin; una sola fuente que curar en Fase 2 |
+| E-2 | Origin unificado en dev (Vite proxy) + build unificado para deploy estático (`build:unified` + `merge-unified-build.mjs`) | `f3b1d6e` | Permitir el flujo real cross-app en el mismo browser bajo una URL pública |
+| E-3 | Service Worker de la PWA excluye `/admin/*` (`globIgnores` + `navigateFallbackDenylist` + `skipWaiting`/`clientsClaim`/`cleanupOutdatedCaches`) | `f20d377` | Corregir 404 al cargar `/admin/` bajo el origin unificado — el SW interceptaba con la SPA cacheada |
+
+Efectos verificados:
+- `curl http://localhost:4173/admin/` → 200 sirve el HTML del admin
+- PWA en `/` y admin en `/admin/` comparten el mismo origin → mismo `localStorage`
+- Un pedido creado en la PWA es visto por el admin en tiempo real vía el evento `storage`
+- Los productos que llegan al `OrderDetailPage` del admin resuelven a nombre real
+  (`Queso Campesino`, `Frijol Bola Roja`, etc.) — no SKU crudo
+- 67/67 tests pasan (+5 tests nuevos que cubren `runCatalogSeed` desde el baseline)
+
+Estas mejoras son **funcionalmente independientes** de los 30 tasks originales
+(que ya cerraban el objetivo de la feature) y podrían haberse extraído a una
+feature separada. Se mantuvieron aquí porque son requisito operativo para que
+Fase 2 pueda ejecutarse sin trabajo adicional.
