@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Print: ocultar chrome del shell y mostrar sólo el área de picking ─── */
+@media print {
+  /* Ocultar todo excepto el área de impresión */
+  body * {
+    visibility: hidden;
+  }
+
+  #picking-print,
+  #picking-print * {
+    visibility: visible;
+  }
+
+  #picking-print {
+    position: absolute;
+    inset: 0;
+    margin: 1.5cm;
+  }
+
+  /* Clases utilitarias para marcar elementos que no deben imprimirse */
+  .no-print {
+    display: none !important;
+  }
+}
