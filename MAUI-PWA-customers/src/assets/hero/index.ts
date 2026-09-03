@@ -1,7 +1,8 @@
 import heroParque from './hero-parque.png'
 import heroSupermercadoAbarrotes from './hero-supermercado-abarrotes.png'
+import heroAlianza from './alianza.png'
 
-export { heroParque, heroSupermercadoAbarrotes }
+export { heroParque, heroSupermercadoAbarrotes, heroAlianza }
 
 export interface HeroSlide {
   image: string
@@ -22,6 +23,14 @@ export const heroSlides: HeroSlide[] = [
     buttonText: 'Comprar en Maui',
     buttonHref: '/catalog',
     badge: { line1: 'Tu', line2: 'supermercado', line3: 'de confianza' },
+  },
+  {
+    image: heroAlianza,
+    eyebrow: 'Calidad, variedad y confianza',
+    title: 'Todo Leche y Miel,\nahora al alcance de un clic',
+    description: 'Miles de productos, la atención de siempre y una nueva forma de comprar desde cualquier lugar de Dolores.',
+    buttonText: 'Explorar productos',
+    buttonHref: '/catalog',
   },
   {
     image: heroSupermercadoAbarrotes,
