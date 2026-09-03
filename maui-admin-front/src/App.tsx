@@ -35,9 +35,13 @@ function NotFound() {
 // App
 // ---------------------------------------------------------------------------
 
+// Vite inyecta BASE_URL desde `base` del vite.config. En dev standalone es '/';
+// bajo el origin unificado del deploy (Paso 4/5) es '/admin/'.
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <ToastProvider>
         <AuthProvider>
           <Routes>

@@ -6,8 +6,10 @@
   "scripts": {
     "predev": "bash ../scripts/check-types-drift.sh",
     "dev": "vite --port 5174",
+    "dev:unified": "cross-env VITE_ADMIN_BASE=/admin/ vite --port 5174",
     "prebuild": "bash ../scripts/check-types-drift.sh",
     "build": "vite build",
+    "build:unified": "cross-env VITE_ADMIN_BASE=/admin/ vite build --outDir dist-unified",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
