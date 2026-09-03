@@ -4,7 +4,7 @@
 // ya tiene 500 entradas, descarta la más antigua (FIFO).
 // `list(limit?)` devuelve los eventos del más nuevo al más viejo.
 
-import type { AuditAction, AuditEvent } from '@/types/audit'
+import type { AuditEvent } from '@/types/audit'
 import { randomDelay } from './delay'
 
 const STORAGE_KEY = 'maui-admin-audit'

@@ -1,5 +1,5 @@
 // Mock CatalogRepository — CRUD productos+categorías en localStorage.
-// Toda mutación registra un evento en el audit log (RN-9).
+// Toda mutación registra un evento en el audit log (RN-9) con el usuario que la ejecutó.
 
 import type { Category, Product } from '@/types/catalog'
 import { mockAuditRepository } from './mockAuditRepository'
@@ -17,28 +17,33 @@ export interface CatalogListFilter {
 export interface CatalogRepository {
   listProducts(filter?: CatalogListFilter): Promise<Product[]>
   getProduct(id: string): Promise<Product | null>
-  upsertProduct(p: Product): Promise<Product>
-  deleteProduct(id: string): Promise<void>
-  toggleStock(id: string, inStock: boolean): Promise<Product>
+  upsertProduct(p: Product, by: string): Promise<Product>
+  deleteProduct(id: string, by: string): Promise<void>
+  toggleStock(id: string, inStock: boolean, by: string): Promise<Product>
   listCategories(): Promise<Category[]>
-  upsertCategory(c: Category): Promise<Category>
-  deleteCategory(id: string): Promise<void>
+  upsertCategory(c: Category, by: string): Promise<Category>
+  deleteCategory(id: string, by: string): Promise<void>
 }
 
+// Si el marker existe pero la clave está vacía/corrupta, seguimos devolviendo
+// SEED_CATALOG para no dejar la UI en blanco. Esto también cubre el race
+// teórico entre el primer render y `runCatalogSeed()`.
 function readShape(): CatalogShape {
   if (typeof window === 'undefined') return SEED_CATALOG
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { products: {}, categories: {} }
+    if (!raw) return SEED_CATALOG
     const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return { products: {}, categories: {} }
+    if (typeof parsed !== 'object' || parsed === null) return SEED_CATALOG
     const shape = parsed as Partial<CatalogShape>
-    return {
-      products: shape.products ?? {},
-      categories: shape.categories ?? {},
+    const products = shape.products ?? {}
+    const categories = shape.categories ?? {}
+    if (Object.keys(products).length === 0 && Object.keys(categories).length === 0) {
+      return SEED_CATALOG
     }
+    return { products, categories }
   } catch {
-    return { products: {}, categories: {} }
+    return SEED_CATALOG
   }
 }
 
@@ -57,8 +62,6 @@ function matchesProduct(p: Product, filter?: CatalogListFilter): boolean {
   return true
 }
 
-const SYSTEM_USER = 'system'
-
 export const mockCatalogRepository: CatalogRepository = {
   async listProducts(filter) {
     await randomDelay()
@@ -72,14 +75,14 @@ export const mockCatalogRepository: CatalogRepository = {
     return readShape().products[id] ?? null
   },
 
-  async upsertProduct(p) {
+  async upsertProduct(p, by) {
     await randomDelay()
     const shape = readShape()
     const previous = shape.products[p.id]
     shape.products[p.id] = p
     writeShape(shape)
     await mockAuditRepository.log({
-      user: SYSTEM_USER,
+      user: by,
       action: 'catalog.product_upsert',
       targetId: p.id,
       meta: { previous, next: p },
@@ -87,7 +90,7 @@ export const mockCatalogRepository: CatalogRepository = {
     return p
   },
 
-  async deleteProduct(id) {
+  async deleteProduct(id, by) {
     await randomDelay()
     const shape = readShape()
     const previous = shape.products[id]
@@ -95,14 +98,14 @@ export const mockCatalogRepository: CatalogRepository = {
     delete shape.products[id]
     writeShape(shape)
     await mockAuditRepository.log({
-      user: SYSTEM_USER,
+      user: by,
       action: 'catalog.product_delete',
       targetId: id,
       meta: { previous },
     })
   },
 
-  async toggleStock(id, inStock) {
+  async toggleStock(id, inStock, by) {
     await randomDelay()
     const shape = readShape()
     const current = shape.products[id]
@@ -111,7 +114,7 @@ export const mockCatalogRepository: CatalogRepository = {
     shape.products[id] = updated
     writeShape(shape)
     await mockAuditRepository.log({
-      user: SYSTEM_USER,
+      user: by,
       action: 'catalog.stock_toggled',
       targetId: id,
       meta: { inStock },
@@ -124,15 +127,16 @@ export const mockCatalogRepository: CatalogRepository = {
     return Object.values(readShape().categories).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   },
 
-  async upsertCategory(c) {
+  async upsertCategory(c, _by) {
     await randomDelay()
     const shape = readShape()
     shape.categories[c.id] = c
     writeShape(shape)
+    void _by
     return c
   },
 
-  async deleteCategory(id) {
+  async deleteCategory(id, _by) {
     await randomDelay()
     const shape = readShape()
     // RN-7: no permitir si hay productos asignados.
@@ -142,6 +146,7 @@ export const mockCatalogRepository: CatalogRepository = {
     }
     delete shape.categories[id]
     writeShape(shape)
+    void _by
   },
 }
 
