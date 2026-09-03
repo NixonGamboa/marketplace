@@ -1,3 +1,7 @@
+/**
+ * @spec TASK-016 — Insignia de estado del pedido.
+ * Mantiene el export default para compatibilidad con legado en disco.
+ */
 import type { OrderStatus } from '@/types/orderService'
 
 interface StatusConfig {
@@ -18,12 +22,19 @@ interface StatusBadgeProps {
   status: OrderStatus
 }
 
-export default function StatusBadge({ status }: StatusBadgeProps) {
-  const { label, bg, text } = STATUS_CONFIG[status]
+export function StatusBadge({ status }: StatusBadgeProps) {
+  const config = STATUS_CONFIG[status]
+  if (!config) return null
+  const { label, bg, text } = config
 
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${bg} ${text}`}>
+    <span
+      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${bg} ${text}`}
+    >
       {label}
     </span>
   )
 }
+
+// Export default para compatibilidad con el código legacy en disco
+export default StatusBadge

@@ -6,6 +6,8 @@ import { orderRepo } from '@/services'
 import StatusBadge from './StatusBadge'
 import WhatsAppLink from './WhatsAppLink'
 import DemoSimulator from './DemoSimulator'
+import { normalizePhone } from '@/lib/phone'
+import { messageForStatus } from './CustomerContactBar'
 
 // ---------------------------------------------------------------------------
 // State-machine
@@ -213,13 +215,13 @@ export default function OrderDetail() {
         }
       />
 
-      {/* WhatsApp */}
-      {showWhatsApp && (
+      {/* WhatsApp — legacy: usa customerPhone si está disponible */}
+      {showWhatsApp && order.customerPhone && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <WhatsAppLink
-            customerName={customerName}
-            orderId={order.orderId}
-            status={status as Exclude<OrderStatus, 'received'>}
+            phone={normalizePhone(order.customerPhone)}
+            message={messageForStatus(status, order.orderId)}
+            label={`WhatsApp a ${customerName}`}
           />
         </div>
       )}
