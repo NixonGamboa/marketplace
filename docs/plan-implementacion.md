@@ -1,7 +1,7 @@
 # MAUI — Plan de Implementación Global
 
 > **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-03
+> **Última actualización:** 2026-09-03 (sesión noche — check Vercel CLI)
 > **Owner:** Nixon Gamboa
 
 ---
@@ -11,6 +11,53 @@
 Documento único de referencia para responder "¿en qué vamos y qué falta?" del proyecto MAUI end-to-end. Consolida el estado de las decisiones tomadas, el trabajo hecho y el trabajo pendiente por fase.
 
 **No sustituye** al RFC (`docs/demo-maui-pwa-rfc.md`), al ADR (`docs/adr-001-vercel-postgres-first.md`), a los roadmaps (`roadmap-v2.md`, `roadmap-v3.md`) ni al SDD Kit (`tech/`). Los enlaza y los coordina.
+
+---
+
+## Bitácora
+
+Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+
+### 2026-09-03 (sesión noche) — Vercel CLI autenticada + auditoría proyecto `marketplace`
+
+- **Login OK** via Device Flow (OAuth 2.0). CLI actualizada a v59.11.2. Cuenta: `infogamboatech-2785`.
+- **Proyecto `marketplace` linkeado** a `maui-back/` (crea `.vercel/` local + `.env.local` con `VERCEL_OIDC_TOKEN`).
+- **Config actual del proyecto Vercel (auditada con `vercel project inspect`):**
+  - ID: `prj_JJSJxLWORkC7WVZGcGziLPxGQ4dk`
+  - **Root Directory: `.`** ← problemático (ver diagnóstico)
+  - Framework Preset: `Other` (no detectó Vite)
+  - Build Command: `npm run vercel-build` or `npm run build`
+  - Output Directory: `public` o `.`
+  - Node: 24.x, Region: iad1
+  - **Env Vars: cero configuradas**
+- **Último deploy (26 min): Ready pero roto.**
+  - URL: `https://marketplace-1hjo500nw-infogamboatech-2785.vercel.app`
+  - Duración build: 5s (build vacío)
+  - Prod URL (`https://marketplace-pied-xi.vercel.app`) devuelve **404 NOT_FOUND**
+- **Diagnóstico de raíz:**
+  - **No existe `package.json` en la raíz del repo** — Vercel con Root `.` no encontró nada para construir.
+  - El build unificado real vive en `MAUI-PWA-customers/package.json`: script `build:unified` = `vite build --mode demo && cd ../maui-admin-front && npm run build:unified && node ../scripts/merge-unified-build.mjs`.
+  - El output final va a `MAUI-PWA-customers/dist/` (según convención del merge script).
+- **Decisión tomada: Opción B (orquestador raíz).**
+  - Creado `package.json` en raíz (`maui-monorepo`, private, sin deps propias) con scripts `install:pwa`, `install:admin`, `install:all`, `build:unified`, `vercel-build`.
+  - Creado `vercel.json` en raíz: `buildCommand=npm run vercel-build`, `outputDirectory=MAUI-PWA-customers/dist`, `installCommand=npm install`, `framework=null`.
+  - **Sin npm workspaces** (evita romper package-locks individuales); el script raíz corre `npm ci` por subfolder de forma explícita antes del build.
+  - `maui-back/vercel.json` no interfiere (Vercel lee el del Root Directory `.`).
+  - **Dry-run local falló por EPERM en Windows** (esbuild binario bloqueado) — no bloqueante, es limitación de Windows filesystem; Vercel Linux no tendrá el problema. Validación real será en el próximo deploy tras push.
+
+### 2026-09-03 (sesión tarde) — Setup deploy demo + backend scaffold + docs
+
+- **Decisión D-4 → D-8 tomadas:** stack backend cambia de AWS SAM + DynamoDB + Cognito a Vercel Functions + Neon Postgres + Drizzle + JWT propio. Documentada en ADR-001. Ver `docs/adr-001-vercel-postgres-first.md`.
+- **Docs previos actualizados** apuntando al ADR: RFC, PO analysis, roadmap v2/v3, análisis PM, MAUI-CONTEXT. Se respetó SDD: tech/wip **no fue editado** (regularizar vía `/tech.fix`).
+- **Scaffold `maui-back/` creado** (31 archivos): domain/usecases/infra + adapters memory/postgres + handlers Vercel Functions para `/api/orders/*` y `/api/health`. `tsc --noEmit` limpio; `vitest` 9/9 verde.
+- **`npm install` en maui-back:** 519 paquetes; 25 vulnerabilidades transitivas del CLI de vercel (no afectan runtime).
+- **3 commits + push a `origin/feature/demo-maui-pwa`:**
+  - `bcf2e4c` docs(adr): ADR-001 Vercel + Postgres
+  - `d671273` feat(back): scaffold maui-back
+  - `30a75e3` docs(plan): plan de implementación global
+- **Neon MCP registrado** (`user` scope, HTTP OAuth) — CLI ok, sesión actual sin tools cargados. Reload pendiente.
+- **Vercel:** Nixon importó manualmente el repo bajo cuenta Hobby (URL: `vercel.com/infogamboatech-2785/marketplace`). Config concreta **pendiente de verificar** (build command, root directory, production branch).
+- **Limitación descubierta:** el MCP de Vercel **no soporta cuentas Hobby personales** — todas las llamadas devuelven 403 aunque el OAuth diga OK. Re-autenticación no lo arregla. Se usará Vercel CLI local desde `maui-back/` como fallback para inspección/config.
 
 ---
 
@@ -40,12 +87,12 @@ Objetivo: PWA + admin funcionando end-to-end con mocks + datos reales de Leche y
 | 0.1 | PWA con flujo completo (Home → Catálogo → Carrito → Checkout → Confirmación → Timeline pedido) | ✅ | Feature archivada en `tech/features/20260602-demo-maui-pwa/` |
 | 0.2 | Catálogo con datos reales de Leche y Miel | ✅ | `shared/catalog` |
 | 0.3 | Admin panel con roles, catálogo, horarios, audit log | ✅ | Feature en cierre `tech/wip/20260611-evolucion-admin-panel-demo/` |
-| 0.4 | Deploy unificado (PWA + admin, un artefacto) | 🟡 | Build listo (`npm run build:unified`); falta publicar en Vercel |
-| 0.5 | Enlazar auto-deploy Vercel a rama `feature/demo-maui-pwa` | 🔴 | Pendiente crear proyecto Vercel |
+| 0.4 | Deploy unificado (PWA + admin, un artefacto) | 🟡 | Build listo (`npm run build:unified`); proyecto Vercel importado con Root `.` — **config incorrecta**: sin `package.json` raíz el deploy sale 404. Fix: opción A (root en `MAUI-PWA-customers`) u opción B (crear `package.json` orquestador en raíz — recomendada). |
+| 0.5 | Enlazar auto-deploy Vercel a rama `feature/demo-maui-pwa` | 🟡 | Proyecto `prj_JJSJxLWORkC7WVZGcGziLPxGQ4dk` creado; falta confirmar Production Branch en dashboard (CLI actual no expone git repo) y ejecutar redeploy tras fix de 0.4 |
 | 0.6 | Sesiones de validación con 5 usuarios de Dolores + empleado L&M | 🔴 | Fase 2 del RFC — pendiente ejecutar |
 | 0.7 | Go/No-Go documentado con evidencia | 🔴 | Depende de 0.6 |
 
-**Bloqueador de Fase 0:** ninguno técnico. La URL pública se desbloquea al hacer 0.4/0.5.
+**Bloqueador de Fase 0:** verificar config del proyecto Vercel importado (MCP de Vercel no ve Hobby personal → fallback a Vercel CLI local o inspección manual del dashboard).
 
 ---
 
@@ -57,9 +104,9 @@ Objetivo: Reemplazar mocks del PWA/admin por backend real sobre Vercel Functions
 
 | # | Tarea | Estado | Notas |
 |---|---|---|---|
-| 1.1 | Scaffold `maui-back/` con layout portable | ✅ | 31 archivos, typecheck + tests verdes 2026-09-03 |
-| 1.2 | Orders end-to-end (create, findById, listByStore, updateStatus) | ✅ | Usecases + adapters memory/postgres + tests |
-| 1.3 | Crear proyecto Neon + `DATABASE_URL` | 🟡 | Bloqueado por reload de sesión con MCP Neon |
+| 1.1 | Scaffold `maui-back/` con layout portable | ✅ | 31 archivos, typecheck + tests verdes 2026-09-03. Commit `d671273`. |
+| 1.2 | Orders end-to-end (create, findById, listByStore, updateStatus) | ✅ | Usecases + adapters memory/postgres + tests 9/9. Adapter Dynamo pendiente para Fase 3. |
+| 1.3 | Crear proyecto Neon + `DATABASE_URL` | 🟡 | Neon MCP registrado y autenticado; tools se cargan al reabrir sesión de Claude Code |
 | 1.4 | `db:generate` + `db:migrate` inicial | 🔴 | Depende de 1.3 |
 | 1.5 | Deploy `maui-back/` a Vercel + env vars | 🔴 | Depende de 1.3 |
 | 1.6 | Elegir stack de Auth (JWT propio vs Clerk vs Supabase Auth) | 🔴 | Decisión pendiente |
@@ -104,11 +151,28 @@ Ver `roadmap-v3.md`. Se activa con 2+ aliados y modelo de negocio validado.
 
 ## Camino crítico corto plazo (próximas 2 semanas)
 
-1. **Deploy demo a Vercel** — URL pública viva → desbloquea Fase 2 del RFC (validación)
-2. **Setup Neon + primer endpoint real** — prueba de concepto del stack elegido
-3. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para actualizar Cognito en feature en curso
-4. **Elegir stack de Auth** — bloquea todos los endpoints protegidos
-5. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints
+1. **Verificar config Vercel + confirmar primer deploy verde** (`vercel link` en `maui-back/` o `MAUI-PWA-customers/` para inspección local; ver §"Herramientas / MCPs / CLIs")
+2. **Deploy demo verde en Vercel** — URL pública viva → desbloquea Fase 2 del RFC (validación)
+3. **Setup Neon + primer endpoint real** — prueba de concepto del stack elegido
+4. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para actualizar Cognito en feature en curso
+5. **Elegir stack de Auth** — bloquea todos los endpoints protegidos
+6. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints
+
+---
+
+## Herramientas / MCPs / CLIs
+
+Estado de las herramientas que el asistente puede usar directamente (relevante para saber cuándo hay que ejecutar manualmente vs delegar).
+
+| Herramienta | Estado | Notas |
+|---|---|---|
+| **MCP Vercel** | ⚠️ Autenticado pero **no funcional en cuenta Hobby personal** | Todas las llamadas devuelven 403. Limitación del server MCP (no del OAuth). Se reporta a Vercel si aparece feedback público. |
+| **Vercel CLI** (`npx vercel`) | ✅ v59.11.2 autenticada como `infogamboatech-2785`; `maui-back/` linkeado a `marketplace` | `.vercel/` + `.env.local` creados en `maui-back/`. Funcionan `project inspect`, `env ls`, `ls`, `deploy`. El CLI no expone directamente el git repo asociado (solo dashboard). |
+| **MCP Neon** | 🟡 Registrado y autenticado; tools no cargados en sesión activa | Reabrir Claude Code para que se materialicen las tools. |
+| **MCP Google Drive** | ✅ Conectado | No usado activamente hoy. |
+| **Git / GitHub CLI** | ✅ Disponible | Commits y push funcionan directamente. |
+
+Cuando el MCP falla, el fallback es el CLI local invocado desde Bash. Para logins interactivos el usuario ejecuta `! <comando>` en el prompt.
 
 ---
 
