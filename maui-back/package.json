@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/infra/postgres/migrate.ts",
+    "db:migrate": "tsx --env-file=.env src/infra/postgres/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

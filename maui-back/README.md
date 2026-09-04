@@ -71,6 +71,58 @@ DB_DRIVER=memory npm run dev
 | GET | `/api/orders/:id` | Detalle |
 | PATCH | `/api/orders/:id/status` | Cambia estado (con validación de transición) |
 
+## Cambios de schema (migraciones)
+
+Ciclo básico:
+
+1. Editar `src/infra/postgres/schema.ts`.
+2. `npm run db:generate` → nuevo archivo `.sql` numerado en `src/infra/postgres/migrations/`.
+3. `npm run db:migrate` → aplica y registra en `drizzle.__drizzle_migrations`.
+4. Commitear el `.sql` (es historia versionada del schema, no un artefacto).
+
+### Antes de tener datos reales
+
+Iterá sin ceremonia. Si algo se rompe:
+
+```sql
+-- Reset total (destruye todo — solo pre-prod)
+DROP SCHEMA public CASCADE;
+DROP SCHEMA drizzle CASCADE;
+CREATE SCHEMA public;
+```
+
+Luego `npm run db:migrate` recrea todo desde cero.
+
+### Con datos reales (post-swap del frontend)
+
+| Tipo de cambio | Seguridad | Cómo |
+|---|---|---|
+| Aditivo: nueva columna nullable, nueva tabla, nuevo índice | Safe | `generate` + `migrate` directo |
+| Renombrar columna, cambiar tipo | Riesgoso | Multi-paso: agregar nueva columna → backfill → swap código → drop vieja |
+| Destructivo: drop columna/tabla | Riesgoso | Feature flag + doble escritura, drop en release posterior |
+
+**Regla operativa:** para cambios no-aditivos, usar Neon *branches* antes de tocar `main`:
+
+```bash
+# En Neon (via MCP o console):
+# 1. Crear branch desde main → obtenes DATABASE_URL del branch
+# 2. Apuntar .env al branch temporalmente
+# 3. npm run db:migrate  (aplica en el branch, no en main)
+# 4. Probar la app contra el branch
+# 5. Si OK → promover/mergear branch a main
+# 6. Si falla → borrar el branch, nada afectado
+```
+
+Los branches de Neon copian datos point-in-time en segundos y no cuestan compute mientras están inactivos.
+
+### Rollback
+
+Drizzle **no** genera down-migrations. Opciones:
+
+- **Revertir código + escribir migración inversa a mano** (siempre viable).
+- **Neon time travel / restore** al estado previo al `migrate`.
+- **Snapshot manual** antes de migraciones grandes (`create_snapshot` via MCP o console).
+
 ## Migración futura a AWS Lambda + DynamoDB
 
 Ver ADR §4. En resumen:
