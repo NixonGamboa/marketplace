@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens: light mode ─────────────────────────────────────────── */
+:root {
+  --maui-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --bottom-nav-h: 56px;
+  font-family: var(--maui-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Colores — canales RGB separados por espacio (compatibles con / alpha-modifier) */
+  --brand-primary:       91 61 245;
+  --brand-primary-dark:  74 48 212;
+  --brand-primary-light: 238 242 255;
+  --brand-secondary:     124 92 255;
+  --brand-bg:            248 249 252;
+  --brand-surface:       255 255 255;
+  --brand-dark:          31 41 55;
+  --brand-muted:         107 114 128;
+  --brand-border:        232 234 243;
+  --brand-warning:       194 65 12;
+  --brand-warning-bg:    255 247 237;
+  --brand-error:         185 28 28;
+
+  /* Sombras */
+  --shadow-brand-sm:   0 2px 8px rgba(67, 56, 202, 0.18);
+  --shadow-brand-md:   0 8px 32px rgba(67, 56, 202, 0.28);
+  --shadow-card:       0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 4px 16px rgba(15, 23, 42, 0.10);
+  --shadow-elevated:   0 10px 40px rgba(15, 23, 42, 0.12);
+}
+
+/* ─── Design tokens: dark mode ──────────────────────────────────────────── */
+.dark {
+  --brand-bg:            15 23 42;    /* #0F172A — navy profundo */
+  --brand-surface:       30 41 59;    /* #1E293B — cards/modales */
+  --brand-dark:          241 245 249; /* #F1F5F9 — texto principal */
+  --brand-muted:         148 163 184; /* #94A3B8 — texto secundario */
+  --brand-border:        51 65 85;    /* #334155 — divisores */
+  --brand-primary:       124 92 255;  /* #7C5CFF — más luminoso sobre oscuro */
+  --brand-primary-dark:  91 61 245;   /* #5B3DF5 — hover en dark */
+  --brand-primary-light: 30 27 75;    /* #1E1B4B — chips seleccionados dark */
+  --brand-secondary:     157 125 255; /* #9D7DFF */
+  --brand-warning:       251 146 60;  /* #FB923C — naranja suave */
+  --brand-warning-bg:    67 20 7;     /* #431407 — fondo badge dark */
+  --brand-error:         248 113 113; /* #F87171 — rojo suave */
+
+  /* Sombras dark — glow morado */
+  --shadow-brand-sm:   0 2px 8px rgba(124, 92, 255, 0.30);
+  --shadow-brand-md:   0 8px 32px rgba(124, 92, 255, 0.40);
+  --shadow-card:       0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-elevated:   0 10px 40px rgba(0, 0, 0, 0.50);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  @apply bg-brand-bg text-brand-dark min-h-screen;
+}
+
+a {
+  @apply text-brand-primary hover:underline underline-offset-2;
+}
+
+/* Ocultar scrollbar (carruseles/chips) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Tipografía base */
+@layer base {
+  h1, h2, h3, h4 {
+    @apply font-semibold text-brand-dark tracking-tight;
+  }
+  h1 { @apply text-3xl md:text-4xl; }
+  h2 { @apply text-2xl md:text-3xl; }
+  h3 { @apply text-xl md:text-2xl; }
+  h4 { @apply text-lg; }
+}
+
+/* Anular padding bottom del main en desktop (BottomNavBar solo existe en móvil) */
+@media (min-width: 1024px) {
+  .main-bottom-padding {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* Scrollbar (Chromium) — usa el token primario, respeta dark mode automáticamente */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--brand-primary) / 0.18);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--brand-primary) / 0.35);
+}

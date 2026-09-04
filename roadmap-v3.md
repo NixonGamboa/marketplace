@@ -5,6 +5,8 @@
 
 > Estas features implican cambios arquitecturales significativos. No se construyen hasta tener claridad en el modelo de negocio y suficiente volumen para justificar la inversión.
 
+> **Nota 2026-09-03:** Las referencias a "DynamoDB" y "AWS Lambda" en este documento reflejan el stack originalmente planeado. El stack inicial cambió a Vercel + Postgres (ver `docs/adr-001-vercel-postgres-first.md`). La migración a AWS + DynamoDB sigue siendo el destino esperado en la fase v3 (SaaS multi-aliado); las decisiones de este roadmap siguen siendo válidas conceptualmente, sólo cambia el *cuándo* se adopta ese stack.
+
 ---
 
 ## Módulo Financiero — Wallet de Prepago (SaaS)

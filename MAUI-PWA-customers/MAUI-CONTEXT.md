@@ -62,3 +62,24 @@ MAUI está compuesto por tres piezas que trabajan juntas:
 - **Canal de comunicación:** WhatsApp (principal medio del usuario objetivo)
 - **Perfil del usuario:** Familias en comunidades pequeñas, con acceso limitado o intermitente a internet
 - **Stack tecnológico:** PWA con soporte offline, Mobile-First, optimizado para 3G/4G
+
+---
+
+## Seguridad — Limitación de la demo (R-6 / RT-4)
+
+Durante la Fase 1 (demo con mocks) toda la persistencia vive en el navegador del
+operador vía `localStorage` / `sessionStorage`:
+
+- Sesiones del admin en `sessionStorage['maui-admin-session']`.
+- Catálogo, merchant, horario y audit log en claves `localStorage['maui-admin-*']`.
+- Pedidos del cliente ↔ admin en `localStorage['maui-orders']`.
+
+Consecuencias aceptadas para el demo:
+
+- Cualquier persona con acceso al dispositivo puede leer o modificar el estado desde DevTools.
+- El hash del password NO se calcula: `mockAuthRepository` compara texto plano contra
+  `VITE_ADMIN_USERS` (env) o su fallback de fábrica. No es un modelo de auth productivo.
+- La demo NO debe desplegarse con datos sensibles reales. Cuando llegue Sprint 1 y
+  `VITE_DEMO_MODE=false`, `services/index.ts` conmuta al `realXxxRepository`
+  (auth provider real + backend — stack en `docs/adr-001-vercel-postgres-first.md`)
+  y esta capa desaparece.
