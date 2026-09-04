@@ -1,7 +1,7 @@
 # MAUI — Plan de Implementación Global
 
 > **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-03 (sesión noche — deploy Production verde)
+> **Última actualización:** 2026-09-04 (madrugada — Neon vivo + api/ mismo host)
 > **Owner:** Nixon Gamboa
 
 ---
@@ -17,6 +17,26 @@ Documento único de referencia para responder "¿en qué vamos y qué falta?" de
 ## Bitácora
 
 Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+
+### 2026-09-04 (madrugada) — Neon activo + backend en mismo host + branch `develop`
+
+- **Neon MCP tools cargados** (schemas resueltos vía ToolSearch). Proyecto Neon creado: **`maui`** (`rough-morning-66975813`), Postgres 18, region `aws-us-east-1` (match con Vercel `iad1`, latencia <5ms). Org: **Gamboa Tech** (`org-weathered-star-96493344`), plan free.
+- **Schema aplicado a Neon:** tabla `public.orders` (13 columnas + índice compuesto `store_id/status/created_at`) + `drizzle.__drizzle_migrations`. Migración `0000_ambiguous_ultimates.sql` versionada en el repo.
+- **`db:migrate` fix:** ahora usa `tsx --env-file=.env` para cargar DATABASE_URL sin dotenv preload.
+- **`.env` local en `maui-back/`** con la URL de Neon (cubierto por gitignore, nunca a git).
+- **Decisión D-9 tomada: backend en el mismo host del frontend** (proyecto Vercel único). Descartada la opción "proyecto Vercel separado" que se había considerado antes. Razones: sin CORS, cookies mismo-origen, un solo dashboard/pipeline. Trade-off aceptado: cada cambio de back reconstruye el front. Migrar a C (dominio propio con subdomain `api.*`) cuando compremos dominio.
+- **Restructura: `git mv maui-back/api → api` (raíz)** con historia preservada (similarity 71-83%). Imports ajustados `../src/` → `../maui-back/src/` conservando profundidad. Handlers HTTP viven ahora en `api/` de la raíz; la lógica (`src/`, `tests/`) sigue en `maui-back/`.
+- **`vercel.json` raíz:** agregado `functions` config (`@vercel/node@5.0.0`) y catch-all rewrite excluye ahora `/api/` y `/_lib/`. `maui-back/vercel.json` eliminado (redundante).
+- **`package.json` raíz:** agregadas deps runtime del backend (`@neondatabase/serverless`, `drizzle-orm`, `pino`, `ulid`, `zod`, `@vercel/node`). Duplica intencionalmente con `maui-back/package.json`; se consolidará al migrar a workspaces.
+- **`tsconfig.json` raíz** nuevo para tipar `api/**` + `maui-back/src/**` desde la raíz. Typecheck local limpio; 9/9 tests del back verdes.
+- **DATABASE_URL configurada en Vercel** (`vercel env add`) en los 3 environments: Production, Preview (Secret hidden) y Development (Config).
+- **Fix cross-platform lock:** primer Preview con `api/` en raíz falló porque `npm ci` en Vercel Linux rechazaba lock de Windows por resolutions transitivas `@emnapi/*` faltantes. Cambio en orquestador: `install:pwa`/`install:admin`/`install:back` usan `npm install --no-audit --no-fund` en vez de `npm ci`. Menos estricto pero deployable cross-platform.
+- **Flujo git introducido: branch `develop`.** Los commits nuevos van a `develop` primero → Preview → merge a `master` cuando validado. `master` sigue siendo Production Branch en Vercel.
+- **Commits (rama develop):**
+  - `fdbc511` feat(back): Neon activo + migración inicial + doc de schema evolution en README
+  - `2aa95f5` feat(back): mover api/ a la raíz (mismo host)
+  - `00d9aff` fix(deploy): install en subfolders (tolerar lock cross-platform)
+- **Deploy Preview en curso** (`5hr3fwj57`) al momento de esta actualización, pendiente de terminar para curl a `/api/health` real.
 
 ### 2026-09-03 (sesión noche cierre) — Deploy Production verde + merge a master
 
@@ -84,6 +104,7 @@ Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
 | D-6 | Query builder = **Drizzle** (no Prisma) | ADR-001 §2 | 2026-09-03 |
 | D-7 | IDs = **ULID**, timestamps = ISO strings, JSONB para atributos flexibles | ADR-001 §4 | 2026-09-03 |
 | D-8 | Auth real = JWT propio o provider serverless (Clerk/Supabase) — pendiente elegir | ADR-001 §2 | 2026-09-03 |
+| D-9 | **Backend en el mismo host que el frontend** (proyecto Vercel único con `/api/*`). Migrar a subdomain `api.*` cuando compremos dominio | Bitácora 2026-09-04 | 2026-09-04 |
 
 ---
 
@@ -118,17 +139,17 @@ Objetivo: Reemplazar mocks del PWA/admin por backend real sobre Vercel Functions
 |---|---|---|---|
 | 1.1 | Scaffold `maui-back/` con layout portable | ✅ | 31 archivos, typecheck + tests verdes 2026-09-03. Commit `d671273`. |
 | 1.2 | Orders end-to-end (create, findById, listByStore, updateStatus) | ✅ | Usecases + adapters memory/postgres + tests 9/9. Adapter Dynamo pendiente para Fase 3. |
-| 1.3 | Crear proyecto Neon + `DATABASE_URL` | 🟡 | Neon MCP registrado y autenticado; tools se cargan al reabrir sesión de Claude Code |
-| 1.4 | `db:generate` + `db:migrate` inicial | 🔴 | Depende de 1.3 |
-| 1.5 | Deploy `maui-back/` a Vercel + env vars | 🔴 | Depende de 1.3 |
+| 1.3 | Crear proyecto Neon + `DATABASE_URL` | ✅ | Proyecto `maui` (`rough-morning-66975813`), PG18, aws-us-east-1. URL guardada local y en Vercel env vars (prod/preview/dev). |
+| 1.4 | `db:generate` + `db:migrate` inicial | ✅ | Tabla `orders` + índice + `drizzle.__drizzle_migrations` en Neon. Migración `0000_ambiguous_ultimates.sql` commiteada. Doc de schema evolution en `maui-back/README.md`. |
+| 1.5 | Backend en Vercel (mismo host que frontend) | 🟡 | `api/` movida a raíz + `vercel.json` con `functions` + env vars agregadas. Preview `5hr3fwj57` en build al momento de escribir. Validación `/api/health` pendiente. |
 | 1.6 | Elegir stack de Auth (JWT propio vs Clerk vs Supabase Auth) | 🔴 | Decisión pendiente |
-| 1.7 | Endpoints faltantes: `catalog CRUD`, `store settings`, `merchant`, `audit`, `auth` | 🔴 | Cada uno como pequeña feature |
+| 1.7 | Endpoints faltantes: `catalog CRUD`, `store settings`, `merchant`, `audit`, `auth`, `orders list` | 🔴 | Cada uno como pequeña feature. Ver bitácora — el listado actual son solo 4 endpoints (walking skeleton). |
 | 1.8 | Mover DTOs a `shared/` (raíz) para import compartido back ↔ front | 🔴 | `shared/` existe vacío |
 | 1.9 | Swap frontend: `VITE_DEMO_MODE=false` → `services/index.ts` apunta a `realOrderRepository` | 🔴 | Requiere 1.5 + 1.8 |
 | 1.10 | Integration tests contra Postgres real | 🔴 | Nice-to-have; después de 1.5 |
 | 1.11 | WhatsApp Gateway (Evolution API en VPS) según RFC §3.2 | 🔴 | No iniciado |
 
-**Bloqueador de Fase 1:** reload de sesión con Neon MCP (1.3).
+**Bloqueador de Fase 1:** ninguno. Fase 1.5 en verificación activa.
 
 ---
 
@@ -165,13 +186,16 @@ Ver `roadmap-v3.md`. Se activa con 2+ aliados y modelo de negocio validado.
 
 1. ✅ ~~Verificar config Vercel + primer deploy verde~~ (hecho 2026-09-03)
 2. ✅ ~~Deploy demo verde en Vercel~~ — `marketplace-pied-xi.vercel.app` viva
-3. **Validación móvil del fix admin drawer** — owner prueba en su celular (5 min)
-4. **Agendar sesiones de validación con 5 usuarios de Dolores + empleado L&M** — Fase 2 del RFC (0.6). Fijar semana calendario.
-5. **Setup Neon + primer endpoint real** — prueba de concepto del stack elegido (1.3-1.5)
-6. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para limpiar menciones a Cognito en feature en curso
-7. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
-8. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
-9. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
+3. ✅ ~~Setup Neon + migración inicial~~ (hecho 2026-09-04)
+4. **Validar `/api/health` en Preview** (en curso al momento; confirma que Function conecta a Neon con `driver=postgres`)
+5. **Validación móvil del fix admin drawer** — owner prueba en su celular (5 min)
+6. **Agendar sesiones de validación con 5 usuarios de Dolores + empleado L&M** — Fase 2 del RFC (0.6). Fijar semana calendario.
+7. **Agregar endpoints faltantes** (1.7) empezando por `GET /api/orders?storeId=&status=` que es el más usado por el admin
+8. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para limpiar menciones a Cognito en feature en curso
+9. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
+10. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
+11. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
+12. **Merge `develop` → `master`** cuando `/api/health` valide OK, para llevar el backend a Production.
 
 ---
 
@@ -183,7 +207,7 @@ Estado de las herramientas que el asistente puede usar directamente (relevante p
 |---|---|---|
 | **MCP Vercel** | ⚠️ Autenticado pero **no funcional en cuenta Hobby personal** | Todas las llamadas devuelven 403. Limitación del server MCP (no del OAuth). Se reporta a Vercel si aparece feedback público. |
 | **Vercel CLI** (`npx vercel`) | ✅ v59.11.2 autenticada como `infogamboatech-2785`; `maui-back/` linkeado a `marketplace` | `.vercel/` + `.env.local` creados en `maui-back/`. Funcionan `project inspect`, `env ls`, `ls`, `deploy`. El CLI no expone directamente el git repo asociado (solo dashboard). |
-| **MCP Neon** | 🟡 Registrado y autenticado; tools no cargados en sesión activa | Reabrir Claude Code para que se materialicen las tools. |
+| **MCP Neon** | ✅ Operativo (tools cargados vía ToolSearch en 2026-09-04). Write mode activo (destructivos requieren confirmación) | Usado para crear proyecto `maui`, listar tablas, verificar migraciones. |
 | **MCP Google Drive** | ✅ Conectado | No usado activamente hoy. |
 | **Git / GitHub CLI** | ✅ Disponible | Commits y push funcionan directamente. |
 
