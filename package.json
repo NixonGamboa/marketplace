@@ -2,6 +2,7 @@
   "name": "maui-monorepo",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "MAUI monorepo — PWA customers, admin front, backend serverless",
   "scripts": {
     "install:pwa": "npm --prefix MAUI-PWA-customers install --no-audit --no-fund",
