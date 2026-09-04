@@ -1,6 +1,6 @@
 import type { VercelResponse } from '@vercel/node'
-import { DomainError, NotFoundError, ValidationError } from '../../src/shared/errors.js'
-import { logger } from '../../src/shared/logger.js'
+import { DomainError, NotFoundError, ValidationError } from '../../maui-back/src/shared/errors.js'
+import { logger } from '../../maui-back/src/shared/logger.js'
 
 export const ok = <T>(res: VercelResponse, body: T, status = 200): void => {
   res.status(status).json(body)

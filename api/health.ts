@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { config } from '../src/shared/config.js'
+import { config } from '../maui-back/src/shared/config.js'
 
 export default function handler(_req: VercelRequest, res: VercelResponse): void {
   res.status(200).json({

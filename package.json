@@ -6,8 +6,19 @@
   "scripts": {
     "install:pwa": "npm --prefix MAUI-PWA-customers ci",
     "install:admin": "npm --prefix maui-admin-front ci",
-    "install:all": "npm run install:pwa && npm run install:admin",
+    "install:back": "npm --prefix maui-back ci",
+    "install:all": "npm run install:pwa && npm run install:admin && npm run install:back",
     "build:unified": "npm run install:all && npm --prefix MAUI-PWA-customers run build:unified",
     "vercel-build": "npm run build:unified"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "drizzle-orm": "^0.36.4",
+    "pino": "^9.5.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.0.0"
   }
 }

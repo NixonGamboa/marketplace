@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { z } from 'zod'
-import { updateOrderStatus } from '../../../src/usecases/orders/updateOrderStatus.js'
-import { getRepositories } from '../../../src/infra/factory.js'
-import { systemClock } from '../../../src/shared/clock.js'
-import { ValidationError } from '../../../src/shared/errors.js'
-import { OrderStatus } from '../../../src/domain/orders/Order.js'
+import { updateOrderStatus } from '../../../maui-back/src/usecases/orders/updateOrderStatus.js'
+import { getRepositories } from '../../../maui-back/src/infra/factory.js'
+import { systemClock } from '../../../maui-back/src/shared/clock.js'
+import { ValidationError } from '../../../maui-back/src/shared/errors.js'
+import { OrderStatus } from '../../../maui-back/src/domain/orders/Order.js'
 import { fail, ok } from '../../_lib/response.js'
 
 const bodySchema = z.object({

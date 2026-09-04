@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getRepositories } from '../../src/infra/factory.js'
-import { NotFoundError } from '../../src/shared/errors.js'
+import { getRepositories } from '../../maui-back/src/infra/factory.js'
+import { NotFoundError } from '../../maui-back/src/shared/errors.js'
 import { fail, ok } from '../_lib/response.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

@@ -7,27 +7,34 @@ Backend real de MAUI. Vercel Functions + Neon Postgres.
 ## Layout
 
 ```
-maui-back/
+/ (raíz del monorepo)
 ├── api/                       # Adaptadores Vercel Functions (handlers delgados)
-│   ├── health.ts
+│   ├── health.ts              # → GET  /api/health
 │   ├── _lib/                  # helpers HTTP compartidos
 │   └── orders/
-│       ├── create.ts          # POST /api/orders
-│       ├── [id].ts            # GET  /api/orders/:id
-│       └── [id]/status.ts     # PATCH /api/orders/:id/status
-├── src/
-│   ├── domain/                # Entities + interfaces Repository (contratos)
-│   │   └── orders/
-│   ├── usecases/              # Lógica pura de negocio (sin AWS/HTTP/BD)
-│   │   └── orders/
-│   ├── infra/
-│   │   ├── postgres/          # Adapter Drizzle sobre Neon (día 1)
-│   │   ├── memory/            # Adapter in-memory (tests + dev sin BD)
-│   │   └── factory.ts         # Decide adapter según DB_DRIVER
-│   └── shared/                # config, logger, errors, ids (ULID), clock
-└── tests/
-    └── usecases/              # Unit tests contra adapter memory
+│       ├── create.ts          # → POST /api/orders
+│       ├── [id].ts            # → GET  /api/orders/:id
+│       └── [id]/status.ts     # → PATCH /api/orders/:id/status
+└── maui-back/
+    ├── src/
+    │   ├── domain/            # Entities + interfaces Repository (contratos)
+    │   │   └── orders/
+    │   ├── usecases/          # Lógica pura de negocio (sin AWS/HTTP/BD)
+    │   │   └── orders/
+    │   ├── infra/
+    │   │   ├── postgres/      # Adapter Drizzle sobre Neon (día 1)
+    │   │   ├── memory/        # Adapter in-memory (tests + dev sin BD)
+    │   │   └── factory.ts     # Decide adapter según DB_DRIVER
+    │   └── shared/            # config, logger, errors, ids (ULID), clock
+    └── tests/
+        └── usecases/          # Unit tests contra adapter memory
 ```
+
+**Por qué `api/` vive en la raíz:** Vercel busca la carpeta `api/` en el Root Directory
+del proyecto y expone cada archivo como Function serverless en el mismo host que
+el frontend (PWA en `/`, admin en `/admin/`, API en `/api/*`). Esto elimina CORS y
+permite auth con cookies mismo-origen. Los handlers importan la lógica desde
+`../maui-back/src/*` con paths relativos — sin ceremonia.
 
 **Regla dura:** los `api/*` no tienen lógica. Los `usecases/*` no conocen HTTP ni BD.
 Los `infra/*` implementan interfaces del `domain/`. Cambiar de Postgres a DynamoDB
