@@ -6,7 +6,7 @@
 > **Aprobado:** 02 Jun 2026
 > **Aprobadores:** Nixon Gamboa
 
-> **Actualización 2026-09-03 — Cambio de stack backend:** La decisión original de este RFC de usar **AWS SAM + Lambda + DynamoDB + Cognito** para el Sprint 1 fue sustituida por **Vercel Functions + Postgres (Neon) + JWT propio** como stack inicial. Ver `docs/adr-001-vercel-postgres-first.md` para el análisis completo. La migración futura a AWS Lambda + DynamoDB queda preservada mediante un layout de handlers portables. Las menciones a AWS/DynamoDB/Cognito en este documento deben leerse como "backend real / BD administrada / auth provider real" — el stack específico ahora vive en el ADR.
+> **Actualización 2026-09-03 — Cambio de stack backend:** La decisión original de este RFC de usar **AWS SAM + Lambda + DynamoDB + Cognito** para el Sprint 1 fue sustituida por **Vercel Functions + Postgres (Neon) + JWT propio** como stack inicial. Ver `docs/adr-001-stack-backend.md` para el análisis completo. La migración futura a AWS Lambda + DynamoDB queda preservada mediante un layout de handlers portables. Las menciones a AWS/DynamoDB/Cognito en este documento deben leerse como "backend real / BD administrada / auth provider real" — el stack específico ahora vive en el ADR.
 
 ---
 
@@ -22,7 +22,7 @@ Se propone construir una demo funcional de la PWA MAUI Customers completa — co
 
 La PWA MAUI Customers tiene aproximadamente el 55% del frontend construido, pero el flujo de valor completo no funciona de punta a punta. No existe backend, no existe panel admin, y el catálogo usa datos placeholder que no corresponden a productos reales de Leche y Miel. En este estado es imposible validar si el producto resuelve el problema real de los usuarios de Dolores.
 
-El riesgo concreto: construir el backend real (stack definido en `docs/adr-001-vercel-postgres-first.md` — Vercel Functions + Postgres, con portabilidad futura a AWS Lambda + DynamoDB) implica 4–6 semanas de inversión. Si al finalizar esa inversión se descubre que el flujo de checkout genera confusión, que el copy no es claro para usuarios no digitalizados, o que el empleado de la tienda no puede operar el panel admin durante su hora más ocupada, el costo de corrección es alto. Las fricciones de UX son 10x más baratas de corregir antes del backend que después.
+El riesgo concreto: construir el backend real (stack definido en `docs/adr-001-stack-backend.md` — Vercel Functions + Postgres, con portabilidad futura a AWS Lambda + DynamoDB) implica 4–6 semanas de inversión. Si al finalizar esa inversión se descubre que el flujo de checkout genera confusión, que el copy no es claro para usuarios no digitalizados, o que el empleado de la tienda no puede operar el panel admin durante su hora más ocupada, el costo de corrección es alto. Las fricciones de UX son 10x más baratas de corregir antes del backend que después.
 
 Adicionalmente, hay gaps técnicos concretos que bloquean la demo:
 - `/catalog/:categoryId` no existe como componente de página
@@ -692,7 +692,7 @@ Una vez conectado el backend real, se añadirá:
 
 ## 6.3. Trazabilidad
 
-No aplica en el Sprint DEMO (sin backend). En Sprint 1+, cada pedido tendrá un `orderId` (ULID/NanoID) que actúa como trace ID a través de todos los sistemas (PWA → API → BD → WhatsApp). Ver `docs/adr-001-vercel-postgres-first.md` §4 sobre el uso de ULID para preservar portabilidad futura.
+No aplica en el Sprint DEMO (sin backend). En Sprint 1+, cada pedido tendrá un `orderId` (ULID/NanoID) que actúa como trace ID a través de todos los sistemas (PWA → API → BD → WhatsApp). Ver `docs/adr-001-stack-backend.md` §4 sobre el uso de ULID para preservar portabilidad futura.
 
 ## 6.4. Logs
 

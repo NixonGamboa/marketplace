@@ -32,37 +32,37 @@ Toda la documentación vive bajo [`docs/`](docs/). Cada archivo tiene un rol ún
 
 | Documento | Propósito |
 |---|---|
-| [`docs/plan-implementacion.md`](docs/plan-implementacion.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
+| [`docs/estado-plan.md`](docs/estado-plan.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
 | [`tech/backlog.md`](tech/backlog.md) | Backlog técnico gestionado por el SDD Kit (TODO / DEBT / IDEA). |
 
 ### Decisiones canónicas (ADRs)
 
 | Documento | Propósito |
 |---|---|
-| [`docs/adr-001-vercel-postgres-first.md`](docs/adr-001-vercel-postgres-first.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
+| [`docs/adr-001-stack-backend.md`](docs/adr-001-stack-backend.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
 
 ### Propuestas técnicas (RFCs)
 
 | Documento | Propósito |
 |---|---|
-| [`docs/demo-maui-pwa-rfc.md`](docs/demo-maui-pwa-rfc.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Define el alcance, el flujo end-to-end y los criterios de éxito. |
+| [`docs/rfc-001-demo-validacion.md`](docs/rfc-001-demo-validacion.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Define el alcance, el flujo end-to-end y los criterios de éxito. |
 
 ### Producto y estrategia
 
 | Documento | Propósito |
 |---|---|
 | [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md) | **Qué es MAUI**, objetivo del producto, perfil del usuario, principios. Insumo obligatorio antes de decisiones de diseño o arquitectura. |
-| [`docs/analisis-pm-mvp-ff.md`](docs/analisis-pm-mvp-ff.md) | Análisis PM del MVP para el Friends & Family en Dolores: qué construir, qué sobra, qué falta. |
-| [`docs/rq-PO-admin-panel-fase0.md`](docs/rq-PO-admin-panel-fase0.md) | Review de Product Owner del panel admin en Fase 0: gaps de UX y priorización. |
-| [`docs/pitch-deck.md`](docs/pitch-deck.md) | Pitch deck del proyecto (WIP). |
+| [`docs/producto-analisis-mvp-ff.md`](docs/producto-analisis-mvp-ff.md) | Análisis PM del MVP para el Friends & Family en Dolores: qué construir, qué sobra, qué falta. |
+| [`docs/producto-review-admin-fase0.md`](docs/producto-review-admin-fase0.md) | Review de Product Owner del panel admin en Fase 0: gaps de UX y priorización. |
+| [`docs/estrategia-pitch-deck.md`](docs/estrategia-pitch-deck.md) | Pitch deck del proyecto (WIP). |
 
 ### Roadmaps por horizonte
 
 | Documento | Propósito |
 |---|---|
-| [`docs/roadmap-v2.md`](docs/roadmap-v2.md) | Post F&F: cerrar la brecha "MVP funcional → producto operable sin intervención técnica". Se activa tras 50+ pedidos reales. |
-| [`docs/roadmap-v3.md`](docs/roadmap-v3.md) | Escala y SaaS multi-aliado. Se activa con 2+ aliados y modelo de negocio validado. |
-| [`docs/grow-ideas.md`](docs/grow-ideas.md) | Ideas de mejora explícitamente **posteriores** al MVP 100% funcional. No priorizadas. |
+| [`docs/roadmap-v2-post-ff.md`](docs/roadmap-v2-post-ff.md) | Post F&F: cerrar la brecha "MVP funcional → producto operable sin intervención técnica". Se activa tras 50+ pedidos reales. |
+| [`docs/roadmap-v3-saas-escala.md`](docs/roadmap-v3-saas-escala.md) | Escala y SaaS multi-aliado. Se activa con 2+ aliados y modelo de negocio validado. |
+| [`docs/producto-ideas-post-mvp.md`](docs/producto-ideas-post-mvp.md) | Ideas de mejora explícitamente **posteriores** al MVP 100% funcional. No priorizadas. |
 
 ### Packages con documentación propia
 
@@ -83,7 +83,7 @@ Toda la documentación vive bajo [`docs/`](docs/). Cada archivo tiene un rol ún
 
 ## Empezar rápido
 
-- **Ver estado actual:** [`docs/plan-implementacion.md`](docs/plan-implementacion.md).
+- **Ver estado actual:** [`docs/estado-plan.md`](docs/estado-plan.md).
 - **Entender qué es MAUI:** [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md).
 - **Levantar la PWA localmente:** `cd MAUI-PWA-customers && npm install && npm run dev`.
 - **Levantar el backend localmente:** ver [`maui-back/README.md`](maui-back/README.md).

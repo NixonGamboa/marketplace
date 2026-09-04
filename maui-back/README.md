@@ -2,7 +2,7 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
-**Decisión de stack:** ver [`../docs/adr-001-vercel-postgres-first.md`](../docs/adr-001-vercel-postgres-first.md).
+**Decisión de stack:** ver [`../docs/adr-001-stack-backend.md`](../docs/adr-001-stack-backend.md).
 
 ## Layout
 

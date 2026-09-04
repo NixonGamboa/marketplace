@@ -3,14 +3,14 @@
 > **Estado:** `Accepted`
 > **Fecha:** 2026-09-03
 > **Autor:** Nixon Gamboa (Owner)
-> **Supersede:** decisión de stack de Sprint 1 en `docs/demo-maui-pwa-rfc.md` §1.1
+> **Supersede:** decisión de stack de Sprint 1 en `docs/rfc-001-demo-validacion.md` §1.1
 > **Aplica a:** todo el backend real de MAUI hasta que el negocio justifique migrar
 
 ---
 
 ## 1. Contexto
 
-El `demo-maui-pwa-rfc.md` (aprobado 2026-06-02) definía el backend de Sprint 1 como **AWS SAM + Lambda + DynamoDB + WhatsApp Gateway**. La decisión se tomó antes de evaluar la fricción operativa y financiera real de arrancar en AWS, y antes de considerar alternativas equivalentes con menor costo de arranque.
+El `rfc-001-demo-validacion.md` (aprobado 2026-06-02) definía el backend de Sprint 1 como **AWS SAM + Lambda + DynamoDB + WhatsApp Gateway**. La decisión se tomó antes de evaluar la fricción operativa y financiera real de arrancar en AWS, y antes de considerar alternativas equivalentes con menor costo de arranque.
 
 Al pasar a la fase de scaffold del backend (septiembre 2026), se hizo un análisis comparativo entre continuar con AWS SAM o pivotar a un stack serverless equivalente en Vercel + Postgres administrado.
 
@@ -120,8 +120,8 @@ Cualquiera de estos gatillos amerita reevaluar:
 
 ## 6. Referencias
 
-- `docs/demo-maui-pwa-rfc.md` (RFC original, decisión superada por este ADR)
-- `docs/rq-PO-admin-panel-fase0.md` (análisis PO, referencias a Cognito superadas)
+- `docs/rfc-001-demo-validacion.md` (RFC original, decisión superada por este ADR)
+- `docs/producto-review-admin-fase0.md` (análisis PO, referencias a Cognito superadas)
 - `tech/features/20260602-demo-maui-pwa/1-functional/spec.md` (feature demo, referencia a AWS SAM superada)
 - Vercel Functions: https://vercel.com/docs/functions
 - Neon Postgres: https://neon.tech/docs

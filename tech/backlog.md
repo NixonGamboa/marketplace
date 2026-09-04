@@ -41,7 +41,7 @@
 - **Priority**: Medium
 - **Status**: pending
 - **Created**: 2026-06-11
-- **Origin**: análisis PO `docs/rq-PO-admin-panel-fase0.md` §1 ("subir fotos de calidad")
+- **Origin**: análisis PO `docs/producto-review-admin-fase0.md` §1 ("subir fotos de calidad")
 - **Context**: El objetivo del admin según el contexto MAUI incluye "subir fotos de calidad" como evidencia del peso real capturado en items `is_variable_weight` (queso campesino, frijol, chorizo). Sin almacenamiento real (S3/CDN) no tiene ROI en la demo con mocks — la foto se perdería al limpiar localStorage o explotaría el cap de 5MB. La feature `evolucion-admin-panel-demo` (2026-06-11) deja la captura de peso vía `WeightInput` pero sin foto. Implementar cuando haya storage real en Sprint 1.
 - **Affected Files**: `maui-admin-front/src/features/orders/OrderDetailPage.tsx`, `maui-admin-front/src/types/orderService.ts` (campo `evidencePhotoUrl?: string` en CartItem o nivel order), backend de uploads (Sprint 1)
 - **Complexity**: M

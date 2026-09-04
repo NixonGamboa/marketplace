@@ -10,10 +10,10 @@ Do not mix languages in specs. Technical terms (API, REST, CRUD, mock, store) st
 - Framework expert: `Skill("tech-sdd-kit-expert")`
 - Workflow: `/tech.start` → `/tech.spec` → `/tech.plan` → `/tech.build` → `/tech.finish`
 - Active feature: `tech/wip/20260611-evolucion-admin-panel-demo/`
-- **Plan de implementación global (fuente única de estado):** `docs/plan-implementacion.md`
-- **ADR stack backend (Vercel + Postgres, no AWS al inicio):** `docs/adr-001-vercel-postgres-first.md`
-- Análisis PO: `docs/rq-PO-admin-panel-fase0.md`
-- RFC demo aprobado: `docs/demo-maui-pwa-rfc.md`
+- **Plan de implementación global (fuente única de estado):** `docs/estado-plan.md`
+- **ADR stack backend (Vercel + Postgres, no AWS al inicio):** `docs/adr-001-stack-backend.md`
+- Análisis PO: `docs/producto-review-admin-fase0.md`
+- RFC demo aprobado: `docs/rfc-001-demo-validacion.md`
 - Backend scaffold: `maui-back/README.md`
 
 ### Rules

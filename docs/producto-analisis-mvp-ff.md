@@ -3,7 +3,7 @@
 **Fecha:** 21 de abril de 2026
 **Contexto:** Análisis de producto para definir qué construir, qué sobra y qué falta para un test real con Friends & Family (~30 usuarios) en Dolores, Tolima, Colombia. Aliado: "Leche y Miel" (supermercado local).
 
-> **Nota 2026-09-03:** Cualquier referencia a "AWS", "DynamoDB", "Lambda" o "API Gateway" en este documento refleja el stack originalmente planeado. Para el arranque del backend real se adoptó Vercel Functions + Postgres (Neon) — ver `docs/adr-001-vercel-postgres-first.md`.
+> **Nota 2026-09-03:** Cualquier referencia a "AWS", "DynamoDB", "Lambda" o "API Gateway" en este documento refleja el stack originalmente planeado. Para el arranque del backend real se adoptó Vercel Functions + Postgres (Neon) — ver `docs/adr-001-stack-backend.md`.
 
 ---
 
@@ -200,8 +200,8 @@ Antes del lanzamiento F&F: sesión de 2 horas de práctica, simular 5 pedidos co
 | Archivo | Descripción | Estado |
 |---------|-------------|--------|
 | `tareas/roadmap-admin.md` | Roadmap independiente para MAUI Admin (proyecto aparte) | ✅ Creado |
-| `tareas/roadmap-v2.md` | Features pospuestas de MVP: Magic Link, Búsqueda, Order Tracker PWA, S3 fotos | ✅ Creado |
-| `tareas/roadmap-v3.md` | Features post-escala: Módulo financiero, Wallet, WebSockets, Multi-aliado | ✅ Creado |
+| `tareas/roadmap-v2-post-ff.md` | Features pospuestas de MVP: Magic Link, Búsqueda, Order Tracker PWA, S3 fotos | ✅ Creado |
+| `tareas/roadmap-v3-saas-escala.md` | Features post-escala: Módulo financiero, Wallet, WebSockets, Multi-aliado | ✅ Creado |
 | `tareas/operaciones/carga-catalogo.md` | Proceso operativo de fotografiar y cargar ~100 productos reales desde el Admin | ✅ Creado |
 | `tareas/operaciones/entrenamiento-admin.md` | Guía de onboarding del empleado de la tienda | ✅ Creado |
 
