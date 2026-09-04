@@ -4,9 +4,9 @@
   "private": true,
   "description": "MAUI monorepo — PWA customers, admin front, backend serverless",
   "scripts": {
-    "install:pwa": "npm --prefix MAUI-PWA-customers ci",
-    "install:admin": "npm --prefix maui-admin-front ci",
-    "install:back": "npm --prefix maui-back ci",
+    "install:pwa": "npm --prefix MAUI-PWA-customers install --no-audit --no-fund",
+    "install:admin": "npm --prefix maui-admin-front install --no-audit --no-fund",
+    "install:back": "npm --prefix maui-back install --no-audit --no-fund",
     "install:all": "npm run install:pwa && npm run install:admin && npm run install:back",
     "build:unified": "npm run install:all && npm --prefix MAUI-PWA-customers run build:unified",
     "vercel-build": "npm run build:unified"
