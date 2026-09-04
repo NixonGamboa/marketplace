@@ -3,7 +3,7 @@
 > **Estado:** `Accepted`
 > **Fecha:** 2026-09-03
 > **Autor:** Nixon Gamboa (Owner)
-> **Supersede:** decisión de stack de Sprint 1 en `docs/rfc-001-demo-validacion.md` §1.1
+> **Supersede:** decisión de stack de Sprint 1 en `rfc-001-demo-validacion.md` §1.1
 > **Aplica a:** todo el backend real de MAUI hasta que el negocio justifique migrar
 
 ---
@@ -120,8 +120,8 @@ Cualquiera de estos gatillos amerita reevaluar:
 
 ## 6. Referencias
 
-- `docs/rfc-001-demo-validacion.md` (RFC original, decisión superada por este ADR)
-- `docs/producto-review-admin-fase0.md` (análisis PO, referencias a Cognito superadas)
+- `rfc-001-demo-validacion.md` (RFC original, decisión superada por este ADR)
+- `../negocio/producto-review-admin-fase0.md` (análisis PO, referencias a Cognito superadas)
 - `tech/features/20260602-demo-maui-pwa/1-functional/spec.md` (feature demo, referencia a AWS SAM superada)
 - Vercel Functions: https://vercel.com/docs/functions
 - Neon Postgres: https://neon.tech/docs

@@ -26,53 +26,45 @@ Monorepo con **PWA de clientes**, **panel admin del aliado** y **backend serverl
 
 ## Documentación por propósito
 
-Toda la documentación vive bajo [`docs/`](docs/). Cada archivo tiene un rol único:
+La documentación transversal vive bajo [`docs/`](docs/), separada en dos carpetas por audiencia principal:
 
-### Estado y coordinación del proyecto
+- **`docs/tecnicos/`** — decisiones de arquitectura, RFCs y estado de implementación. Audiencia: ingeniería.
+- **`docs/negocio/`** — producto, PM, PO, estrategia, roadmaps. Audiencia: PM/PO/dirección.
 
-| Documento | Propósito |
-|---|---|
-| [`docs/estado-plan.md`](docs/estado-plan.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
-| [`tech/backlog.md`](tech/backlog.md) | Backlog técnico gestionado por el SDD Kit (TODO / DEBT / IDEA). |
+Cada archivo tiene un rol único.
 
-### Decisiones canónicas (ADRs)
+### 📐 Técnicos — [`docs/tecnicos/`](docs/tecnicos/)
 
 | Documento | Propósito |
 |---|---|
-| [`docs/adr-001-stack-backend.md`](docs/adr-001-stack-backend.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
+| [`estado-plan.md`](docs/tecnicos/estado-plan.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
+| [`adr-001-stack-backend.md`](docs/tecnicos/adr-001-stack-backend.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
+| [`rfc-001-demo-validacion.md`](docs/tecnicos/rfc-001-demo-validacion.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Alcance, flujo end-to-end y criterios de éxito. |
+| [`tech/backlog.md`](tech/backlog.md) | Backlog técnico gestionado por el SDD Kit (TODO / DEBT / IDEA). Vive fuera de `docs/` porque lo gestiona el SDD Kit. |
 
-### Propuestas técnicas (RFCs)
-
-| Documento | Propósito |
-|---|---|
-| [`docs/rfc-001-demo-validacion.md`](docs/rfc-001-demo-validacion.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Define el alcance, el flujo end-to-end y los criterios de éxito. |
-
-### Producto y estrategia
+### 💼 Negocio — [`docs/negocio/`](docs/negocio/)
 
 | Documento | Propósito |
 |---|---|
-| [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md) | **Qué es MAUI**, objetivo del producto, perfil del usuario, principios. Insumo obligatorio antes de decisiones de diseño o arquitectura. |
-| [`docs/producto-analisis-mvp-ff.md`](docs/producto-analisis-mvp-ff.md) | Análisis PM del MVP para el Friends & Family en Dolores: qué construir, qué sobra, qué falta. |
-| [`docs/producto-review-admin-fase0.md`](docs/producto-review-admin-fase0.md) | Review de Product Owner del panel admin en Fase 0: gaps de UX y priorización. |
-| [`docs/estrategia-pitch-deck.md`](docs/estrategia-pitch-deck.md) | Pitch deck del proyecto (WIP). |
+| [`producto-analisis-mvp-ff.md`](docs/negocio/producto-analisis-mvp-ff.md) | Análisis PM del MVP para el Friends & Family en Dolores: qué construir, qué sobra, qué falta. |
+| [`producto-review-admin-fase0.md`](docs/negocio/producto-review-admin-fase0.md) | Review de Product Owner del panel admin en Fase 0: gaps de UX y priorización. |
+| [`producto-ideas-post-mvp.md`](docs/negocio/producto-ideas-post-mvp.md) | Ideas de mejora explícitamente **posteriores** al MVP 100% funcional. No priorizadas. |
+| [`estrategia-pitch-deck.md`](docs/negocio/estrategia-pitch-deck.md) | Pitch deck del proyecto (WIP). |
+| [`roadmap-v2-post-ff.md`](docs/negocio/roadmap-v2-post-ff.md) | Post F&F: cerrar la brecha "MVP funcional → producto operable sin intervención técnica". Se activa tras 50+ pedidos reales. |
+| [`roadmap-v3-saas-escala.md`](docs/negocio/roadmap-v3-saas-escala.md) | Escala y SaaS multi-aliado. Se activa con 2+ aliados y modelo de negocio validado. |
 
-### Roadmaps por horizonte
+### 📦 Documentación específica por package
 
-| Documento | Propósito |
-|---|---|
-| [`docs/roadmap-v2-post-ff.md`](docs/roadmap-v2-post-ff.md) | Post F&F: cerrar la brecha "MVP funcional → producto operable sin intervención técnica". Se activa tras 50+ pedidos reales. |
-| [`docs/roadmap-v3-saas-escala.md`](docs/roadmap-v3-saas-escala.md) | Escala y SaaS multi-aliado. Se activa con 2+ aliados y modelo de negocio validado. |
-| [`docs/producto-ideas-post-mvp.md`](docs/producto-ideas-post-mvp.md) | Ideas de mejora explícitamente **posteriores** al MVP 100% funcional. No priorizadas. |
-
-### Packages con documentación propia
+Cada package mantiene su propio README con setup y detalles internos.
 
 | Documento | Propósito |
 |---|---|
+| [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md) | **Qué es MAUI**, objetivo del producto, perfil del usuario, principios. Insumo obligatorio antes de decisiones de diseño o arquitectura. Vive en el package por historia; referenciado por specs SDD archivadas. |
 | [`maui-back/README.md`](maui-back/README.md) | Backend: setup, comandos, layout portable, ciclo de migraciones Drizzle/Neon, migración futura a AWS Lambda. |
 | [`MAUI-PWA-customers/README.md`](MAUI-PWA-customers/README.md) | PWA de clientes: cómo levantar, build unificado, service worker. |
 | [`MAUI Design System/README.md`](MAUI%20Design%20System/README.md) | Design system: tokens, componentes, brand assets. |
 
-### Instrucciones para asistentes IA
+### 🤖 Instrucciones para asistentes IA
 
 | Documento | Propósito |
 |---|---|
@@ -83,7 +75,7 @@ Toda la documentación vive bajo [`docs/`](docs/). Cada archivo tiene un rol ún
 
 ## Empezar rápido
 
-- **Ver estado actual:** [`docs/estado-plan.md`](docs/estado-plan.md).
+- **Ver estado actual:** [`docs/tecnicos/estado-plan.md`](docs/tecnicos/estado-plan.md).
 - **Entender qué es MAUI:** [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md).
 - **Levantar la PWA localmente:** `cd MAUI-PWA-customers && npm install && npm run dev`.
 - **Levantar el backend localmente:** ver [`maui-back/README.md`](maui-back/README.md).

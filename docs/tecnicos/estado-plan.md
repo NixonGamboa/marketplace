@@ -10,7 +10,7 @@
 
 Documento único de referencia para responder "¿en qué vamos y qué falta?" del proyecto MAUI end-to-end. Consolida el estado de las decisiones tomadas, el trabajo hecho y el trabajo pendiente por fase.
 
-**No sustituye** al RFC (`docs/rfc-001-demo-validacion.md`), al ADR (`docs/adr-001-stack-backend.md`), a los roadmaps (`roadmap-v2-post-ff.md`, `roadmap-v3-saas-escala.md`) ni al SDD Kit (`tech/`). Los enlaza y los coordina.
+**No sustituye** al RFC (`rfc-001-demo-validacion.md`), al ADR (`adr-001-stack-backend.md`), a los roadmaps (`roadmap-v2-post-ff.md`, `roadmap-v3-saas-escala.md`) ni al SDD Kit (`tech/`). Los enlaza y los coordina.
 
 ---
 
@@ -95,7 +95,7 @@ Sin cambios de código. Revisión cruzada del estado real (post trabajo de sesi�
 
 ### 2026-09-03 (sesión tarde) — Setup deploy demo + backend scaffold + docs
 
-- **Decisión D-4 → D-8 tomadas:** stack backend cambia de AWS SAM + DynamoDB + Cognito a Vercel Functions + Neon Postgres + Drizzle + JWT propio. Documentada en ADR-001. Ver `docs/adr-001-stack-backend.md`.
+- **Decisión D-4 → D-8 tomadas:** stack backend cambia de AWS SAM + DynamoDB + Cognito a Vercel Functions + Neon Postgres + Drizzle + JWT propio. Documentada en ADR-001. Ver `adr-001-stack-backend.md`.
 - **Docs previos actualizados** apuntando al ADR: RFC, PO analysis, roadmap v2/v3, análisis PM, MAUI-CONTEXT. Se respetó SDD: tech/wip **no fue editado** (regularizar vía `/tech.fix`).
 - **Scaffold `maui-back/` creado** (31 archivos): domain/usecases/infra + adapters memory/postgres + handlers Vercel Functions para `/api/orders/*` y `/api/health`. `tsc --noEmit` limpio; `vitest` 9/9 verde.
 - **`npm install` en maui-back:** 519 paquetes; 25 vulnerabilidades transitivas del CLI de vercel (no afectan runtime).
@@ -113,10 +113,10 @@ Sin cambios de código. Revisión cruzada del estado real (post trabajo de sesi�
 
 | # | Decisión | Documento fuente | Fecha |
 |---|---|---|---|
-| D-1 | Construir demo funcional antes del backend real | `docs/rfc-001-demo-validacion.md` | 2026-06-02 |
+| D-1 | Construir demo funcional antes del backend real | `rfc-001-demo-validacion.md` | 2026-06-02 |
 | D-2 | Contratos mock = contratos reales; swap por import | RFC §3.3 | 2026-06-02 |
 | D-3 | PWA + admin en un solo artefacto estático (deploy unificado) | `scripts/merge-unified-build.mjs` | 2026-09-03 |
-| D-4 | Backend real arranca en **Vercel Functions + Neon Postgres**, no AWS SAM | `docs/adr-001-stack-backend.md` | 2026-09-03 |
+| D-4 | Backend real arranca en **Vercel Functions + Neon Postgres**, no AWS SAM | `adr-001-stack-backend.md` | 2026-09-03 |
 | D-5 | Layout portable: `domain/` + `usecases/` + `infra/` para que migración a AWS Lambda + DynamoDB sea barata | ADR-001 §4 | 2026-09-03 |
 | D-6 | Query builder = **Drizzle** (no Prisma) | ADR-001 §2 | 2026-09-03 |
 | D-7 | IDs = **ULID**, timestamps = ISO strings, JSONB para atributos flexibles | ADR-001 §4 | 2026-09-03 |
@@ -150,7 +150,7 @@ Objetivo: PWA + admin funcionando end-to-end con mocks + datos reales de Leche y
 
 Objetivo: Reemplazar mocks del PWA/admin por backend real sobre Vercel Functions + Neon Postgres, sin romper contratos.
 
-**Documento canónico:** `docs/adr-001-stack-backend.md`.
+**Documento canónico:** `adr-001-stack-backend.md`.
 
 | # | Tarea | Estado | Notas |
 |---|---|---|---|
@@ -307,9 +307,9 @@ Las skills viven fuera del repositorio, en `C:\Users\Nixon\.codex\skills\`, y qu
 
 ## Enlaces rápidos
 
-- RFC demo: [`docs/rfc-001-demo-validacion.md`](rfc-001-demo-validacion.md)
-- ADR stack: [`docs/adr-001-stack-backend.md`](adr-001-stack-backend.md)
-- Análisis PO admin: [`docs/producto-review-admin-fase0.md`](producto-review-admin-fase0.md)
+- RFC demo: [`rfc-001-demo-validacion.md`](rfc-001-demo-validacion.md)
+- ADR stack: [`adr-001-stack-backend.md`](adr-001-stack-backend.md)
+- Análisis PO admin: [`../negocio/producto-review-admin-fase0.md`](producto-review-admin-fase0.md)
 - Roadmap v2 (post F&F): [`roadmap-v2-post-ff.md`](roadmap-v2-post-ff.md)
 - Roadmap v3 (escala/SaaS): [`roadmap-v3-saas-escala.md`](roadmap-v3-saas-escala.md)
 - Análisis PM MVP F&F: [`producto-analisis-mvp-ff.md`](producto-analisis-mvp-ff.md)

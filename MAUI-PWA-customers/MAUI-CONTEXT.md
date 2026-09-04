@@ -81,5 +81,5 @@ Consecuencias aceptadas para el demo:
   `VITE_ADMIN_USERS` (env) o su fallback de fábrica. No es un modelo de auth productivo.
 - La demo NO debe desplegarse con datos sensibles reales. Cuando llegue Sprint 1 y
   `VITE_DEMO_MODE=false`, `services/index.ts` conmuta al `realXxxRepository`
-  (auth provider real + backend — stack en `docs/adr-001-stack-backend.md`)
+  (auth provider real + backend — stack en `docs/tecnicos/adr-001-stack-backend.md`)
   y esta capa desaparece.

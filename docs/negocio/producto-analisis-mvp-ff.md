@@ -3,7 +3,7 @@
 **Fecha:** 21 de abril de 2026
 **Contexto:** Análisis de producto para definir qué construir, qué sobra y qué falta para un test real con Friends & Family (~30 usuarios) en Dolores, Tolima, Colombia. Aliado: "Leche y Miel" (supermercado local).
 
-> **Nota 2026-09-03:** Cualquier referencia a "AWS", "DynamoDB", "Lambda" o "API Gateway" en este documento refleja el stack originalmente planeado. Para el arranque del backend real se adoptó Vercel Functions + Postgres (Neon) — ver `docs/adr-001-stack-backend.md`.
+> **Nota 2026-09-03:** Cualquier referencia a "AWS", "DynamoDB", "Lambda" o "API Gateway" en este documento refleja el stack originalmente planeado. Para el arranque del backend real se adoptó Vercel Functions + Postgres (Neon) — ver `../tecnicos/adr-001-stack-backend.md`.
 
 ---
 
