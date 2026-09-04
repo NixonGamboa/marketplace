@@ -1,7 +1,7 @@
 # MAUI — Plan de Implementación Global
 
 > **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-03 (sesión noche — check Vercel CLI)
+> **Última actualización:** 2026-09-03 (sesión noche — deploy Production verde)
 > **Owner:** Nixon Gamboa
 
 ---
@@ -17,6 +17,17 @@ Documento único de referencia para responder "¿en qué vamos y qué falta?" de
 ## Bitácora
 
 Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+
+### 2026-09-03 (sesión noche cierre) — Deploy Production verde + merge a master
+
+- **Merge `feature/demo-maui-pwa` → `master` (198a9e9)** con `--no-ff`. Master estaba 3 commits atrás por trabajo ajeno "post-descarga zip" (b7292e6). Divergencia real → merge no fast-forward.
+- **Conflictos resueltos:** 2 modify/delete en la carpeta `MAUI-PWA-customers/client/` (eliminada por la reorg de la feature). Aceptados los deletes; los cambios de master en `mockData.ts` y `roadmap.md` eran sobre archivos que ya no existen en la estructura nueva.
+- **Housekeeping (48be718):** `git rm --cached .claude/settings.local.json` — el `.gitignore` mergeado ya lo cubre; ahora también des-trackeado. El archivo local del usuario sobrevive (283 bytes).
+- **Auto-deploy Production confirmado end-to-end:** push a master → Vercel dispara build con `Environment=Production` sin intervención manual. **URL bonita viva:**
+  - `https://marketplace-pied-xi.vercel.app/` → 200 (PWA customers)
+  - `https://marketplace-pied-xi.vercel.app/admin/` → 200 (admin panel)
+- **Fix móvil admin incluido:** drawer overlay + hamburguesa (`maui-admin-front/src/shell/AppShell.tsx`, commit `022b529`). Typecheck limpio, 67 tests verde. Falta validación visual del owner en móvil real.
+- **Observación performance:** el `npm ci` explícito por subfolder que agregué al orquestador raíz hace builds Vercel de ~10min (vs 33s de deploys anteriores sin unificar). No bloqueante, pero candidato a optimizar migrando a npm workspaces o dejando que Vercel cachee `node_modules` por subfolder.
 
 ### 2026-09-03 (sesión noche) — Vercel CLI autenticada + auditoría proyecto `marketplace`
 
@@ -87,12 +98,13 @@ Objetivo: PWA + admin funcionando end-to-end con mocks + datos reales de Leche y
 | 0.1 | PWA con flujo completo (Home → Catálogo → Carrito → Checkout → Confirmación → Timeline pedido) | ✅ | Feature archivada en `tech/features/20260602-demo-maui-pwa/` |
 | 0.2 | Catálogo con datos reales de Leche y Miel | ✅ | `shared/catalog` |
 | 0.3 | Admin panel con roles, catálogo, horarios, audit log | ✅ | Feature en cierre `tech/wip/20260611-evolucion-admin-panel-demo/` |
-| 0.4 | Deploy unificado (PWA + admin, un artefacto) | 🟡 | Build listo (`npm run build:unified`); proyecto Vercel importado con Root `.` — **config incorrecta**: sin `package.json` raíz el deploy sale 404. Fix: opción A (root en `MAUI-PWA-customers`) u opción B (crear `package.json` orquestador en raíz — recomendada). |
-| 0.5 | Enlazar auto-deploy Vercel a rama `feature/demo-maui-pwa` | 🟡 | Proyecto `prj_JJSJxLWORkC7WVZGcGziLPxGQ4dk` creado; falta confirmar Production Branch en dashboard (CLI actual no expone git repo) y ejecutar redeploy tras fix de 0.4 |
-| 0.6 | Sesiones de validación con 5 usuarios de Dolores + empleado L&M | 🔴 | Fase 2 del RFC — pendiente ejecutar |
+| 0.4 | Deploy unificado (PWA + admin, un artefacto) | ✅ | `package.json` raíz orquestador + `vercel.json` con `rewrites` SPA. Producción viva en `marketplace-pied-xi.vercel.app` (200 en `/` y `/admin/`). |
+| 0.5 | Auto-deploy `master` → Production | ✅ | Verificado end-to-end 2026-09-03: push a master dispara build con `Environment=Production`. Rama de trabajo sigue generando Preview con URL única por commit. |
+| 0.6 | Sesiones de validación con 5 usuarios de Dolores + empleado L&M | 🔴 | Fase 2 del RFC — pendiente ejecutar. **Desbloqueada** ahora que hay URL pública. |
 | 0.7 | Go/No-Go documentado con evidencia | 🔴 | Depende de 0.6 |
+| 0.8 | Validación visual del fix móvil del admin (drawer + hamburguesa) | 🟡 | Deploy incluye el fix; pendiente prueba en dispositivo real del owner. |
 
-**Bloqueador de Fase 0:** verificar config del proyecto Vercel importado (MCP de Vercel no ve Hobby personal → fallback a Vercel CLI local o inspección manual del dashboard).
+**Fase 0 sin bloqueadores técnicos.** El único pendiente crítico es la validación humana (0.6, 0.8).
 
 ---
 
@@ -151,12 +163,15 @@ Ver `roadmap-v3.md`. Se activa con 2+ aliados y modelo de negocio validado.
 
 ## Camino crítico corto plazo (próximas 2 semanas)
 
-1. **Verificar config Vercel + confirmar primer deploy verde** (`vercel link` en `maui-back/` o `MAUI-PWA-customers/` para inspección local; ver §"Herramientas / MCPs / CLIs")
-2. **Deploy demo verde en Vercel** — URL pública viva → desbloquea Fase 2 del RFC (validación)
-3. **Setup Neon + primer endpoint real** — prueba de concepto del stack elegido
-4. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para actualizar Cognito en feature en curso
-5. **Elegir stack de Auth** — bloquea todos los endpoints protegidos
-6. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints
+1. ✅ ~~Verificar config Vercel + primer deploy verde~~ (hecho 2026-09-03)
+2. ✅ ~~Deploy demo verde en Vercel~~ — `marketplace-pied-xi.vercel.app` viva
+3. **Validación móvil del fix admin drawer** — owner prueba en su celular (5 min)
+4. **Agendar sesiones de validación con 5 usuarios de Dolores + empleado L&M** — Fase 2 del RFC (0.6). Fijar semana calendario.
+5. **Setup Neon + primer endpoint real** — prueba de concepto del stack elegido (1.3-1.5)
+6. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para limpiar menciones a Cognito en feature en curso
+7. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
+8. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
+9. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
 
 ---
 
