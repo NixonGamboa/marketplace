@@ -1,7 +1,7 @@
 # MAUI — Plan de Implementación Global
 
 > **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-04 (madrugada — Neon vivo + api/ mismo host)
+> **Última actualización:** 2026-09-04 (consolidación de decisiones pendientes + descubrimientos operativos)
 > **Owner:** Nixon Gamboa
 
 ---
@@ -17,6 +17,23 @@ Documento único de referencia para responder "¿en qué vamos y qué falta?" de
 ## Bitácora
 
 Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+
+### 2026-09-04 — Consolidación de decisiones pendientes de implementación
+
+Sin cambios de código. Revisión cruzada del estado real (post trabajo de sesión madrugada) contra las decisiones tomadas en las 3 sesiones anteriores. Los cambios estructurales están hechos; lo pendiente es alcance de features y decisiones de producto.
+
+**Decisiones tomadas — implementadas o parcial:**
+- D-3 (deploy unificado) ✅ / D-4 (stack Vercel + Postgres) ✅ / D-5 (layout portable) ✅ para orders / D-6 (Drizzle) ✅ / D-7 (ULID + ISO + JSONB) ✅ para orders / D-9 (mismo host) ✅.
+
+**Decisiones tomadas — sin implementar:**
+- **D-8 Auth stack** — sin elegir. Bloquea 1.7 (endpoints protegidos) y 1.9 (swap admin).
+- **Shared contracts en `shared/`** — DTOs de Order viven en maui-back, frontend no puede importarlos. Bloquea 1.9.
+- **Endpoints restantes** — solo orders está; catalog CRUD / store / merchant / audit / auth / list orders pendientes.
+- **Swap frontend** — `services/index.ts` sigue apuntando a mocks.
+- **WhatsApp Gateway** — no iniciado; requiere warming 2 semanas antes del corte real.
+- **Integration tests contra Postgres real** — solo hay unit tests contra memory.
+
+**Descubrimientos operativos consolidados:** ver nueva sección "Descubrimientos operativos" abajo (OP-1 build lento, OP-2 MCP Vercel Hobby, OP-3 validación móvil).
 
 ### 2026-09-04 (madrugada) — Neon activo + backend en mismo host + branch `develop`
 
@@ -215,6 +232,54 @@ Cuando el MCP falla, el fallback es el CLI local invocado desde Bash. Para login
 
 ---
 
+## Descubrimientos operativos
+
+Hallazgos sobre la infraestructura/proceso que no son features del producto pero afectan la velocidad del equipo. Se documentan aquí para no perder contexto entre sesiones.
+
+| # | Hallazgo | Impacto | Acción sugerida |
+|---|---|---|---|
+| **OP-1** | Build Vercel toma ~10 min por `npm install --no-audit --no-fund` explícito por subfolder (PWA + admin + back) | Cada preview y cada production deploy suma 10 min de espera; afecta ritmo de iteración pero no bloquea nada | Migrar a **npm workspaces** con un lockfile único a la raíz, o dejar que Vercel cachee `node_modules` por subfolder. No urgente hasta que el ritmo duela. |
+| **OP-2** | MCP Vercel devuelve 403 para todas las llamadas en cuentas Hobby personales, aunque OAuth diga OK | El asistente no puede leer/crear/mutar proyectos vía MCP; obligado a usar Vercel CLI local desde Bash | Fallback establecido: Vercel CLI (`v59.11.2`) linkeado a `maui-back/`. Sin acción hasta que Vercel actualice el MCP o cuenta migre a Pro. |
+| **OP-3** | Fix móvil del admin (drawer + hamburguesa) desplegado pero no validado en dispositivo real | Riesgo bajo de regresión visual/UX en móvil | Owner prueba `marketplace-pied-xi.vercel.app/admin/` en Android real (5 min). Si falla, iterar. Ver 0.8. |
+| **OP-4** | `package.json` del backend en `maui-back/` **duplica intencionalmente** deps runtime con el `package.json` raíz | Confusión potencial sobre dónde declarar deps nuevas del backend | Consolidar cuando se migre a npm workspaces (junto con OP-1). Mientras tanto: convención = agregar en ambos. |
+
+---
+
+## Skills de desarrollo y referencias evaluadas
+
+Estas herramientas apoyan el trabajo del equipo y de los agentes de código. **No añaden IA al producto MAUI ni autorizan integraciones externas por sí mismas.** Una integración de producto requiere una decisión explícita, su propia feature SDD y la autorización correspondiente.
+
+### Skills Codex instaladas (usuario)
+
+| Skill | Cuándo usarla | Resultado esperado |
+|---|---|---|
+| `$maui-sdd` | Cambios de funcionalidad, correcciones o evolución del repositorio MAUI | Respeta Tech SDD Kit, especificaciones en español y los límites del MVP. |
+| `$maui-api-contracts` | Cambios de datos, endpoints, persistencia o sincronización entre PWA, admin y backend | Contratos coherentes, validación runtime, idempotencia y tipos sin drift. |
+| `$maui-retail-qa` | Regresiones, preparación de piloto y QA de flujos de tienda/cliente | Evidencia del recorrido completo, incluido 3G, pedidos duplicados y productos por peso. |
+| `$maui-catalog-ops` | Carga o auditoría de productos, precios, stock, unidades y fotos | Catálogo comercial exacto, revisado por el aliado y preservando el histórico. |
+
+Las skills viven fuera del repositorio, en `C:\Users\Nixon\.codex\skills\`, y quedan disponibles para futuros proyectos. Se invocan explícitamente, por ejemplo: `Usa $maui-api-contracts para cambiar el contrato de pedidos.`
+
+### OpenAI — herramientas investigadas (sin adopción actual)
+
+| Herramienta | Uso potencial evaluado | Decisión actual |
+|---|---|---|
+| [Responses API](https://platform.openai.com/docs/quickstart/make-your-first-api-request) | Punto de entrada para capacidades de texto, imagen y herramientas server-side. | No incorporar al MVP. Mantener como referencia si se aprueba una capacidad asistida futura. |
+| [Function calling y herramientas de Responses](https://platform.openai.com/docs/api-reference/responses-streaming/response/refusal?lang=python) | Conectar un modelo a acciones controladas del backend mediante esquemas tipados. | No incorporar al MVP; cualquier acción operativa futura debe conservar confirmación humana, auditoría y permisos. |
+| [OpenAI Agents SDK para TypeScript](https://github.com/openai/openai-agents-js) | Orquestar agentes, tools, guardrails y handoffs en servicios TypeScript. | No necesario mientras MAUI valida su loop comercial; reevaluar solo si surge un caso concreto y medible. |
+| [Realtime API](https://platform.openai.com/docs/api-reference/realtime?lang=javascript) | Interacción de voz de baja latencia por WebRTC/WebSocket. | Fuera de alcance: añade complejidad y no resuelve un bloqueo actual de cliente, tienda o backend. |
+
+### Herramientas comunitarias priorizadas para evaluar
+
+| Herramienta | Motivo | Momento sugerido |
+|---|---|---|
+| [Zod](https://github.com/colinhacks/zod) | Esquemas runtime para payloads de API y límites de confianza entre frontend/backend. | Fase 1, junto con DTOs compartidos (1.8). |
+| [Playwright](https://playwright.dev/) | Pruebas end-to-end de compra, admin y regresiones móviles. | Antes del cutover de mocks a backend real. |
+| [MSW](https://mswjs.io/) | Simular la API HTTP durante desarrollo y pruebas sin depender de localStorage. | Durante el swap gradual de repositorios mock. |
+| [Sentry](https://sentry.io/) | Capturar errores y contexto en PWA, admin y backend. | Antes de los primeros pedidos reales. |
+
+---
+
 ## Gobernanza y proceso
 
 ### SDD Kit — deuda de proceso identificada
@@ -236,7 +301,7 @@ Cuando el MCP falla, el fallback es el CLI local invocado desde Bash. Para login
 | Neon cold starts en free tier | Aceptable en MVP; upgrade cuando el UX lo demande |
 | Divergencia contrato mock ↔ real | Contratos como `interface` compartidas en `shared/` (pendiente 1.8) |
 | WhatsApp Gateway no iniciado | Bloqueará Fase 1 completa; empezar warming del número 2 semanas antes del cutover |
-| Sesiones de validación (0.6) sin fecha aún | Fijar semana calendario apenas 0.5 esté verde |
+| Sesiones de validación (0.6) sin fecha aún — 0.5 ya está verde, la ausencia de fecha es lo único que bloquea la Fase 2 del RFC | **Acción inmediata:** fijar semana calendario para 5 usuarios + empleado L&M (owner) |
 
 ---
 
