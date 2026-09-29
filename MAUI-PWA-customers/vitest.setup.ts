@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 // Polyfill para scrollIntoView en entorno jsdom
 if (!Element.prototype.scrollIntoView) {
 	// eslint-disable-next-line @typescript-eslint/no-empty-function
