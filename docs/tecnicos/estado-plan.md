@@ -1,7 +1,7 @@
 # MAUI — Plan de Implementación Global
 
 > **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-04 (consolidación de decisiones pendientes + descubrimientos operativos)
+> **Última actualización:** 2026-09-29 (flujo de desarrollo directo en ramas feature)
 > **Owner:** Nixon Gamboa
 
 ---
@@ -10,13 +10,17 @@
 
 Documento único de referencia para responder "¿en qué vamos y qué falta?" del proyecto MAUI end-to-end. Consolida el estado de las decisiones tomadas, el trabajo hecho y el trabajo pendiente por fase.
 
-**No sustituye** al RFC (`rfc-001-demo-validacion.md`), al ADR (`adr-001-stack-backend.md`), a los roadmaps (`roadmap-v2-post-ff.md`, `roadmap-v3-saas-escala.md`) ni al SDD Kit (`tech/`). Los enlaza y los coordina.
+**No sustituye** al RFC (`rfc-001-demo-validacion.md`), al ADR (`adr-001-stack-backend.md`) ni a los roadmaps (`roadmap-v2-post-ff.md`, `roadmap-v3-saas-escala.md`). Los enlaza y los coordina.
 
 ---
 
 ## Bitácora
 
 Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+
+### 2026-09-29 — Flujo de desarrollo directo
+
+Por decisión del owner, MAUI deja de usar Tech SDD Kit para nuevos cambios. El equipo implementa directamente en ramas `feature/*` creadas desde `develop`, con pruebas y revisión de cada entrega. Los documentos bajo `tech/` quedan como historial; no se generan nuevas specs ni se regularizan features pasadas mediante `/tech.*`.
 
 ### 2026-09-04 — Consolidación de decisiones pendientes de implementación
 
@@ -208,11 +212,10 @@ Ver `roadmap-v3-saas-escala.md`. Se activa con 2+ aliados y modelo de negocio va
 5. **Validación móvil del fix admin drawer** — owner prueba en su celular (5 min)
 6. **Agendar sesiones de validación con 5 usuarios de Dolores + empleado L&M** — Fase 2 del RFC (0.6). Fijar semana calendario.
 7. **Agregar endpoints faltantes** (1.7) empezando por `GET /api/orders?storeId=&status=` que es el más usado por el admin
-8. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para limpiar menciones a Cognito en feature en curso
-9. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
-10. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
-11. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
-12. **Merge `develop` → `master`** cuando `/api/health` valide OK, para llevar el backend a Production.
+8. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
+9. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
+10. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
+11. **Merge `develop` → `master`** cuando `/api/health` valide OK, para llevar el backend a Production.
 
 ---
 
@@ -247,13 +250,12 @@ Hallazgos sobre la infraestructura/proceso que no son features del producto pero
 
 ## Skills de desarrollo y referencias evaluadas
 
-Estas herramientas apoyan el trabajo del equipo y de los agentes de código. **No añaden IA al producto MAUI ni autorizan integraciones externas por sí mismas.** Una integración de producto requiere una decisión explícita, su propia feature SDD y la autorización correspondiente.
+Estas herramientas apoyan el trabajo del equipo y de los agentes de código. **No añaden IA al producto MAUI ni autorizan integraciones externas por sí mismas.** Una integración de producto requiere una decisión explícita y la autorización correspondiente.
 
 ### Skills Codex instaladas (usuario)
 
 | Skill | Cuándo usarla | Resultado esperado |
 |---|---|---|
-| `$maui-sdd` | Cambios de funcionalidad, correcciones o evolución del repositorio MAUI | Respeta Tech SDD Kit, especificaciones en español y los límites del MVP. |
 | `$maui-api-contracts` | Cambios de datos, endpoints, persistencia o sincronización entre PWA, admin y backend | Contratos coherentes, validación runtime, idempotencia y tipos sin drift. |
 | `$maui-retail-qa` | Regresiones, preparación de piloto y QA de flujos de tienda/cliente | Evidencia del recorrido completo, incluido 3G, pedidos duplicados y productos por peso. |
 | `$maui-catalog-ops` | Carga o auditoría de productos, precios, stock, unidades y fotos | Catálogo comercial exacto, revisado por el aliado y preservando el histórico. |
@@ -281,10 +283,6 @@ Las skills viven fuera del repositorio, en `C:\Users\Nixon\.codex\skills\`, y qu
 ---
 
 ## Gobernanza y proceso
-
-### SDD Kit — deuda de proceso identificada
-- `tech/wip/20260611-evolucion-admin-panel-demo/` menciona "Cognito" en 2 líneas de sus specs — requiere `/tech.fix` cuando se retome la feature (evitar edit manual respetando el workflow).
-- El scaffold `maui-back/` se creó fuera del workflow SDD por velocidad. **Regularizar con `/tech.start` retroactivo** creando spec técnica corta que documente el layout ya construido.
 
 ### Actualizaciones que requiere este documento
 - Cada vez que una fila cambie de estado (🔴 → 🟡 → ✅), actualizar aquí + fecha en el header.
@@ -314,5 +312,5 @@ Las skills viven fuera del repositorio, en `C:\Users\Nixon\.codex\skills\`, y qu
 - Roadmap v3 (escala/SaaS): [`roadmap-v3-saas-escala.md`](roadmap-v3-saas-escala.md)
 - Análisis PM MVP F&F: [`producto-analisis-mvp-ff.md`](producto-analisis-mvp-ff.md)
 - Ideas post-MVP: [`producto-ideas-post-mvp.md`](producto-ideas-post-mvp.md)
-- Backlog técnico SDD: [`../tech/backlog.md`](../tech/backlog.md)
+- Backlog técnico histórico: [`../tech/backlog.md`](../tech/backlog.md)
 - Backend: [`../maui-back/README.md`](../maui-back/README.md)

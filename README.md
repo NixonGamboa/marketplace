@@ -19,7 +19,7 @@ Monorepo con **PWA de clientes**, **panel admin del aliado** y **backend serverl
 ├── shared/                  # Contratos y catálogo compartidos entre front y back
 ├── scripts/                 # Build unificado y utilidades
 ├── docs/                    # Toda la documentación estratégica y técnica
-└── tech/                    # SDD Kit (specs formales por feature)
+└── tech/                    # Historial de specs y backlog anteriores
 ```
 
 ---
@@ -40,7 +40,7 @@ Cada archivo tiene un rol único.
 | [`estado-plan.md`](docs/tecnicos/estado-plan.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
 | [`adr-001-stack-backend.md`](docs/tecnicos/adr-001-stack-backend.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
 | [`rfc-001-demo-validacion.md`](docs/tecnicos/rfc-001-demo-validacion.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Alcance, flujo end-to-end y criterios de éxito. |
-| [`tech/backlog.md`](tech/backlog.md) | Backlog técnico gestionado por el SDD Kit (TODO / DEBT / IDEA). Vive fuera de `docs/` porque lo gestiona el SDD Kit. |
+| [`tech/backlog.md`](tech/backlog.md) | Backlog técnico histórico (TODO / DEBT / IDEA). |
 
 ### 💼 Negocio — [`docs/negocio/`](docs/negocio/)
 
