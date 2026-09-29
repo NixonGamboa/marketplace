@@ -1,5 +1,5 @@
 import type { OrderService, OrderPayload, Order } from '@/types/orderService'
-import { DEMO_USER } from '@/config/app'
+import { DEMO_USER } from '../config/app'
 
 const STORAGE_KEY = 'maui-orders'
 const SEED_MARKER_KEY = 'maui-orders-seeded-v1'
@@ -27,7 +27,26 @@ function writeAllToStorage(orders: Record<string, Order>): void {
 }
 
 function calculateTotal(items: OrderPayload['items']): number {
-  return items.reduce((sum, item) => sum + item.qty * item.priceAtMoment, 0)
+  return items.reduce((sum, item) => {
+    const amount = item.is_variable_weight ? item.kilosRequested : item.qty
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 ||
+        !Number.isFinite(item.priceAtMoment) || item.priceAtMoment < 0) {
+      throw new Error(`Cantidad o precio inválido para ${item.id}`)
+    }
+    return sum + amount * item.priceAtMoment
+  }, 0)
+}
+
+function normalizeCustomerPhone(raw: string): string {
+  if (!/^\+?[\d\s()-]+$/.test(raw.trim())) {
+    throw new Error('El celular debe tener 10 dígitos colombianos')
+  }
+  const digits = raw.replace(/\D/g, '')
+  const local = digits.length === 12 && digits.startsWith('57') ? digits.slice(2) : digits
+  if (!/^3\d{9}$/.test(local)) {
+    throw new Error('El celular debe tener 10 dígitos colombianos')
+  }
+  return `57${local}`
 }
 
 // ── Seed mock history para el usuario demo ────────────────────────────────────
@@ -138,10 +157,14 @@ seedDemoOrdersIfNeeded()
 
 export const mockOrderService: OrderService = {
   async submit(payload) {
+    const customerPhone = normalizeCustomerPhone(payload.customerPhone)
+    if (!Number.isFinite(payload.shippingCost) || payload.shippingCost < 0) {
+      throw new Error('El costo de envío debe ser un valor no negativo')
+    }
+    const estimatedTotal = calculateTotal(payload.items) + payload.shippingCost
     await delay(1200)
 
     const orderId = `MAUI-${Date.now()}`
-    const estimatedTotal = calculateTotal(payload.items)
     const now = new Date().toISOString()
 
     const order: Order = {
@@ -153,6 +176,8 @@ export const mockOrderService: OrderService = {
       deliveryData:           payload.deliveryData,
       substitutionPreference: payload.substitutionPreference,
       customerName:           payload.customerName,
+      customerPhone,
+      shippingCost:           payload.shippingCost,
       estimatedTotal,
       createdAt:              now,
     }
