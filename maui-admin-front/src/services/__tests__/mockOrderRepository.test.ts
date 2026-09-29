@@ -60,7 +60,7 @@ describe('mockOrderRepository', () => {
   })
 
   describe('setRealWeights', () => {
-    it('AC-2: recalcula total con `kilosReal * priceAtMoment` para variables (ADR-006)', async () => {
+    it('conserva el estimado y guarda el total final con el peso real', async () => {
       seedOrders([baseOrder()])
       const updated = await mockOrderRepository.setRealWeights(
         'MAUI-1',
@@ -68,9 +68,41 @@ describe('mockOrderRepository', () => {
         'operator@x',
       )
       // 2 x 4500 (leche fija) + 0.75 x 32000 (queso variable) = 9000 + 24000
-      expect(updated.estimatedTotal).toBe(33000)
+      expect(updated.estimatedTotal).toBe(25000)
+      expect(updated.finalTotal).toBe(33000)
       const queso = updated.items.find((i) => i.id === 'queso')
       expect(queso?.kilosReal).toBe(0.75)
+      expect((await mockOrderRepository.getById('MAUI-1')).finalTotal).toBe(33000)
+    })
+
+    it('suma el envío snapshot al total final sin alterar el estimado', async () => {
+      seedOrders([baseOrder({ deliveryType: 'delivery', shippingCost: 3000, estimatedTotal: 28000 })])
+      const updated = await mockOrderRepository.setRealWeights(
+        'MAUI-1', [{ itemId: 'queso', kilos: 0.75 }], 'operator@x',
+      )
+      expect(updated.shippingCost).toBe(3000)
+      expect(updated.estimatedTotal).toBe(28000)
+      expect(updated.finalTotal).toBe(36000)
+    })
+
+    it('no fija total final hasta pesar todos los productos variables', async () => {
+      seedOrders([baseOrder({ items: [
+        { id: 'queso', qty: 1, priceAtMoment: 32000, is_variable_weight: true, kilosRequested: 0.5 },
+        { id: 'carne', qty: 1, priceAtMoment: 20000, is_variable_weight: true, kilosRequested: 1 },
+      ], estimatedTotal: 36000 })])
+      const partial = await mockOrderRepository.setRealWeights('MAUI-1', [{ itemId: 'queso', kilos: 0.75 }], 'x')
+      expect(partial.estimatedTotal).toBe(36000)
+      expect(partial.finalTotal).toBeUndefined()
+      const complete = await mockOrderRepository.setRealWeights('MAUI-1', [{ itemId: 'carne', kilos: 1.1 }], 'x')
+      expect(complete.finalTotal).toBe(46000)
+    })
+
+    it('rechaza pesos reales no positivos o no finitos', async () => {
+      seedOrders([baseOrder()])
+      await expect(mockOrderRepository.setRealWeights('MAUI-1', [{ itemId: 'queso', kilos: 0 }], 'x'))
+        .rejects.toThrow(/peso real/i)
+      await expect(mockOrderRepository.setRealWeights('MAUI-1', [{ itemId: 'queso', kilos: Number.NaN }], 'x'))
+        .rejects.toThrow(/peso real/i)
     })
 
     it('registra audit con action order.weights_set', async () => {
@@ -114,6 +146,14 @@ describe('mockOrderRepository', () => {
   })
 
   describe('updateStatus', () => {
+    it('no permite marcar listo un pedido con pesos variables pendientes', async () => {
+      seedOrders([baseOrder({ status: 'preparing' })])
+      await expect(mockOrderRepository.updateStatus('MAUI-1', 'ready', 'x'))
+        .rejects.toThrow(/pesos reales/i)
+      await mockOrderRepository.setRealWeights('MAUI-1', [{ itemId: 'queso', kilos: 0.75 }], 'x')
+      expect((await mockOrderRepository.updateStatus('MAUI-1', 'ready', 'x')).status).toBe('ready')
+    })
+
     it('bloquea mutación en pedidos cancelados (RN-6)', async () => {
       seedOrders([baseOrder({ cancellationReason: 'cancelado' })])
       await expect(
