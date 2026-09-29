@@ -13,6 +13,13 @@ import { Spinner } from '@/ui/Spinner'
 import { normalizePhone, formatPhonePretty } from '@/lib/phone'
 import { ResetDemoButton } from './ResetDemoButton'
 
+function normalizeMerchantWhatsApp(raw: string): string | null {
+  if (!/^\+?[\d\s()-]+$/.test(raw.trim())) return null
+  const digits = normalizePhone(raw)
+  const phone = /^3\d{9}$/.test(digits) ? `57${digits}` : digits
+  return /^573\d{9}$/.test(phone) && phone !== '573000000000' ? phone : null
+}
+
 export function ConfigPage() {
   const { session } = useSession()
   const toast = useToast()
@@ -36,9 +43,9 @@ export function ConfigPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!config) return
-    const normalizedPhone = normalizePhone(config.whatsapp)
-    if (normalizedPhone.length < 10) {
-      toast.error('El teléfono debe tener al menos 10 dígitos')
+    const normalizedPhone = normalizeMerchantWhatsApp(config.whatsapp)
+    if (!normalizedPhone) {
+      toast.error('Ingresa un celular colombiano válido, distinto al número de ejemplo')
       return
     }
     setSaving(true)
