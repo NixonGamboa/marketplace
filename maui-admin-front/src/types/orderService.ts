@@ -46,6 +46,10 @@ export interface OrderPayload {
   deliveryType: DeliveryType
   deliveryData: DeliveryData
   customerName: string
+  /** Celular colombiano canónico: prefijo 57 seguido de 10 dígitos. */
+  customerPhone: string
+  /** Costo de envío cotizado al confirmar el checkout. Cero para retiro en tienda. */
+  shippingCost: number
 }
 
 export interface OrderConfirmation {
@@ -70,7 +74,11 @@ export interface Order {
    * legacy creados antes de capturar el teléfono.
    */
   customerPhone?: string
+  /** Snapshot del costo de envío; ausente en pedidos anteriores. */
+  shippingCost?: number
   estimatedTotal: number
+  /** Total cobrado tras registrar todos los pesos reales de los productos variables. */
+  finalTotal?: number
   createdAt: string
   updatedAt?: string
 }
