@@ -247,6 +247,9 @@ export function OrderDetailPage() {
   }
 
   const isCancelled = Boolean(order.cancellationReason)
+  const { lat, lng } = order.deliveryData
+  const hasValidCoordinates = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90
+    && typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180
   const nextStatus = TRANSITIONS[order.status]
   const isPreparingWithVariables = order.status === 'preparing' && variableItems.length > 0
   const canAdvance = !isCancelled && !!nextStatus && (!isPreparingWithVariables || allWeightsSet)
@@ -324,8 +327,20 @@ export function OrderDetailPage() {
               </h3>
               <p className="text-sm text-gray-700">
                 {order.deliveryType === 'pickup' ? 'Retiro en tienda' : 'Domicilio'}
-                {order.deliveryData.address && ` — ${order.deliveryData.address}`}
               </p>
+              {order.deliveryType === 'delivery' && order.deliveryData.address && (
+                <p className="mt-1 text-sm text-gray-600">Dirección o referencia: {order.deliveryData.address}</p>
+              )}
+              {order.deliveryType === 'delivery' && hasValidCoordinates && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-sm font-medium text-indigo-700 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  Abrir ubicación en Google Maps
+                </a>
+              )}
             </section>
 
             {/* Items */}
@@ -370,7 +385,7 @@ export function OrderDetailPage() {
                 ))}
               </ul>
               <p className="mt-3 text-right font-semibold text-gray-900">
-                Total: {currencyFormatter.format(order.estimatedTotal)}
+                {order.finalTotal != null ? 'Total final' : 'Total estimado'}: {currencyFormatter.format(order.finalTotal ?? order.estimatedTotal)}
               </p>
             </section>
 
