@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import Icon from '@/shared/components/ui/Icon'
-import { WHATSAPP_LINK } from '@/config/app'
+import { merchantWhatsAppUrl, useMerchantWhatsApp } from '@/shared/hooks/useMerchantWhatsApp'
 
 /** Devuelve hasta 2 iniciales en mayúscula a partir del nombre. */
 function getInitials(name: string) {
@@ -40,10 +40,12 @@ interface MenuRow {
   helper?: string
   onClick?: () => void
   variant?: 'default' | 'danger'
+  unavailable?: boolean
 }
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const merchantPhone = useMerchantWhatsApp()
   const { user, isAuthenticated, updateProfile, logout } = useAuthStore()
 
   const [editing, setEditing] = useState(false)
@@ -85,9 +87,10 @@ export default function ProfilePage() {
     { icon: Heart, label: 'Favoritos', helper: 'Productos que te gustaron', to: '/favoritos' },
     {
       icon: MessageCircle,
-      label: 'Ayuda por WhatsApp',
-      helper: 'Escríbenos si necesitas apoyo',
-      href: WHATSAPP_LINK,
+      label: merchantPhone ? 'Ayuda por WhatsApp' : 'WhatsApp pendiente de configurar',
+      helper: merchantPhone ? 'Escríbenos si necesitas apoyo' : 'El negocio aún no ha configurado su número',
+      href: merchantPhone ? merchantWhatsAppUrl(merchantPhone, 'Hola, necesito ayuda con MAUI.') : undefined,
+      unavailable: !merchantPhone,
     },
   ]
 
@@ -242,6 +245,7 @@ function MenuRowItem({ row }: { row: MenuRow }) {
         {content}
       </a>
     )
+  if (row.unavailable) return <div aria-disabled="true">{content}</div>
   return (
     <button onClick={row.onClick} className="w-full text-left">
       {content}

@@ -14,18 +14,13 @@ import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, MapPin, Clock, AlertCircle } from 'lucide-react'
 
 import { orderService } from '../../services/index'
-import { WHATSAPP_SUPPORT_NUMBER, MERCHANT_NAME, WA_MESSAGES, TIME_SLOT_LABELS_ORDER } from '../../config/app'
+import { MERCHANT_NAME, WA_MESSAGES, TIME_SLOT_LABELS_ORDER } from '../../config/app'
+import { merchantWhatsAppUrl, useMerchantWhatsApp } from '../../shared/hooks/useMerchantWhatsApp'
 import OrderTimeline from './OrderTimeline'
 
 import type { OrderStatus } from '../../types/orderService'
 
 // ── WhatsApp helpers ──────────────────────────────────────────────────────────
-
-function buildWhatsAppUrl(orderId: string, status: OrderStatus): string {
-  const phone   = WHATSAPP_SUPPORT_NUMBER.replace(/\D/g, '')
-  const message = encodeURIComponent(WA_MESSAGES[status](orderId))
-  return `https://wa.me/${phone}?text=${message}`
-}
 
 // ── Date formatter ────────────────────────────────────────────────────────────
 
@@ -113,6 +108,7 @@ function ErrorState({ orderId, message }: ErrorStateProps) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function OrderDetailPage() {
+  const merchantPhone = useMerchantWhatsApp()
   // AC-1 — useParams
   const { orderId } = useParams<{ orderId: string }>()
 
@@ -157,7 +153,9 @@ export default function OrderDetailPage() {
 
   const isPickup        = order.deliveryType === 'pickup'
   const totalItems      = order.items.reduce((sum, item) => sum + item.qty, 0)
-  const whatsappHref    = buildWhatsAppUrl(order.orderId, order.status)
+  const whatsappHref    = merchantPhone
+    ? merchantWhatsAppUrl(merchantPhone, WA_MESSAGES[order.status](order.orderId))
+    : null
 
   // Build timestamps for OrderTimeline: map updatedAt to current status
   const timestamps: Partial<Record<OrderStatus, string>> = {}
@@ -221,9 +219,9 @@ export default function OrderDetailPage() {
             {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
           </span>
           <span className="text-sm font-bold text-brand-dark">
-            Total:{' '}
+            {order.finalTotal != null ? 'Total final:' : 'Total estimado:'}{' '}
             <span className="text-brand-primary">
-              {formatCurrency(order.estimatedTotal)}
+              {formatCurrency(order.finalTotal ?? order.estimatedTotal)}
             </span>
           </span>
         </div>
@@ -281,7 +279,7 @@ export default function OrderDetailPage() {
       {/* ── AC-3: WhatsApp CTA ─────────────────────────────────────────────── */}
       {/* Fixed to bottom thumb zone for mobile ergonomics (ui-rules.md) */}
       <div className="fixed bottom-0 left-0 right-0 z-60 bg-brand-bg/95 backdrop-blur-sm px-4 py-4 border-t border-brand-border max-w-lg mx-auto">
-        <a
+        {whatsappHref ? <a
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
@@ -290,7 +288,9 @@ export default function OrderDetailPage() {
         >
           <MessageCircle size={20} aria-hidden />
           Contactar a {MERCHANT_NAME}
-        </a>
+        </a> : <p role="status" className="py-3 text-center text-sm font-medium text-brand-muted">
+          WhatsApp pendiente de configurar
+        </p>}
       </div>
 
     </main>
