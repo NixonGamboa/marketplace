@@ -54,14 +54,19 @@ function writeAll(orders: Record<string, AdminOrder>): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
 }
 
-function computeTotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => {
-    if (item.is_variable_weight && typeof item.kilosReal === 'number') {
-      // Items de peso variable: el priceAtMoment se interpreta como precio por kg.
-      return sum + item.kilosReal * item.priceAtMoment
-    }
-    return sum + item.qty * item.priceAtMoment
+function computeFinalTotal(items: CartItem[], shippingCost = 0): number | undefined {
+  if (items.some((item) => item.is_variable_weight && !isValidWeight(item.kilosReal))) {
+    return undefined
+  }
+  const itemsTotal = items.reduce((sum, item) => {
+    const amount = item.is_variable_weight ? item.kilosReal! : item.qty
+    return sum + amount * item.priceAtMoment
   }, 0)
+  return itemsTotal + shippingCost
+}
+
+function isValidWeight(weight: number | undefined): weight is number {
+  return typeof weight === 'number' && Number.isFinite(weight) && weight > 0
 }
 
 function matchesText(order: AdminOrder, q: string): boolean {
@@ -117,7 +122,19 @@ export const mockOrderRepository: OrderRepository = {
     if (current.status === 'delivered') {
       throw new Error('No se puede cambiar el estado de un pedido entregado')
     }
-    const updated: AdminOrder = { ...current, status: next, updatedAt: new Date().toISOString() }
+    const hasVariableItems = current.items.some((item) => item.is_variable_weight)
+    const finalTotal = hasVariableItems
+      ? computeFinalTotal(current.items, current.shippingCost ?? 0)
+      : undefined
+    if (next === 'ready' && hasVariableItems && finalTotal === undefined) {
+      throw new Error('Registra los pesos reales de todos los productos variables antes de marcar el pedido como listo')
+    }
+    const updated: AdminOrder = {
+      ...current,
+      status: next,
+      finalTotal: current.finalTotal ?? finalTotal,
+      updatedAt: new Date().toISOString(),
+    }
     orders[orderId] = updated
     writeAll(orders)
     await mockAuditRepository.log({
@@ -134,6 +151,11 @@ export const mockOrderRepository: OrderRepository = {
     const orders = readAll()
     const current = orders[orderId]
     if (!current) throw new Error(`Pedido ${orderId} no encontrado`)
+    for (const weight of weights) {
+      if (!isValidWeight(weight.kilos)) {
+        throw new Error('El peso real debe ser mayor que cero')
+      }
+    }
     const byItemId = new Map(weights.map((w) => [w.itemId, w.kilos]))
     const items = current.items.map((item) => {
       if (!item.is_variable_weight) return item
@@ -143,7 +165,7 @@ export const mockOrderRepository: OrderRepository = {
     const updated: AdminOrder = {
       ...current,
       items,
-      estimatedTotal: computeTotal(items),
+      finalTotal: computeFinalTotal(items, current.shippingCost ?? 0),
       updatedAt: new Date().toISOString(),
     }
     orders[orderId] = updated
