@@ -7,7 +7,7 @@
   - navigate() con replace:true para que el botón atrás del SO no regrese al checkout
 */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -29,8 +29,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { orderService } from '@/services'
 import type { OrderPayload } from '@/types/orderService'
 
-import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady } from './checkoutStore'
-import type { TimeSlot } from './checkoutStore'
+import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
 import { TIME_SLOT_LABELS } from '@/config/app'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
@@ -47,11 +46,17 @@ type AnimDir = 'right' | 'left'
 /** Format phone: "+573001234567" → "300 123 4567" */
 function formatPhone(raw: string | undefined): string {
   if (!raw) return ''
-  const digits = raw.replace(/^\+57/, '').replace(/\D/g, '')
+  const normalized = normalizeCustomerPhone(raw)
+  const digits = normalized ? normalized.slice(2) : raw.replace(/\D/g, '')
   if (digits.length === 10) {
     return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
   }
   return raw
+}
+
+function getCheckoutShipping(subtotal: number, deliveryMode: 'delivery' | 'pickup' | null) {
+  const quote = calculateShipping(subtotal)
+  return deliveryMode === 'pickup' ? { ...quote, cost: 0, isFree: true } : quote
 }
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
@@ -140,9 +145,10 @@ interface StepResumenProps {
 function StepResumen({ animClass }: StepResumenProps) {
   const cartItems = useCartStore((s) => s.items)
   const cartTotal = useCartStore((s) => s.total)
+  const deliveryMode = useCheckoutStore((s) => s.deliveryMode)
   const [expanded, setExpanded] = useState(false)
 
-  const shipping = calculateShipping(cartTotal)
+  const shipping = getCheckoutShipping(cartTotal, deliveryMode)
   const totalWithShipping = cartTotal + shipping.cost
 
   return (
@@ -222,7 +228,9 @@ function StepResumen({ animClass }: StepResumenProps) {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-brand-muted">Envío</span>
-            {shipping.isFree ? (
+            {deliveryMode === 'pickup' ? (
+              <span className="font-semibold text-brand-primary">No aplica</span>
+            ) : shipping.isFree ? (
               <span className="font-semibold text-brand-primary">Gratis</span>
             ) : (
               <span className="tabular-nums text-brand-dark">
@@ -251,7 +259,8 @@ function StepResumen({ animClass }: StepResumenProps) {
 // ─── Step 1: Entrega ──────────────────────────────────────────────────────────
 
 function StepEntrega({ animClass }: { animClass: string }) {
-  const user = useAuthStore((s) => s.user)
+  const customerPhone = useCheckoutStore((s) => s.customerPhone)
+  const setCustomerPhone = useCheckoutStore((s) => s.setCustomerPhone)
   const [localNote,     setLocalNote]     = useState('')
   const [notesExpanded, setNotesExpanded] = useState(false)
 
@@ -269,38 +278,49 @@ function StepEntrega({ animClass }: { animClass: string }) {
         <DeliverySelector />
       </div>
 
-      {/* Tarjeta WhatsApp */}
+      {/* Celular de contacto para este pedido */}
       <section
         aria-labelledby="whatsapp-heading"
         className="rounded-2xl border border-brand-border bg-white px-5 py-4 shadow-card"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-start gap-3">
+          <div className="flex w-full items-start gap-3 min-w-0">
             <span
               aria-hidden="true"
               className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl bg-[#25D366]/10"
             >
               <MessageCircle size={20} className="text-brand-whatsapp" />
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p id="whatsapp-heading" className="text-sm font-semibold text-brand-dark">
                 WhatsApp
               </p>
               <p className="text-xs text-brand-muted mt-0.5">
                 Te avisaremos sobre tu pedido.
               </p>
-              <p className="text-sm font-medium text-brand-dark tabular-nums mt-0.5">
-                {formatPhone(user?.phone ?? '')}
+              <label htmlFor="checkout-customer-phone" className="mt-3 block text-xs font-medium text-brand-dark">
+                Celular para este pedido
+              </label>
+              <input
+                id="checkout-customer-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                required
+                value={customerPhone ?? ''}
+                onChange={(event) => setCustomerPhone(event.target.value)}
+                aria-invalid={normalizeCustomerPhone(customerPhone) === null}
+                aria-describedby="checkout-customer-phone-help"
+                placeholder="300 123 4567"
+                className="mt-1 block w-full min-h-11 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-brand-dark outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/40"
+              />
+              <p id="checkout-customer-phone-help" className="mt-1.5 text-xs text-brand-muted">
+                {normalizeCustomerPhone(customerPhone) === null
+                  ? 'Ingresa un celular colombiano de 10 dígitos, con o sin +57.'
+                  : 'Usaremos este número solo para contactarte sobre este pedido.'}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => alert('Función disponible próximamente')}
-            className="flex-shrink-0 rounded-lg border border-brand-border px-3 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-          >
-            Editar
-          </button>
         </div>
       </section>
 
@@ -378,17 +398,18 @@ interface StepPagoProps {
 
 function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
   const cartTotal      = useCartStore((s) => s.total)
-  const user           = useAuthStore((s) => s.user)
+  const customerPhone  = useCheckoutStore((s) => s.customerPhone)
   const deliveryMode   = useCheckoutStore((s) => s.deliveryMode)
   const address        = useCheckoutStore((s) => s.address)
+  const lat            = useCheckoutStore((s) => s.lat)
   const timeSlot       = useCheckoutStore((s) => s.timeSlot)
 
-  const shipping = calculateShipping(cartTotal)
+  const shipping = getCheckoutShipping(cartTotal, deliveryMode)
   const totalWithShipping = cartTotal + shipping.cost
 
   const deliverySummary =
     deliveryMode === 'delivery'
-      ? `Entregamos en: ${address ?? ''}`
+      ? `Entregamos en: ${address?.trim() || (lat !== null ? 'ubicación actual enviada' : '')}`
       : deliveryMode === 'pickup' && timeSlot
         ? `Recoges en tienda — ${TIME_SLOT_LABELS[timeSlot]}`
         : 'Entrega pendiente'
@@ -432,7 +453,7 @@ function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
           <p className="text-sm text-brand-dark leading-snug">
             Te avisamos por WhatsApp al{' '}
             <span className="font-semibold tabular-nums">
-              {formatPhone(user?.phone ?? '')}
+              {formatPhone(customerPhone ?? '')}
             </span>
           </p>
         </div>
@@ -445,14 +466,16 @@ function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-brand-muted">Envío</span>
-            {shipping.isFree ? (
+            {deliveryMode === 'pickup' ? (
+              <span className="font-semibold text-brand-primary">No aplica</span>
+            ) : shipping.isFree ? (
               <span className="font-semibold text-brand-primary">Gratis</span>
             ) : (
               <span className="tabular-nums text-brand-dark">{formatPrice(shipping.cost)}</span>
             )}
           </div>
           <div className="flex justify-between items-baseline pt-1">
-            <span className="text-sm font-semibold text-brand-dark">Total a pagar</span>
+            <span className="text-sm font-semibold text-brand-dark">Total estimado</span>
             <span className="tabular-nums text-2xl font-bold text-brand-primary">
               {formatPrice(totalWithShipping)}
             </span>
@@ -507,6 +530,9 @@ export default function CheckoutPage() {
 
   const checkout        = useCheckoutStore()
   const isCheckoutReady = useIsCheckoutReady()
+  const isStep1Ready    = useIsDeliveryReady()
+  const customerPhone   = useCheckoutStore((s) => s.customerPhone)
+  const setCustomerPhone = useCheckoutStore((s) => s.setCustomerPhone)
 
   // ── Local UI state ────────────────────────────────────────────────────────
 
@@ -514,6 +540,7 @@ export default function CheckoutPage() {
   const [animDir,       setAnimDir]       = useState<AnimDir>('right')
   const [animKey,       setAnimKey]       = useState(0)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const completedOrderId = useRef<string | null>(null)
 
   // ── Scroll to top on step change ─────────────────────────────────────────
 
@@ -521,17 +548,21 @@ export default function CheckoutPage() {
     window.scrollTo(0, 0)
   }, [step])
 
+  useEffect(() => {
+    if (customerPhone === null && user?.phone) {
+      setCustomerPhone(user.phone)
+    }
+  }, [customerPhone, setCustomerPhone, user?.phone])
+
   // ── Guard: carrito vacío ──────────────────────────────────────────────────
 
   if (cartItems.length === 0) {
-    return <Navigate to="/" replace />
+    return <Navigate to={completedOrderId.current ? `/pedidos/${completedOrderId.current}` : '/'} replace />
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const isSubmitting = checkout.isSubmitting
-
-  const isStep1Ready = useIsDeliveryReady()
 
   const isCtaDisabled =
     step === 0
@@ -561,17 +592,15 @@ export default function CheckoutPage() {
 
   async function handleSubmit() {
     if (isCtaDisabled) return
+    const customerPhone = normalizeCustomerPhone(checkout.customerPhone)
+    if (!customerPhone) return
 
     setSubmitError(null)
     checkout.setSubmitting(true)
 
     const payload: OrderPayload = {
       userId: user?.id ?? 'anonymous',
-      items: cartItems.map((item) => ({
-        id:            item.productId,
-        qty:           item.quantity,
-        priceAtMoment: item.price_at_moment,
-      })),
+      items: mapCartItemsToOrderItems(cartItems),
       substitutionPreference: checkout.substitutionPref!,
       deliveryType:           checkout.deliveryMode!,
       deliveryData: {
@@ -581,13 +610,16 @@ export default function CheckoutPage() {
         timeSlot: checkout.timeSlot ?? undefined,
       },
       customerName: user?.name ?? 'Cliente',
+      customerPhone,
+      shippingCost: getCheckoutShipping(cartTotal, checkout.deliveryMode).cost,
     }
 
     try {
       const confirmation = await orderService.submit(payload)
+      completedOrderId.current = confirmation.orderId
+      navigate(`/pedidos/${confirmation.orderId}`, { replace: true })
       clearCart()          // SOLO tras éxito
       checkout.reset()
-      navigate(`/pedidos/${confirmation.orderId}`, { replace: true })
     } catch {
       setSubmitError('No pudimos procesar tu pedido. Inténtalo de nuevo.')
       checkout.setSubmitting(false)
@@ -664,10 +696,10 @@ export default function CheckoutPage() {
             {/* Total a pagar */}
             <div className="flex flex-col min-w-0 flex-shrink-0">
               <span className="text-[11px] font-medium text-brand-muted leading-none">
-                Total a pagar
+                Total estimado
               </span>
               <span className="tabular-nums text-xl font-bold text-brand-primary leading-tight mt-0.5">
-                {formatPrice(cartTotal + calculateShipping(cartTotal).cost)}
+                  {formatPrice(cartTotal + getCheckoutShipping(cartTotal, checkout.deliveryMode).cost)}
               </span>
             </div>
 
