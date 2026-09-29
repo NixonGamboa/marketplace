@@ -47,7 +47,7 @@ const initialState: CheckoutState = {
   lat: null,
   lng: null,
   customerPhone: null,
-  substitutionPref: 'similar',
+  substitutionPref: 'call_me',
   customerName: null,
   isSubmitting: false,
 }
