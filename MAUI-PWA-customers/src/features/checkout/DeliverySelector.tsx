@@ -9,7 +9,7 @@ Lista única tipo ML/Nequi/WhatsApp:
   - Editor de dirección y picker de franja horaria se expanden debajo
 */
 
-import { useId, useEffect, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { Package, Truck, MapPin, Loader2, ChevronRight } from 'lucide-react'
 import { useCheckoutStore } from './checkoutStore'
 import type { DeliveryMode, TimeSlot } from './checkoutStore'
@@ -23,21 +23,18 @@ export default function DeliverySelector() {
   const deliveryMode  = useCheckoutStore((s) => s.deliveryMode)
   const timeSlot      = useCheckoutStore((s) => s.timeSlot)
   const address       = useCheckoutStore((s) => s.address)
+  const lat           = useCheckoutStore((s) => s.lat)
+  const lng           = useCheckoutStore((s) => s.lng)
 
   const setDeliveryMode = useCheckoutStore((s) => s.setDeliveryMode)
   const setTimeSlot     = useCheckoutStore((s) => s.setTimeSlot)
   const setAddress      = useCheckoutStore((s) => s.setAddress)
+  const setCoordinates  = useCheckoutStore((s) => s.setCoordinates)
 
   const [geoLoading, setGeoLoading]               = useState(false)
   const [geoError,   setGeoError]                 = useState<string | null>(null)
   const [addressEditorOpen, setAddressEditorOpen] = useState(false)
   const [timeSlotPickerOpen, setTimeSlotPickerOpen] = useState(false)
-
-  const addressInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (addressEditorOpen) addressInputRef.current?.focus()
-  }, [addressEditorOpen])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -86,9 +83,8 @@ export default function DeliverySelector() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords
-        setAddress('Mi ubicación actual', latitude, longitude)
+        setCoordinates(latitude, longitude)
         setGeoLoading(false)
-        setAddressEditorOpen(false)
       },
       (_err) => {
         setGeoError('No se pudo obtener tu ubicación. Ingresa la dirección manualmente.')
@@ -99,7 +95,7 @@ export default function DeliverySelector() {
   }
 
   function handleAddressSave() {
-    if (address && address.trim().length > 0) {
+    if (hasAddress || hasCoordinates) {
       setAddressEditorOpen(false)
     }
   }
@@ -107,6 +103,8 @@ export default function DeliverySelector() {
   const isPickup   = deliveryMode === 'pickup'
   const isDelivery = deliveryMode === 'delivery'
   const hasAddress = Boolean(address && address.trim().length > 0)
+  const hasCoordinates = lat !== null && lng !== null &&
+    Number.isFinite(lat) && Number.isFinite(lng)
 
   // Split address by first ", " so it can render in two lines like ML
   const addressLines: [string, string | null] = (() => {
@@ -118,9 +116,9 @@ export default function DeliverySelector() {
   })()
 
   const deliverySubtext = isDelivery
-    ? hasAddress
+    ? hasAddress || hasCoordinates
       ? null // multi-line subtext rendered separately
-      : 'Toca para agregar tu dirección'
+      : 'Envía tu ubicación o escribe una dirección'
     : 'Te lo llevamos hasta tu casa'
 
   const pickupSubtext = isPickup
@@ -199,11 +197,10 @@ export default function DeliverySelector() {
             </span>
 
             {/* Subtext: address (multi-line) or single-line description */}
-            {isDelivery && hasAddress ? (
+            {isDelivery && (hasAddress || hasCoordinates) ? (
               <span className="mt-0.5 block text-xs leading-snug text-brand-muted">
-                <span className="block truncate text-brand-dark">
-                  {addressLines[0]}
-                </span>
+                {hasCoordinates && <span className="block truncate text-brand-dark">Ubicación actual enviada</span>}
+                {hasAddress && <span className="block truncate text-brand-dark">{addressLines[0]}</span>}
                 {addressLines[1] && (
                   <span className="block truncate">{addressLines[1]}</span>
                 )}
@@ -233,30 +230,6 @@ export default function DeliverySelector() {
                 ¿A dónde te lo llevamos?
               </legend>
 
-              {/* Address text input */}
-              <div className="space-y-1">
-                <label
-                  htmlFor={`${baseId}-address`}
-                  className="block text-xs font-medium text-brand-dark/90"
-                >
-                  Dirección
-                </label>
-                <input
-                  ref={addressInputRef}
-                  id={`${baseId}-address`}
-                  type="text"
-                  name="address"
-                  value={address ?? ''}
-                  onChange={handleAddressInput}
-                  placeholder="Ej. Calle 5 #12-34, Barrio Centro"
-                  autoComplete="street-address"
-                  className={[
-                    'block w-full min-h-12 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-brand-dark placeholder:text-gray-400 outline-none transition',
-                    'focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/40',
-                  ].join(' ')}
-                />
-              </div>
-
               {/* Geolocation button */}
               <button
                 type="button"
@@ -264,7 +237,7 @@ export default function DeliverySelector() {
                 disabled={geoLoading}
                 aria-busy={geoLoading}
                 className={[
-                  'mt-3 flex w-full min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-brand-primary bg-white px-4 py-3 text-sm font-medium text-brand-primary transition-colors',
+                  'flex w-full min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-brand-primary bg-white px-4 py-3 text-sm font-medium text-brand-primary transition-colors',
                   'hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2',
                   'disabled:cursor-not-allowed disabled:opacity-60',
                 ].join(' ')}
@@ -277,7 +250,7 @@ export default function DeliverySelector() {
                 ) : (
                   <>
                     <MapPin size={18} aria-hidden="true" />
-                    <span>Usar mi ubicación</span>
+                    <span>Enviar ubicación actual</span>
                   </>
                 )}
               </button>
@@ -293,8 +266,34 @@ export default function DeliverySelector() {
                 </p>
               )}
 
+              {hasCoordinates && (
+                <p role="status" className="mt-2 text-xs font-medium text-brand-primary">
+                  Ubicación obtenida. Puedes agregar una referencia para facilitar la entrega.
+                </p>
+              )}
+
+              {/* La referencia se guarda sin borrar las coordenadas GPS. */}
+              <div className="mt-3 space-y-1">
+                <label htmlFor={`${baseId}-address`} className="block text-xs font-medium text-brand-dark/90">
+                  Dirección o referencia (opcional si envías ubicación)
+                </label>
+                <input
+                  id={`${baseId}-address`}
+                  type="text"
+                  name="address"
+                  value={address ?? ''}
+                  onChange={handleAddressInput}
+                  placeholder="Ej. Calle 5 #12-34, Barrio Centro"
+                  autoComplete="street-address"
+                  className="block w-full min-h-12 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-brand-dark placeholder:text-gray-400 outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/40"
+                />
+                {!hasAddress && !hasCoordinates && (
+                  <p className="text-xs text-brand-muted">Envía tu ubicación o escribe una dirección para continuar.</p>
+                )}
+              </div>
+
               {/* Confirm button */}
-              {hasAddress && (
+              {(hasAddress || hasCoordinates) && (
                 <button
                   type="button"
                   onClick={handleAddressSave}
@@ -303,7 +302,7 @@ export default function DeliverySelector() {
                     'hover:bg-brand-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2',
                   ].join(' ')}
                 >
-                  Confirmar dirección
+                  Confirmar entrega
                 </button>
               )}
             </fieldset>
