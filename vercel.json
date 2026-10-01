@@ -4,11 +4,6 @@
   "outputDirectory": "MAUI-PWA-customers/dist",
   "installCommand": "npm install",
   "framework": null,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@5.0.0"
-    }
-  },
   "rewrites": [
     { "source": "/api", "destination": "/api/not-found" },
     { "source": "/api/(.*)", "destination": "/api/not-found" },
