@@ -253,5 +253,5 @@ const Carousel = ({
   )
 }
 
-export type { CarouselProps, VisibleConfig }
+export type { CarouselProps }
 export default Carousel
