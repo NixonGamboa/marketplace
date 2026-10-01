@@ -6,6 +6,8 @@
 > **Supersede:** decisión de stack de Sprint 1 en `rfc-001-demo-validacion.md` §1.1
 > **Aplica a:** todo el backend real de MAUI hasta que el negocio justifique migrar
 
+> **Alcance vigente 2026-10-01:** implementación directa con Codex y Claude Code, sin workflow SDD. La entrega es un ambiente de test con seed reproducible, API/BD reales y flujo equivalente a producción; no incluye lanzamiento comercial ni actividades operativas. Se mantiene Vercel Functions + Neon Postgres + Drizzle, con AWS Lambda como destino de escala. Migrar el runtime no obliga a cambiar Postgres ni a adoptar DynamoDB/Cognito/S3. Estado y dependencias en el [plan maestro](estado-plan.md), T-02/T-23/T-24 y E-05. La condición de uso comercial de Vercel Hobby queda como restricción para una salida productiva posterior, no como tarea del entregable de test; no se aprueba upgrade ni cambio de proveedor. Las comparaciones de costos de septiembre son contexto histórico.
+
 ---
 
 ## 1. Contexto
@@ -22,7 +24,7 @@ Al pasar a la fase de scaffold del backend (septiembre 2026), se hizo un anális
 - **DynamoDB introduce lock-in** en modelo de datos (single-table design, access patterns rígidos) que aún no está validado para MAUI.
 - **Vercel Hobby es gratuito y sin tarjeta**, permite deploy automático por push a rama, y sirve el frontend estático + Vercel Functions en un solo dominio (cero CORS, cero infra).
 - **Neon.tech / Supabase** dan Postgres serverless sin tarjeta, con free tier real (0.5 GB, autoscaling, hibernación).
-- **La restricción "non-commercial" de Vercel Hobby** no bloquea la Fase 2 del RFC (validación con usuarios de Dolores) y el upgrade a Pro son USD 20/mes cuando aplique.
+- **La restricción "non-commercial" de Vercel Hobby** debe resolverse antes de procesar pedidos comerciales. Una validación de experiencia con mocks no acredita que el piloto de venta real sea elegible; comprobar plan y condiciones antes de abrir.
 - **La portabilidad futura a AWS Lambda + DynamoDB sigue disponible** con costo de migración acotado si se respeta el layout de handlers portables (ver §4).
 
 ---
@@ -35,14 +37,14 @@ Al pasar a la fase de scaffold del backend (septiembre 2026), se hizo un anális
 
 | Componente | Elección | Alternativa considerada |
 |---|---|---|
-| Runtime | Vercel Functions (Node 20, Edge donde aplique) | AWS Lambda |
+| Runtime | Vercel Functions; versión Node compatible y alineada con local/CI en T-02 | AWS Lambda |
 | BD | Neon Postgres (HTTP driver) | DynamoDB, Supabase, PlanetScale |
 | Query builder | Drizzle ORM | Prisma, Kysely, SQL crudo |
 | Auth | Vercel Functions + JWT propio o Clerk/Supabase Auth | AWS Cognito |
 | Storage de imágenes | Vercel Blob o Cloudinary free tier | S3 + CloudFront |
 | Deploy | Push a rama en GitHub → auto-deploy | AWS SAM + GitHub Actions |
 | Observabilidad | Vercel Analytics + Sentry free tier + logs Vercel | CloudWatch |
-| WhatsApp Gateway | Evolution API en VPS (sin cambio) | AWS-hosted |
+| Contacto WhatsApp | Enlaces `wa.me` con texto preparado; seguimiento/comprobante en PWA/admin | Mensajería automática opcional en E-07; Evolution API es antecedente, sin VPS requerido ahora |
 
 ---
 
@@ -50,14 +52,14 @@ Al pasar a la fase de scaffold del backend (septiembre 2026), se hizo un anális
 
 ### Positivas
 - **Cero fricción de arranque:** sin tarjeta, sin cuenta AWS, sin IaC inicial.
-- **Cero costo estimado en el primer año** (Vercel Hobby + Neon Free + Sentry Free).
-- **Ergonomía de deploy 10x mejor:** push a rama = producción, sin CloudFormation ni SAM.
+- **Costo mínimo de arranque sujeto a condiciones y cuotas**; no se garantiza costo cero para la operación comercial ni se incluyen automáticamente gateway/VPS/SIM/storage.
+- **Deploy integrado con Git:** sin CloudFormation ni SAM iniciales; seguir la política única de ramas, Preview y promoción en [orquestación IA](orquestacion-ia.md#gitflow-y-separación-de-entregas).
 - **Frontend y backend en el mismo origin** → cero CORS, cero rewrites complejos.
 - **Postgres es más flexible que DynamoDB** para iterar el modelo de datos durante la fase de descubrimiento.
 - **Portabilidad a AWS Lambda mantenida** si se respeta el layout de §4.
 
 ### Negativas / trade-offs
-- **Restricción "non-commercial" del Hobby** obliga a upgrade a Pro (USD 20/mes) cuando MAUI opere comercialmente de forma recurrente.
+- **Restricción "non-commercial" del Hobby:** resolver un plan permitido o una alternativa aprobada antes de operación comercial; no esperar a que haya recurrencia o comisión MAUI. [Condiciones oficiales](https://vercel.com/docs/plans/hobby), consultadas el 2026-10-01.
 - **Vercel Functions no sirve para WebSockets estables ni jobs largos** — cuando aparezcan esos requisitos, hay que agregar un servicio complementario o migrar.
 - **Cambio de decisión respecto al RFC aprobado** — se documenta aquí como source of truth; las menciones antiguas a "AWS SAM + Lambda + DynamoDB" en docs previos ahora apuntan a este ADR.
 - **Neon tiene cold starts** en el plan free (compute hiberna). Aceptable para MVP.
@@ -102,7 +104,7 @@ maui-back/
 5. `handlers-lambda/` reemplaza a `api/` (mismos usecases, adapter diferente).
 6. Los tests siguen corriendo contra `memory/` sin cambios.
 
-Costo estimado de la migración con el layout respetado: **1–2 semanas de un ingeniero**, no un rewrite.
+La estimación inicial de 1–2 semanas no se considera compromiso: dimensionar runtime, auth, mensajería, archivos, datos y rollback al activar la migración. Es posible migrar primero a Lambda conservando Postgres; DynamoDB es una decisión independiente.
 
 ---
 

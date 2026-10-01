@@ -1,318 +1,227 @@
-# MAUI — Plan de Implementación Global
+# MAUI — Plan de implementación directa y entrega en test
 
-> **Documento vivo.** Se actualiza cada vez que una fase avanza, se completa o cambia.
-> **Última actualización:** 2026-09-04 (consolidación de decisiones pendientes + descubrimientos operativos)
-> **Owner:** Nixon Gamboa
+> **Fuente única del estado global.** Actualización: **2026-10-01**.
+> **Método:** implementaciones directas con Codex y Claude Code. SDD deja de ser requisito del proyecto.
+> **Entregable:** ambiente de test desplegado con seed reproducible y flujo funcional equivalente al de producción.
+> **Stack inicial:** Vercel Functions + Neon Postgres + Drizzle. Destino de escala: AWS Lambda.
 
----
+## Alcance y definición de entrega
 
-## Propósito
+Las dos listas separan lo ya construido de las implementaciones pendientes. El seed puede reutilizar el catálogo y los datos de los mocks actuales, pero se carga en la BD de test y se consume mediante la API real. PWA y admin usan los mismos contratos, autenticación, permisos, cálculos y transiciones que se usarán en producción.
 
-Documento único de referencia para responder "¿en qué vamos y qué falta?" del proyecto MAUI end-to-end. Consolida el estado de las decisiones tomadas, el trabajo hecho y el trabajo pendiente por fase.
+La equivalencia con producción se refiere al flujo funcional y a los componentes de la aplicación. Cambian datos, URLs, credenciales, recursos y destinos de integraciones por entorno. El frontend de test debe compilar con servicios reales; una pantalla conectada a mocks o pedidos sincronizados por `localStorage` no cumple el entregable. El carrito y preferencias locales sí pueden conservar su persistencia en navegador.
 
-**No sustituye** al RFC (`rfc-001-demo-validacion.md`), al ADR (`adr-001-stack-backend.md`), a los roadmaps (`roadmap-v2-post-ff.md`, `roadmap-v3-saas-escala.md`) ni al SDD Kit (`tech/`). Los enlaza y los coordina.
+**Fuera de este plan:** acuerdos, reuniones, selección de clientes, pruebas humanas, carga de surtido comercial, validación comercial de precios, entrenamiento, domicilios físicos, preparación de números/SIM y lanzamiento comercial. No se exige procesar 50 pedidos reales ni esperar un piloto para completar el desarrollo. Los antecedentes de producto se conservan en sus documentos; no son dependencias de la entrega técnica.
 
----
+**Simplificación confirmada por el usuario:** seguimiento y comprobante dentro de PWA/admin; contacto WhatsApp mediante enlaces `wa.me` con texto preparado, reutilizando las capacidades existentes. Mensajería automática, Evolution API/VPS, outbox/jobs de envío y verificación WhatsApp quedan fuera de T-01 a T-24. Test y producción comparten este flujo sencillo; no se exige un gateway ni envío externo para cerrar la entrega.
 
-## Bitácora
+**Forma de ejecución:** tomar un bloque, revisar dependencias y código existente, implementar directamente, validar y actualizar aquí la evidencia. No crear features SDD, specs por fases ni `tasks.json` como trámite. `tech/features/` y el backlog antiguo son referencias históricas. Codex y Claude Code comparten el plan y deben coordinar archivos para evitar sobrescribir cambios.
 
-Cronología de decisiones y avances materiales. Entradas nuevas van arriba.
+**Orquestación IA:** Codex administra los bloques, sesiones y validación de ambos asistentes siguiendo [la estrategia de sesiones y consumo](orquestacion-ia.md). Un ejecutor por defecto; contexto mínimo, IDs explícitos al reanudar, checkpoints breves y reparto según cuota disponible. Implementar con suscripciones Codex Plus/Claude Pro; no activar cobro API ni créditos adicionales.
 
-### 2026-09-04 — Consolidación de decisiones pendientes de implementación
+**Calidad y bloqueos:** clean code es criterio de cierre de todos los bloques: responsabilidades claras, contratos tipados, validación de entradas, errores explícitos y lógica portable. Modelo/esfuerzo explícitos por complejidad; ninguna variante Luna ni Haiku, incluidos fallbacks. Si hace falta aclaración, conexión o autenticación del usuario, interrumpir el trabajo dependiente y avisar con evidencia y acción mínima; sin ciclos de reintento ni mocks para ocultar bloqueos. Capacidades y accesos comprobados en la [auditoría de herramientas](auditoria-herramientas.md).
 
-Sin cambios de código. Revisión cruzada del estado real (post trabajo de sesión madrugada) contra las decisiones tomadas en las 3 sesiones anteriores. Los cambios estructurales están hechos; lo pendiente es alcance de features y decisiones de producto.
+**Estados:** pendiente, parcial, por verificar, en curso, bloqueado, hecho y condicionado. Un avance disponible en una feature todavía no incorporada se identifica por rama/commit; no se declara completado en la base. **Prioridades:** P0 = imprescindible para la entrega en test; P1 = calidad técnica incluida; P2 = evolución posterior. T-03 conserva su ID padre y se divide en T-03a/T-03b. No hay nuevas tareas aprobadas de infraestructura comercial.
 
-**Decisiones tomadas — implementadas o parcial:**
-- D-3 (deploy unificado) ✅ / D-4 (stack Vercel + Postgres) ✅ / D-5 (layout portable) ✅ para orders / D-6 (Drizzle) ✅ / D-7 (ULID + ISO + JSONB) ✅ para orders / D-9 (mismo host) ✅.
+## Prioridad 0 — Reconciliar la base antes de implementar
 
-**Decisiones tomadas — sin implementar:**
-- **D-8 Auth stack** — sin elegir. Bloquea 1.7 (endpoints protegidos) y 1.9 (swap admin).
-- **Shared contracts en `shared/`** — DTOs de Order viven en maui-back, frontend no puede importarlos. Bloquea 1.9.
-- **Endpoints restantes** — solo orders está; catalog CRUD / store / merchant / audit / auth / list orders pendientes.
-- **Swap frontend** — `services/index.ts` sigue apuntando a mocks.
-- **WhatsApp Gateway** — no iniciado; requiere warming 2 semanas antes del corte real.
-- **Integration tests contra Postgres real** — solo hay unit tests contra memory.
+**Reconciliación completada el 2026-10-01:** el usuario aprobó incorporar parcialmente los nueve commits funcionales. Se prepararon en `feature/integracion-checkout-contacto-pesos` desde la base anterior `eeeeeeddb91b39251dced37ce169f337ba9dc495`, se corrigieron dos errores de tipos y se verificó el conjunto antes de incorporarlo a `develop` por fast-forward. **Base vigente:** `e5670671f404eb29e849a4eb13d68bb2c9f485e4`. La feature original `feature/checkout-contacto-pesos-whatsapp`, en `706ed8aad162e1fc1757e2bad44877353bdfcbe0`, se conserva como antecedente de los 12 commits comparados.
 
-**Descubrimientos operativos consolidados:** ver nueva sección "Descubrimientos operativos" abajo (OP-1 build lento, OP-2 MCP Vercel Hobby, OP-3 validación móvil).
+El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://marketplace-4l6m0bchh-infogamboatech-2785.vercel.app), deployment `dpl_7svLpXaTaHRtBnK4YVPNSNaEGiy7`, se creó el **2026-09-29 a las 18:45:53 America/Bogota**, desde esa feature y ese commit `706ed8a`. La API de Vercel confirmó `source=git`, `gitSource.ref/sha` y metadata GitHub. No salió de develop. El Preview mantiene mocks frontend y no acredita la entrega real completa.
 
-### 2026-09-04 (madrugada) — Neon activo + backend en mismo host + branch `develop`
-
-- **Neon MCP tools cargados** (schemas resueltos vía ToolSearch). Proyecto Neon creado: **`maui`** (`rough-morning-66975813`), Postgres 18, region `aws-us-east-1` (match con Vercel `iad1`, latencia <5ms). Org: **Gamboa Tech** (`org-weathered-star-96493344`), plan free.
-- **Schema aplicado a Neon:** tabla `public.orders` (13 columnas + índice compuesto `store_id/status/created_at`) + `drizzle.__drizzle_migrations`. Migración `0000_ambiguous_ultimates.sql` versionada en el repo.
-- **`db:migrate` fix:** ahora usa `tsx --env-file=.env` para cargar DATABASE_URL sin dotenv preload.
-- **`.env` local en `maui-back/`** con la URL de Neon (cubierto por gitignore, nunca a git).
-- **Decisión D-9 tomada: backend en el mismo host del frontend** (proyecto Vercel único). Descartada la opción "proyecto Vercel separado" que se había considerado antes. Razones: sin CORS, cookies mismo-origen, un solo dashboard/pipeline. Trade-off aceptado: cada cambio de back reconstruye el front. Migrar a C (dominio propio con subdomain `api.*`) cuando compremos dominio.
-- **Restructura: `git mv maui-back/api → api` (raíz)** con historia preservada (similarity 71-83%). Imports ajustados `../src/` → `../maui-back/src/` conservando profundidad. Handlers HTTP viven ahora en `api/` de la raíz; la lógica (`src/`, `tests/`) sigue en `maui-back/`.
-- **`vercel.json` raíz:** agregado `functions` config (`@vercel/node@5.0.0`) y catch-all rewrite excluye ahora `/api/` y `/_lib/`. `maui-back/vercel.json` eliminado (redundante).
-- **`package.json` raíz:** agregadas deps runtime del backend (`@neondatabase/serverless`, `drizzle-orm`, `pino`, `ulid`, `zod`, `@vercel/node`). Duplica intencionalmente con `maui-back/package.json`; se consolidará al migrar a workspaces.
-- **`tsconfig.json` raíz** nuevo para tipar `api/**` + `maui-back/src/**` desde la raíz. Typecheck local limpio; 9/9 tests del back verdes.
-- **DATABASE_URL configurada en Vercel** (`vercel env add`) en los 3 environments: Production, Preview (Secret hidden) y Development (Config).
-- **Fix cross-platform lock:** primer Preview con `api/` en raíz falló porque `npm ci` en Vercel Linux rechazaba lock de Windows por resolutions transitivas `@emnapi/*` faltantes. Cambio en orquestador: `install:pwa`/`install:admin`/`install:back` usan `npm install --no-audit --no-fund` en vez de `npm ci`. Menos estricto pero deployable cross-platform.
-- **Flujo git introducido: branch `develop`.** Los commits nuevos van a `develop` primero → Preview → merge a `master` cuando validado. `master` sigue siendo Production Branch en Vercel.
-- **Commits (rama develop):**
-  - `fdbc511` feat(back): Neon activo + migración inicial + doc de schema evolution en README
-  - `2aa95f5` feat(back): mover api/ a la raíz (mismo host)
-  - `00d9aff` fix(deploy): install en subfolders (tolerar lock cross-platform)
-- **Deploy Preview en curso** (`5hr3fwj57`) al momento de esta actualización, pendiente de terminar para curl a `/api/health` real.
-
-### 2026-09-03 (sesión noche cierre) — Deploy Production verde + merge a master
-
-- **Merge `feature/demo-maui-pwa` → `master` (198a9e9)** con `--no-ff`. Master estaba 3 commits atrás por trabajo ajeno "post-descarga zip" (b7292e6). Divergencia real → merge no fast-forward.
-- **Conflictos resueltos:** 2 modify/delete en la carpeta `MAUI-PWA-customers/client/` (eliminada por la reorg de la feature). Aceptados los deletes; los cambios de master en `mockData.ts` y `roadmap.md` eran sobre archivos que ya no existen en la estructura nueva.
-- **Housekeeping (48be718):** `git rm --cached .claude/settings.local.json` — el `.gitignore` mergeado ya lo cubre; ahora también des-trackeado. El archivo local del usuario sobrevive (283 bytes).
-- **Auto-deploy Production confirmado end-to-end:** push a master → Vercel dispara build con `Environment=Production` sin intervención manual. **URL bonita viva:**
-  - `https://marketplace-pied-xi.vercel.app/` → 200 (PWA customers)
-  - `https://marketplace-pied-xi.vercel.app/admin/` → 200 (admin panel)
-- **Fix móvil admin incluido:** drawer overlay + hamburguesa (`maui-admin-front/src/shell/AppShell.tsx`, commit `022b529`). Typecheck limpio, 67 tests verde. Falta validación visual del owner en móvil real.
-- **Observación performance:** el `npm ci` explícito por subfolder que agregué al orquestador raíz hace builds Vercel de ~10min (vs 33s de deploys anteriores sin unificar). No bloqueante, pero candidato a optimizar migrando a npm workspaces o dejando que Vercel cachee `node_modules` por subfolder.
-
-### 2026-09-03 (sesión noche) — Vercel CLI autenticada + auditoría proyecto `marketplace`
-
-- **Login OK** via Device Flow (OAuth 2.0). CLI actualizada a v59.11.2. Cuenta: `infogamboatech-2785`.
-- **Proyecto `marketplace` linkeado** a `maui-back/` (crea `.vercel/` local + `.env.local` con `VERCEL_OIDC_TOKEN`).
-- **Config actual del proyecto Vercel (auditada con `vercel project inspect`):**
-  - ID: `prj_JJSJxLWORkC7WVZGcGziLPxGQ4dk`
-  - **Root Directory: `.`** ← problemático (ver diagnóstico)
-  - Framework Preset: `Other` (no detectó Vite)
-  - Build Command: `npm run vercel-build` or `npm run build`
-  - Output Directory: `public` o `.`
-  - Node: 24.x, Region: iad1
-  - **Env Vars: cero configuradas**
-- **Último deploy (26 min): Ready pero roto.**
-  - URL: `https://marketplace-1hjo500nw-infogamboatech-2785.vercel.app`
-  - Duración build: 5s (build vacío)
-  - Prod URL (`https://marketplace-pied-xi.vercel.app`) devuelve **404 NOT_FOUND**
-- **Diagnóstico de raíz:**
-  - **No existe `package.json` en la raíz del repo** — Vercel con Root `.` no encontró nada para construir.
-  - El build unificado real vive en `MAUI-PWA-customers/package.json`: script `build:unified` = `vite build --mode demo && cd ../maui-admin-front && npm run build:unified && node ../scripts/merge-unified-build.mjs`.
-  - El output final va a `MAUI-PWA-customers/dist/` (según convención del merge script).
-- **Decisión tomada: Opción B (orquestador raíz).**
-  - Creado `package.json` en raíz (`maui-monorepo`, private, sin deps propias) con scripts `install:pwa`, `install:admin`, `install:all`, `build:unified`, `vercel-build`.
-  - Creado `vercel.json` en raíz: `buildCommand=npm run vercel-build`, `outputDirectory=MAUI-PWA-customers/dist`, `installCommand=npm install`, `framework=null`.
-  - **Sin npm workspaces** (evita romper package-locks individuales); el script raíz corre `npm ci` por subfolder de forma explícita antes del build.
-  - `maui-back/vercel.json` no interfiere (Vercel lee el del Root Directory `.`).
-  - **Dry-run local falló por EPERM en Windows** (esbuild binario bloqueado) — no bloqueante, es limitación de Windows filesystem; Vercel Linux no tendrá el problema. Validación real será en el próximo deploy tras push.
-
-### 2026-09-03 (sesión tarde) — Setup deploy demo + backend scaffold + docs
-
-- **Decisión D-4 → D-8 tomadas:** stack backend cambia de AWS SAM + DynamoDB + Cognito a Vercel Functions + Neon Postgres + Drizzle + JWT propio. Documentada en ADR-001. Ver `adr-001-stack-backend.md`.
-- **Docs previos actualizados** apuntando al ADR: RFC, PO analysis, roadmap v2/v3, análisis PM, MAUI-CONTEXT. Se respetó SDD: tech/wip **no fue editado** (regularizar vía `/tech.fix`).
-- **Scaffold `maui-back/` creado** (31 archivos): domain/usecases/infra + adapters memory/postgres + handlers Vercel Functions para `/api/orders/*` y `/api/health`. `tsc --noEmit` limpio; `vitest` 9/9 verde.
-- **`npm install` en maui-back:** 519 paquetes; 25 vulnerabilidades transitivas del CLI de vercel (no afectan runtime).
-- **3 commits + push a `origin/feature/demo-maui-pwa`:**
-  - `bcf2e4c` docs(adr): ADR-001 Vercel + Postgres
-  - `d671273` feat(back): scaffold maui-back
-  - `30a75e3` docs(plan): plan de implementación global
-- **Neon MCP registrado** (`user` scope, HTTP OAuth) — CLI ok, sesión actual sin tools cargados. Reload pendiente.
-- **Vercel:** Nixon importó manualmente el repo bajo cuenta Hobby (URL: `vercel.com/infogamboatech-2785/marketplace`). Config concreta **pendiente de verificar** (build command, root directory, production branch).
-- **Limitación descubierta:** el MCP de Vercel **no soporta cuentas Hobby personales** — todas las llamadas devuelven 403 aunque el OAuth diga OK. Re-autenticación no lo arregla. Se usará Vercel CLI local desde `maui-back/` como fallback para inspección/config.
-
----
-
-## Decisiones canónicas vigentes
-
-| # | Decisión | Documento fuente | Fecha |
+| Área | Base anterior | Avance incorporado a develop | Estado vigente |
 |---|---|---|---|
-| D-1 | Construir demo funcional antes del backend real | `rfc-001-demo-validacion.md` | 2026-06-02 |
-| D-2 | Contratos mock = contratos reales; swap por import | RFC §3.3 | 2026-06-02 |
-| D-3 | PWA + admin en un solo artefacto estático (deploy unificado) | `scripts/merge-unified-build.mjs` | 2026-09-03 |
-| D-4 | Backend real arranca en **Vercel Functions + Neon Postgres**, no AWS SAM | `adr-001-stack-backend.md` | 2026-09-03 |
-| D-5 | Layout portable: `domain/` + `usecases/` + `infra/` para que migración a AWS Lambda + DynamoDB sea barata | ADR-001 §4 | 2026-09-03 |
-| D-6 | Query builder = **Drizzle** (no Prisma) | ADR-001 §2 | 2026-09-03 |
-| D-7 | IDs = **ULID**, timestamps = ISO strings, JSONB para atributos flexibles | ADR-001 §4 | 2026-09-03 |
-| D-8 | Auth real = JWT propio o provider serverless (Clerk/Supabase) — pendiente elegir | ADR-001 §2 | 2026-09-03 |
-| D-9 | **Backend en el mismo host que el frontend** (proyecto Vercel único con `/api/*`). Migrar a subdomain `api.*` cuando compremos dominio | Bitácora 2026-09-04 | 2026-09-04 |
+| H-05 / T-03a | Checkout con hook condicional, celular solo de perfil y limitaciones de GPS/envío | Hook antes del return; celular editable/normalizado, GPS primero con referencia alternativa, retiro sin envío; conserva snapshots/pesos solicitados | H-05 ampliado; T-03a hecho y verificado localmente |
+| H-06 / T-14 | Contacto PWA con número estático | Contacto de aliado configurable en detalle/perfil/footer, oculto si inválido; aún lee localStorage admin | H-06 ampliado; T-14 parcial, pendiente fuente API, comprobante y copy coherente con contacto manual |
+| H-08 / T-12 | Pesos mock sobrescriben estimado | `finalTotal` separado del estimado, incluye envío; pesos positivos/finitos y bloqueo ready; referencia/mapa en admin | H-08 ampliado; T-12 sigue parcial: faltan reglas servidor, atomicidad, permisos y estados completos |
+| H-09 / T-14 | Configuración local | Validación del WhatsApp del aliado | H-09 ampliado; persistencia/upload y consumo API siguen pendientes |
+| H-11 / T-04 | DTOs PWA/admin sin celular/envío en payload ni final separado | `customerPhone`, `shippingCost`, `finalTotal` alineados en ambos fronts | H-11 ampliado; T-04 parcial: no hay contrato shared/runtime/backend reconciliado |
+| H-16 / T-03a | Verificación antigua no compiló explícitamente tsconfig.app | Conjunto parcial más correcciones: typecheck explícito de ambas apps, 17 tests PWA, 75 admin, drift, lint sin errores y build unificado pasan | Evidencia vigente en `e567067`; quedan tres warnings de lint por app y CI pendiente |
 
----
+**Selección aprobada e incorporada:** `5ab4dde`, `89b1790`, `af95034`, `1558055`, `2662697`, `1b6fe90`, `981555c`, `b58d1cb`, `706ed8a`, en ese orden mediante cherry-pick. Incorporan soporte de tests, DTOs, checkout, cálculo mock, detalle/configuración/contacto y sustitución por defecto `call_me`. No tocan `api/`, `maui-back/`, `shared/` ni agregan CI. El flujo del commit `5c9855c` se concilia en la política única de [orquestación](orquestacion-ia.md#gitflow-y-separación-de-entregas), sin importar su versión vieja del plan.
 
-## Fases
+**Excluidos de la incorporación:** `a6d5972` (eliminación de 77 archivos del Design System), `24c7410` (paleta púrpura del admin) y los documentos antiguos de `5c9855c`. Se mantiene el diseño de develop. La comparación total original abarcaba 107 archivos; la incorporación final abarca 26 archivos de PWA/admin, incluidos los dos ajustes de tipos.
 
-### Fase 0 — Fundacional (demo + validación)
+**Gate completado:** en worktree aislado del conjunto parcial se ejecutaron `tsc --noEmit -p tsconfig.app.json` en ambas apps, lint, 17/17 tests PWA, 75/75 tests admin y drift de tipos frontend. Todos pasan; lint conserva tres warnings por app. Build PWA demo, build admin bajo `/admin/` e injerto unificado también pasan. `e567067` añade la referencia de tipos `vite-plugin-pwa/client` y retira la exportación duplicada de `VisibleConfig`, resolviendo TS2307/TS2484. Los otros tres errores antiguos se resuelven con los commits seleccionados. Se revisó que los scripts build/typecheck originales omiten la comprobación explícita de app; T-03b deberá ejecutar estos gates antes del build. El build todavía fuerza demo: cambiar servicios/entorno real pertenece a T-17/T-18/T-23.
 
-Objetivo: PWA + admin funcionando end-to-end con mocks + datos reales de Leche y Miel; desplegado en URL pública; validado con usuarios en Dolores.
+**Decisión resuelta:** incorporación parcial aprobada y realizada localmente; también se aprobaron la separación documental/presentación y sus commits locales. No se autorizaron ni ejecutaron push o promoción a producción. El Preview del 29 de septiembre sigue en `706ed8a`; esta reconciliación local no lo redesplegó. H-* y estados siguientes describen ahora develop reconciliado, sin declarar API/auth/persistencia terminadas por avances de demo.
 
-| # | Tarea | Estado | Notas |
+## Lista 1 — Pasos ya hechos
+
+| ID | Avance | Estado real y límite | Evidencia |
 |---|---|---|---|
-| 0.1 | PWA con flujo completo (Home → Catálogo → Carrito → Checkout → Confirmación → Timeline pedido) | ✅ | Feature archivada en `tech/features/20260602-demo-maui-pwa/` |
-| 0.2 | Catálogo con datos reales de Leche y Miel | ✅ | `shared/catalog` |
-| 0.3 | Admin panel con roles, catálogo, horarios, audit log | ✅ | Feature en cierre `tech/wip/20260611-evolucion-admin-panel-demo/` |
-| 0.4 | Deploy unificado (PWA + admin, un artefacto) | ✅ | `package.json` raíz orquestador + `vercel.json` con `rewrites` SPA. Producción viva en `marketplace-pied-xi.vercel.app` (200 en `/` y `/admin/`). |
-| 0.5 | Auto-deploy `master` → Production | ✅ | Verificado end-to-end 2026-09-03: push a master dispara build con `Environment=Production`. Rama de trabajo sigue generando Preview con URL única por commit. |
-| 0.6 | Sesiones de validación con 5 usuarios de Dolores + empleado L&M | 🔴 | Fase 2 del RFC — pendiente ejecutar. **Desbloqueada** ahora que hay URL pública. |
-| 0.7 | Go/No-Go documentado con evidencia | 🔴 | Depende de 0.6 |
-| 0.8 | Validación visual del fix móvil del admin (drawer + hamburguesa) | 🟡 | Deploy incluye el fix; pendiente prueba en dispositivo real del owner. |
+| H-01 | Producto, arquitectura general y límites del MVP definidos | Base documentada; intención de compra y pago contra entrega, sin pasarela ni POS integral | [Contexto](../../MAUI-PWA-customers/MAUI-CONTEXT.md), [RFC histórico](rfc-001-demo-validacion.md) |
+| H-02 | Sistema visual, marca y componentes base | Reutilizables en ambas apps; no requieren rehacer diseño para conectar API | [Design System](../../MAUI%20Design%20System/README.md), estilos/componentes front |
+| H-03 | PWA: Home, pasillos, catálogo, búsqueda y detalle | Funcional en demo, datos importados desde código | `MAUI-PWA-customers/src/features/catalog/` |
+| H-04 | Carrito persistente, cantidades y peso solicitado | Funcional en demo; el servidor aún debe validar precio/disponibilidad | `cartStore.ts`, `QuantityStepper.tsx`, `VariableWeightSheet.tsx` |
+| H-05 | Checkout, recogida/domicilio, GPS/texto, franja, sustitución y confirmación | Demo con celular editable/normalizado, GPS primero y referencia alternativa, retiro sin envío, snapshots/pesos solicitados y `call_me` por defecto; conserva carrito ante fallo; reglas servidor pendientes | `e567067`; `CheckoutPage.tsx`, `DeliverySelector.tsx`, `checkoutStore.ts`, `shipping.ts` |
+| H-06 | PWA: historial, detalle, timeline, perfil, acceso y contacto del aliado | Demo; contacto configurable en detalle/perfil/footer, oculto si inválido, aún desde localStorage admin. Acceso crea perfil local; polling 5 s; repetir mercado aún vacío | `e567067`; `authStore.ts`, `OrderDetailPage.tsx`, `OrdersPage.tsx`, `useMerchantWhatsApp.ts` |
+| H-07 | Admin: shell responsive, login, guard y roles | Demo con `owner/operator` y sesión local; `viewer` quedó fuera del alcance anterior | `maui-admin-front/src/auth/`, `types/auth.ts`, shell |
+| H-08 | Admin: listado/filtros, detalle, pesos reales, cancelación, contacto y picking | Demo con `finalTotal` separado de estimado e incluye envío; pesos positivos/finitos y bloqueo ready, referencia/mapa. Alertas/sonido e impresión/copia existentes; reglas servidor pendientes | `e567067`; `features/orders/`, `mockOrderRepository.ts` |
+| H-09 | Admin: productos/categorías, agotados, horarios y configuración | CRUD local, WhatsApp del aliado validado; imágenes por URL/placeholder sin upload; persistencia y consumo API pendientes | `e567067`; `features/catalogo/`, `categorias/`, `tienda/`, `configuracion/` |
+| H-10 | Admin: dashboard, histórico y auditoría | Demo sobre datos y auditoría locales | `features/dashboard/`, `historico/`, `auditoria/` |
+| H-11 | Baseline compartido y control de drift frontend | **16 productos** reutilizables para seed; DTOs frontend alinean `customerPhone`, `shippingCost`, `finalTotal`. Tipos replicados coinciden; shared/runtime/backend pendientes | `e567067`; [Baseline](../../shared/catalog/README.md), `scripts/check-types-drift.sh` |
+| H-12 | Build/origen unificado y exclusión de admin en service worker | PWA `/` y admin `/admin/` servidos públicamente; intercambio demo limitado al mismo navegador | `scripts/merge-unified-build.mjs`, `vercel.json`, `vite.config.ts` |
+| H-13 | Stack inicial y scaffold portable | `domain/usecases/infra`, adapters memory/Postgres y handlers Vercel en `api/` raíz | [ADR](adr-001-stack-backend.md), [backend](../../maui-back/README.md) |
+| H-14 | Núcleo de pedidos y migración inicial | Repository create/findById/listByStore/updateStatus; usecases create/status. HTTP: POST, GET detalle, PATCH estado y health. No hay endpoint de listado | `api/`, `maui-back/src/`, migración inicial |
+| H-15 | Provisionamiento, acceso cloud y API Preview comprobados | GitHub ADMIN/Actions y CLI Vercel accesibles; Neon `dev` responde SELECT. Preview de la feature `706ed8a` sirve health JSON/Functions de pedidos; no acredita incorporación a develop. Aislamiento/CI y conexión BD desde runtime aún por cerrar | [Auditoría de herramientas](auditoria-herramientas.md); origen en prioridad 0, sin secretos |
+| H-16 | Implementaciones demo archivadas y verificación local reconciliada | T-03a hecho: 17 tests PWA + 75 admin, typecheck explícito de ambas apps, drift, lint cero errores y build unificado pasan en `e567067`; tres warnings por app. Backend memory: evidencia previa 9 tests; CI/BD/E2E desplegado pendientes | Prioridad 0; [resumen PWA](../../tech/features/20260602-demo-maui-pwa/implementation-summary.md), [resumen admin](../../tech/features/20260611-evolucion-admin-panel-demo/implementation-summary.md) |
 
-**Fase 0 sin bloqueadores técnicos.** El único pendiente crítico es la validación humana (0.6, 0.8).
+## Lista 2 — Implementaciones pendientes en orden de ejecución
 
----
+### A — Base técnica y contratos
 
-### Fase 1 — Backend real (arranque)
+**Entrega parcial:** backend accesible en test, entornos separados y contrato único. Prioridad 0 y T-03a completados; T-01/T-02 pueden comenzar sin contrato nuevo. T-03b requiere T-02 y T-03a.
 
-Objetivo: Reemplazar mocks del PWA/admin por backend real sobre Vercel Functions + Neon Postgres, sin romper contratos.
-
-**Documento canónico:** `adr-001-stack-backend.md`.
-
-| # | Tarea | Estado | Notas |
+| ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
 |---|---|---|---|
-| 1.1 | Scaffold `maui-back/` con layout portable | ✅ | 31 archivos, typecheck + tests verdes 2026-09-03. Commit `d671273`. |
-| 1.2 | Orders end-to-end (create, findById, listByStore, updateStatus) | ✅ | Usecases + adapters memory/postgres + tests 9/9. Adapter Dynamo pendiente para Fase 3. |
-| 1.3 | Crear proyecto Neon + `DATABASE_URL` | ✅ | Proyecto `maui` (`rough-morning-66975813`), PG18, aws-us-east-1. URL guardada local y en Vercel env vars (prod/preview/dev). |
-| 1.4 | `db:generate` + `db:migrate` inicial | ✅ | Tabla `orders` + índice + `drizzle.__drizzle_migrations` en Neon. Migración `0000_ambiguous_ultimates.sql` commiteada. Doc de schema evolution en `maui-back/README.md`. |
-| 1.5 | Backend en Vercel (mismo host que frontend) | 🟡 | `api/` movida a raíz + `vercel.json` con `functions` + env vars agregadas. Preview `5hr3fwj57` en build al momento de escribir. Validación `/api/health` pendiente. |
-| 1.6 | Elegir stack de Auth (JWT propio vs Clerk vs Supabase Auth) | 🔴 | Decisión pendiente |
-| 1.7 | Endpoints faltantes: `catalog CRUD`, `store settings`, `merchant`, `audit`, `auth`, `orders list` | 🔴 | Cada uno como pequeña feature. Ver bitácora — el listado actual son solo 4 endpoints (walking skeleton). |
-| 1.8 | Mover DTOs a `shared/` (raíz) para import compartido back ↔ front | 🔴 | `shared/` existe vacío |
-| 1.9 | Swap frontend: `VITE_DEMO_MODE=false` → `services/index.ts` apunta a `realOrderRepository` | 🔴 | Requiere 1.5 + 1.8 |
-| 1.10 | Integration tests contra Postgres real | 🔴 | Nice-to-have; después de 1.5 |
-| 1.11 | WhatsApp Gateway (Evolution API en VPS) según RFC §3.2 | 🔴 | No iniciado |
+| T-01 / P0 | API accesible en el despliegue de test — parcial | H-12, H-13 | Identificar artefacto/rama/commit, routing y Functions. Preview comprobado ya responde health JSON y tiene Functions; API inexistente devuelve 404 text/plain. Completar error API estructurado y comprobar conectividad real desde runtime a BD test; health solo reporta driver. La evidencia HTML del dominio público corresponde a otra URL, no a ese Preview |
+| T-02 / P0 | Configuración y aislamiento de test — por verificar | H-15 | Vercel Preview/test con Neon branch/BD de test, env y storage separados; verificar destino de `DATABASE_URL` sin exponerlo. Neon `dev` es accesible, pero asociación exclusiva Preview→test no comprobada. Alinear raíz Node `22.x` con local/cloud `24.x` tras verificar compatibilidad. Credenciales servidor fuera de `VITE_*`; prohibir recursos productivos desde test. Configurar URLs/destinos y verificar cuotas sin infraestructura anticipada |
+| T-03a / P0 | Checkout, lint y comprobaciones locales — hecho (2026-10-01, `e567067`) | H-16 | Integración aprobada, hook y cinco errores de tipos originales resueltos; typecheck app explícito de ambos fronts, lint cero errores, 92 tests, drift y build unificado pasan. Omisión de gates en scripts identificada para T-03b; modo real pendiente en T-17/T-18/T-23 |
+| T-03b / P0 | CI reproducible — pendiente | T-02, T-03a | Agregar workflow con versión Node/env test resueltos; ejecutar typecheck real de cada app, lint, tests y contratos antes del build. No inferir CI terminado por Actions habilitado ni por el script raíz que omite referencias TypeScript |
+| T-04 / P0 | Contratos compartidos y validación runtime — parcial (DTOs frontend en `e567067`) | H-11, H-14 | DTOs/esquemas en `shared/`; alinear IDs, estados, sustituciones, teléfono, entrega/GPS/franjas, pesos solicitado/real, totales estimado/final/envío y errores. Reutilizar `customerPhone/shippingCost/finalTotal` ya alineados en PWA/admin; faltan shared/runtime/backend, DTO público/interno, mappers y pruebas de contrato |
+| T-05 / P0 | Acceso y sesiones para admin/cliente — pendiente | T-02, T-04 | Resolver auth con JWT propio o provider del ADR en función de lo mínimo necesario. Sesión, expiración, logout y permisos reales; acceso privado del cliente a sus pedidos. Capturar nombre/teléfono sin fingir verificación. Test usa el mismo mecanismo con cuentas/credenciales de test; Magic Link avanzado queda en E-02 |
 
-**Bloqueador de Fase 1:** ninguno. Fase 1.5 en verificación activa.
+### B — Persistencia y API completa
 
----
+**Entrega parcial:** datos, seguridad y reglas de negocio reales comprobables por HTTP. Las interfaces existentes se amplían donde haga falta.
 
-### Fase 2 — Post-F&F (v2 del roadmap)
-
-Objetivo: Cerrar la brecha entre "MVP funcional" y "producto operable sin intervención técnica".
-
-Ver `roadmap-v2-post-ff.md`. Se activa después de 50+ pedidos reales procesados.
-
-| # | Tarea | Estado |
-|---|---|---|
-| 2.1 | Auth Magic Link completo por WhatsApp | 🔴 |
-| 2.2 | Tracker de pedido en tiempo real (evaluar WebSocket vs SSE vs polling) | 🔴 |
-| 2.3 | Devoluciones / plan B — actualmente resueltos por WhatsApp directo | 🔴 |
-| 2.4 | Fotos en S3 con presigned URLs | 🔴 |
-
----
-
-### Fase 3 — Escala / SaaS
-
-Objetivo: Producto repetible multi-aliado + monetización automática.
-
-Ver `roadmap-v3-saas-escala.md`. Se activa con 2+ aliados y modelo de negocio validado.
-
-| # | Tarea | Estado |
-|---|---|---|
-| 3.1 | Wallet de prepago del aliado + débito automático | 🔴 |
-| 3.2 | Multi-tenant isolation (por `storeId` en JWT) | 🔴 |
-| 3.3 | **Evaluar migración a AWS Lambda + DynamoDB** (ver ADR-001 §5 para criterios) | 🔴 |
-
----
-
-## Camino crítico corto plazo (próximas 2 semanas)
-
-1. ✅ ~~Verificar config Vercel + primer deploy verde~~ (hecho 2026-09-03)
-2. ✅ ~~Deploy demo verde en Vercel~~ — `marketplace-pied-xi.vercel.app` viva
-3. ✅ ~~Setup Neon + migración inicial~~ (hecho 2026-09-04)
-4. **Validar `/api/health` en Preview** (en curso al momento; confirma que Function conecta a Neon con `driver=postgres`)
-5. **Validación móvil del fix admin drawer** — owner prueba en su celular (5 min)
-6. **Agendar sesiones de validación con 5 usuarios de Dolores + empleado L&M** — Fase 2 del RFC (0.6). Fijar semana calendario.
-7. **Agregar endpoints faltantes** (1.7) empezando por `GET /api/orders?storeId=&status=` que es el más usado por el admin
-8. **Regularizar SDD** — `/tech.start` retroactivo para el scaffold + `/tech.fix` para limpiar menciones a Cognito en feature en curso
-9. **Elegir stack de Auth** — bloquea todos los endpoints protegidos (1.6)
-10. **Mover DTOs a `shared/`** — establecer contrato back ↔ front antes de escribir más endpoints (1.8)
-11. **Optimizar tiempo de build Vercel** (10min → 1-2min): evaluar npm workspaces o cache de `node_modules` por subfolder. No urgente.
-12. **Merge `develop` → `master`** cuando `/api/health` valide OK, para llevar el backend a Production.
-
----
-
-## Herramientas / MCPs / CLIs
-
-Estado de las herramientas que el asistente puede usar directamente (relevante para saber cuándo hay que ejecutar manualmente vs delegar).
-
-| Herramienta | Estado | Notas |
-|---|---|---|
-| **MCP Vercel** | ⚠️ Autenticado pero **no funcional en cuenta Hobby personal** | Todas las llamadas devuelven 403. Limitación del server MCP (no del OAuth). Se reporta a Vercel si aparece feedback público. |
-| **Vercel CLI** (`npx vercel`) | ✅ v59.11.2 autenticada como `infogamboatech-2785`; `maui-back/` linkeado a `marketplace` | `.vercel/` + `.env.local` creados en `maui-back/`. Funcionan `project inspect`, `env ls`, `ls`, `deploy`. El CLI no expone directamente el git repo asociado (solo dashboard). |
-| **MCP Neon** | ✅ Operativo (tools cargados vía ToolSearch en 2026-09-04). Write mode activo (destructivos requieren confirmación) | Usado para crear proyecto `maui`, listar tablas, verificar migraciones. |
-| **MCP Google Drive** | ✅ Conectado | No usado activamente hoy. |
-| **Git / GitHub CLI** | ✅ Disponible | Commits y push funcionan directamente. |
-
-Cuando el MCP falla, el fallback es el CLI local invocado desde Bash. Para logins interactivos el usuario ejecuta `! <comando>` en el prompt.
-
----
-
-## Descubrimientos operativos
-
-Hallazgos sobre la infraestructura/proceso que no son features del producto pero afectan la velocidad del equipo. Se documentan aquí para no perder contexto entre sesiones.
-
-| # | Hallazgo | Impacto | Acción sugerida |
+| ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
 |---|---|---|---|
-| **OP-1** | Build Vercel toma ~10 min por `npm install --no-audit --no-fund` explícito por subfolder (PWA + admin + back) | Cada preview y cada production deploy suma 10 min de espera; afecta ritmo de iteración pero no bloquea nada | Migrar a **npm workspaces** con un lockfile único a la raíz, o dejar que Vercel cachee `node_modules` por subfolder. No urgente hasta que el ritmo duela. |
-| **OP-2** | MCP Vercel devuelve 403 para todas las llamadas en cuentas Hobby personales, aunque OAuth diga OK | El asistente no puede leer/crear/mutar proyectos vía MCP; obligado a usar Vercel CLI local desde Bash | Fallback establecido: Vercel CLI (`v59.11.2`) linkeado a `maui-back/`. Sin acción hasta que Vercel actualice el MCP o cuenta migre a Pro. |
-| **OP-3** | Fix móvil del admin (drawer + hamburguesa) desplegado pero no validado en dispositivo real | Riesgo bajo de regresión visual/UX en móvil | Owner prueba `marketplace-pied-xi.vercel.app/admin/` en Android real (5 min). Si falla, iterar. Ver 0.8. |
-| **OP-4** | `package.json` del backend en `maui-back/` **duplica intencionalmente** deps runtime con el `package.json` raíz | Confusión potencial sobre dónde declarar deps nuevas del backend | Consolidar cuando se migre a npm workspaces (junto con OP-1). Mientras tanto: convención = agregar en ambos. |
+| T-06 / P0 | Auth HTTP, autorización y aislamiento por tienda — pendiente | T-01, T-02, T-04, T-05 | Login/logout/sesión efectivos; denegar operaciones sin rol válido. Actor y tienda derivados de credenciales, no del body; detalle/listado autorizados. Controles de origen/CSRF según sesión elegida y rate limits adecuados al runtime stateless; `userId`, teléfono o ULID no autorizan por sí solos |
+| T-07 / P0 | Catálogo: productos/categorías/disponibilidad — pendiente | T-04, T-06 | Schema/migraciones/repositories y API; lecturas públicas y CRUD protegido, agotado/activo, archivado sin perder histórico. Impedir borrar categoría con productos; unidades, moneda y precio/kg coherentes. Reutilizar baseline como datos, sin convertirlo en fuente permanente de la UI |
+| T-08 / P0 | Configuración del aliado/tienda y reglas de entrega — pendiente | T-04, T-06 | Nombre/contacto/dirección, horario/override, franjas/cobertura, envío/umbral gratis persistidos y consumibles por ambas apps. Valores iniciales provienen de seed configurable. `America/Bogota` explícita; servidor valida cierre/corte/cobertura; recogida sin costo de domicilio |
+| T-09 / P0 | Storage y upload de imágenes de catálogo — pendiente | T-02, T-06, T-07 | Elegir una opción inicial del ADR con adapter portable; upload real de archivo/cámara a storage de test, formato/peso/permiso validados, compresión y referencia persistida. Seed puede usar imágenes actuales; upload se prueba con fixture estable, sin esperar fotografías comerciales |
+| T-10 / P0 | Creación de pedido confiable e idempotencia — parcial | T-04, T-06, T-07, T-08 | Consultar catálogo servidor para precio/nombre/unidad/stock/peso variable; snapshots históricos; validar cantidad, teléfono y entrega. Calcular subtotal/envío/estimación en backend. Idempotencia persistente ante doble clic/timeout/reintento; no confiar en precio del cliente |
+| T-11 / P0 | Listado, detalle e histórico real — parcial | T-06, T-10 | Endpoints tienda/cliente, búsqueda/filtros de fecha/estado y paginación estable con desempate por ID. Detalle autorizado; timestamps ISO normalizados; pruebas con varias filas de igual fecha. Reutilizar `listByStore`, completando endpoint y reglas de acceso |
+| T-12 / P0 | Ciclo completo, pesos y sustituciones — parcial (`e567067`: estimación/final separados y pesos validados en mock) | T-10, T-11 | Máquina de estados única: preparación, pesos reales, total final, sustitución/quitar ítems, listo, entrega/recogida, entregado y cancelado con motivo. Conservar estimación inicial; validar pesos/transiciones en servidor; cambios atómicos por versión/estado esperado; pedidos terminales inmutables |
+| T-13 / P0 | Auditoría persistente y trazabilidad — pendiente | T-06, T-07, T-08, T-12 | Mutaciones registran actor/tienda/entidad/acción/fecha; lectura protegida. Coherencia entre cambio y auditoría ante fallo, sin confiar en `by` del frontend. ID pedido correlaciona logs/mensajes sin registrar secretos ni datos personales innecesarios |
+| T-14 / P0 | Comprobante y contacto sencillo — parcial (`e567067`: contacto del aliado configurable/validado desde localStorage) | T-04, T-08, T-10, T-12 | Reutilizar enlaces/contacto actuales y preparar resumen del pedido con ID, estado, desglose y estimado/final según DTO real. PWA contacta al negocio configurado; admin al cliente del pedido. Normalizar teléfono y codificar texto; ocultar contacto inválido sin impedir compra/seguimiento. Estado y comprobante están disponibles dentro de las apps. Probar contenido/destino del enlace sin enviar mensajes; integrar UI en T-17/T-18. Sin gateway ni registro ficticio de entrega |
+| T-15 / P0 | Tests de Postgres, HTTP y contratos — pendiente | T-07, T-08, T-10, T-11, T-12, T-13, T-14 | BD aislada y fixtures; migraciones, JSONB/timestamps, auth/roles, filtros/paginación, idempotencia, concurrencia, errores HTTP y contenido del comprobante comprobados. Las 9 pruebas memory existentes se conservan y complementan; no sustituyen Postgres |
 
----
+### C — Seed y conexión real de las apps
 
-## Skills de desarrollo y referencias evaluadas
+**Entrega parcial:** PWA y admin interactúan con la misma BD de test en navegadores/dispositivos independientes.
 
-Estas herramientas apoyan el trabajo del equipo y de los agentes de código. **No añaden IA al producto MAUI ni autorizan integraciones externas por sí mismas.** Una integración de producto requiere una decisión explícita, su propia feature SDD y la autorización correspondiente.
+| ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
+|---|---|---|---|
+| T-16 / P0 | Seed reproducible e inicialización de test — pendiente | T-02, T-04, T-06, T-07, T-08, T-12, T-13 | Transformar datos actuales a contratos reales e insertar catálogo/categorías, tienda/horarios/reglas, usuarios owner/operator/cliente y pedidos en estados representativos. Cubrir peso fijo/variable, agotado, recogida/domicilio, cancelado, estimado/final y audit. Seed idempotente; reset solo de BD aislada y con guard de entorno, nunca productiva; credenciales fuera del bundle. Identificar versión/fixtures y ejecutar tras migraciones |
+| T-17 / P0 | Admin conectado a seis servicios reales — pendiente | T-06 a T-14, T-16 | Implementar auth/orders/catalog/merchant/store/audit; loading/error/expiración/conflictos. Dashboard, filtros, histórico, pesos, cancelación, picking y upload usan backend; excluir simulador y reset local demo. Inicialización seed es servidor, no `runAllSeeds` en navegador |
+| T-18 / P0 | PWA conectada a catálogo/tienda/checkout reales — pendiente | T-04, T-05, T-07, T-08, T-10, T-11, T-16 | Sustituir hooks de `mockData` y stubs de orders; búsqueda/featured/detalle ven cambios backend. Perfil/contacto de test con acceso real a pedidos; teléfono viaja al backend. Checkout con envío, timeout y reintento idempotente; limpiar carrito solo tras confirmación comprobada; no login ficticio fuera del demo |
+| T-19 / P0 | Alertas y seguimiento entre dispositivos — pendiente | T-11, T-12, T-17, T-18 | Sustituir evento `storage` por polling API simple con deduplicación; ajustar PWA a 30–60 s configurable; pausar cuando corresponda y reconciliar tras background/red. Ver estados, cancelación y estimado/final; alertas y sonido activables, señal de fallo de actualización. No requiere WebSockets |
+| T-20 / P0 | PWA, caché y conectividad limitada — parcial | T-18, T-19 | Validar service worker generado: API no cae a SPA ni conserva datos privados entre usuarios. Caché selectiva de catálogo, sin reenviar mutaciones; offline muestra antigüedad y recupera estado. Manifest efectivo único, assets/iconos/tags Apple, instalación/update y responsive verificables técnicamente. Reducir imágenes/precache histórico ~26 MB y medir 3G/accesibilidad |
+| T-21 / P1 | Observabilidad y recuperación técnica — pendiente | T-02, T-13, T-17, T-18 | Errores PWA/admin/API y logs correlacionados; métricas básicas de pedidos/duplicados/latencia/errores. Export/backup y prueba de restore en test; reversión de versión compatible con schema. Diagnóstico/guía de ejecución técnica y export de catálogo; no exige equipo humano de soporte |
 
-### Skills Codex instaladas (usuario)
+### D — Validación automatizada y entrega desplegada
 
-| Skill | Cuándo usarla | Resultado esperado |
+**Entrega final:** versión real de ambas apps desplegada en test, cargada con seed y comprobada contra sus servicios reales.
+
+| ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
+|---|---|---|---|
+| T-22 / P0 | E2E automatizado y fallos controlados — pendiente | T-03a, T-03b, T-15 a T-21 | Dos contextos independientes cliente/admin usando API y BD reales. Compra seed → recepción admin → pesos/sustitución → total final → entrega/cancelación → histórico/audit/comprobante. Incluir permisos/sesiones, cierre/agotado, manipulación de precios, doble submit, timeout tras persistir, 3G/offline y recuperación; comprobar destino/texto de enlaces sin enviar WhatsApp. Pruebas ejecutadas por herramientas/agentes, sin reclutar usuarios |
+| T-23 / P0 | Build real y despliegue de test — pendiente | T-01, T-02, T-03a, T-03b, T-15, T-16, T-22 | Quitar `--mode demo` forzado del flujo de entrega unificado; ambas apps en servicios reales y API en mismo host. Desplegar versión identificable, aplicar migraciones y seed en recursos de test; comprobar fixtures/cuentas y rutas profundas. URL accesible al usuario con acceso adecuado al entorno; documentar configuración y modo de restaurar seed |
+| T-24 / P0 | Comprobar y entregar el ambiente de test — pendiente | T-23 | Repetir smoke/E2E contra la URL desplegada, no solo local; validar persistencia tras recarga/nueva sesión, edición catálogo visible en PWA, flujo completo, comprobante y enlaces de contacto. Entregar URL, versión, comandos de setup/seed/reset, acceso de cuentas de test por canal adecuado y resultados de pruebas. Cerrar sin gateway externo, acuerdos ni validaciones humanas |
+
+### Evolución técnica posterior — separada del entregable de test
+
+Estos bloques conservan la visión del resto del sistema. Se ejecutan después de T-24 cuando se solicite la capacidad correspondiente; no retrasan la entrega actual ni dependen de tareas operativas.
+
+| ID / prioridad | Capacidad y estado | Dependencia técnica | Alcance de implementación |
+|---|---|---|---|
+| E-01 / P2 | Fotos privadas de pedido/evidencia de pesos — condicionado | T-09, T-12, T-17, T-19 | Upload privado, acceso/retención, cámara/fixtures, referencia en pedido/audit e histórico/picking/tracker; resolver DEBT-001 sin exigir S3 ahora |
+| E-02 / P2 | Acceso cliente verificado por WhatsApp — condicionado | T-05, T-06, E-07 | Magic Link/OTP con uso único, expiración, sesiones seguras y límites de abuso; integración sandbox/test del mismo proveedor, migración de perfiles v1 |
+| E-03 / P2 | Recurrencia, capacidad y servicio — condicionado | T-11, T-12, T-18, T-19 | Implementaciones separadas: repetir pedido como plantilla editable, slots/cupos, devoluciones/incidencias trazables, Web Push y realtime si se solicita. Búsqueda/detalle/historial existentes se amplían, no se reconstruyen |
+| E-04 / P2 | UX y eficiencia del build — parcial/condicionado | T-20, T-23 | Dark mode completo antes de habilitar toggle; optimización workspaces/locks/deps duplicadas. Ofertas/favoritos y nuevas verticales siguen sin implementación; requieren alcance técnico definido para ejecutarse |
+| E-05 / P2 | Migración de runtime a AWS Lambda — condicionado | T-24 | Adapter HTTP/API Gateway, composición/env/IaC, permisos/observabilidad, prueba de equivalencia, corte y rollback. Mantener Postgres si conviene; cambios de BD/storage/auth son decisiones independientes. No crear adapters vacíos ni infraestructura AWS ahora |
+| E-06 / P2 | Plataforma multi-aliado y módulos adicionales — condicionado | T-06, T-13, T-24 | Aislamiento probado, administración de tenants/cuentas/catálogos, branding por tienda; módulos separados de comisiones/wallet, pedidos para terceros, asignación de entregas/cierre de efectivo y campañas si se solicitan. Solo desarrollo técnico; sin contratos, reuniones, onboarding humano ni SLAs operativos |
+| E-07 / P2 | Mensajería automática — condicionado | T-12, T-13, T-24 | Solo si se solicita después: elegir proveedor disponible, adapter portable, eventos/outbox persistente, deduplicación y reintentos compatibles con runtime; validar integración real en sandbox/test. Evolution API es antecedente, no obligación de contratar VPS ni herramienta necesaria ahora |
+
+## Orden de entrega y dependencias
+
+```mermaid
+flowchart TD
+  A["C1: base y contratos"] --> B["C2: API y Postgres"]
+  B --> S["T-16: seed persistido"]
+  B --> C["C3: conectar PWA y admin"]
+  S --> C
+  C --> Q["C4: E2E y calidad"]
+  B --> Q
+  Q --> D["C5: deploy test y comprobación final"]
+  D --> E["E-01 a E-07: evolución posterior"]
+```
+
+| Corte | Bloques | Resultado demostrable |
 |---|---|---|
-| `$maui-sdd` | Cambios de funcionalidad, correcciones o evolución del repositorio MAUI | Respeta Tech SDD Kit, especificaciones en español y los límites del MVP. |
-| `$maui-api-contracts` | Cambios de datos, endpoints, persistencia o sincronización entre PWA, admin y backend | Contratos coherentes, validación runtime, idempotencia y tipos sin drift. |
-| `$maui-retail-qa` | Regresiones, preparación de piloto y QA de flujos de tienda/cliente | Evidencia del recorrido completo, incluido 3G, pedidos duplicados y productos por peso. |
-| `$maui-catalog-ops` | Carga o auditoría de productos, precios, stock, unidades y fotos | Catálogo comercial exacto, revisado por el aliado y preservando el histórico. |
+| C1 — Base técnica | T-01 a T-05 | API accesible, entorno aislado, checkout sin error, contratos y acceso definidos |
+| C2 — API persistente | T-06 a T-16 | Catálogo/tienda/pedidos/roles/auditoría/comprobante y seed comprobables sobre BD real |
+| C3 — Apps conectadas | T-17 a T-19 | Flujo cliente/admin entre contextos independientes; cambios persistentes visibles en ambos |
+| C4 — Calidad técnica | T-20 a T-22 | Caché/3G/offline, trazabilidad/restore y E2E completos |
+| C5 — Entrega en test | T-23 y T-24 | URL desplegada, seed reproducible, servicios reales y pruebas sobre ese despliegue |
 
-Las skills viven fuera del repositorio, en `C:\Users\Nixon\.codex\skills\`, y quedan disponibles para futuros proyectos. Se invocan explícitamente, por ejemplo: `Usa $maui-api-contracts para cambiar el contrato de pedidos.`
+**Ruta crítica:** T-04/T-05 → T-06 → T-07/T-08 → T-10 → T-11/T-12 → T-16 → T-17/T-18 → T-19 → T-22 → T-23 → T-24. T-01/T-02 habilitan la infraestructura; T-09/T-13/T-14 y T-15/T-20/T-21 convergen antes de E2E/entrega. T-14 reutiliza contacto por enlaces y datos de pedido; no necesita credenciales WhatsApp. La mensajería automática solo se considera en E-07.
 
-### OpenAI — herramientas investigadas (sin adopción actual)
+El siguiente paso es **T-01/T-02 y T-04 dentro de C1**, respetando sus dependencias; prioridad 0 y T-03a ya están resueltos. T-03 se considera cerrado únicamente cuando T-03a y T-03b cumplan sus criterios; T-03b espera T-02. Las tareas pueden implementarse por partes con su evidencia; T-24 sigue pendiente hasta cumplir el conjunto. Los cortes son entregas técnicas, no ceremonias de aprobación SDD.
 
-| Herramienta | Uso potencial evaluado | Decisión actual |
+## Contratos que deben reconciliarse (T-04)
+
+| Concepto | PWA/admin actual | Backend actual | Resultado necesario |
+|---|---|---|---|
+| IDs/tienda | `orderId/userId`, merchant en sesión local | `id/customerId/storeId` desde body | DTO único y contexto confiable |
+| Estados | `received/confirmed/preparing/ready/delivered`; cancelación como campo extra | `received/preparing/ready/in_delivery/delivered/cancelled` | Máquina común y UI/mensajes para cada modalidad/estado |
+| Sustitución | `call_me/similar/remove` | `ask/allow/none` | Valores y significado únicos |
+| Ítems/pesos | `id/qty/is_variable_weight/kilosRequested/kilosReal` | `productId/quantity/isVariableWeight/kilos` | Peso solicitado/real, cantidades y snapshots coherentes |
+| Totales | `estimatedTotal` preservado, `finalTotal` separado y `shippingCost` en mock | `total` solo suma ítems | Estimación original, final, envío y redondeo COP servidor |
+| Teléfono | `OrderPayload.customerPhone` normalizado desde checkout | Campo requerido | Contrato común y validación/transmisión servidor |
+| Entrega | `deliveryType/deliveryData`, GPS y slot | `deliveryMode/deliveryAddress` string | Preservar GPS/texto/franja y reglas por modalidad |
+| Lecturas/permisos | `list(userId?)` y persistencia local | GET por ID sin auth | Acceso privado, filters/cursor y errores compartidos |
+| Fechas | Suposición de strings ISO | Drizzle timestamp `mode: string` | ISO UTC normalizado en DTO y pruebas de BD |
+
+## Bloqueantes técnicos y decisiones mínimas
+
+| Hallazgo / necesidad | Bloques que lo resuelven | Límite actual |
 |---|---|---|
-| [Responses API](https://platform.openai.com/docs/quickstart/make-your-first-api-request) | Punto de entrada para capacidades de texto, imagen y herramientas server-side. | No incorporar al MVP. Mantener como referencia si se aprueba una capacidad asistida futura. |
-| [Function calling y herramientas de Responses](https://platform.openai.com/docs/api-reference/responses-streaming/response/refusal?lang=python) | Conectar un modelo a acciones controladas del backend mediante esquemas tipados. | No incorporar al MVP; cualquier acción operativa futura debe conservar confirmación humana, auditoría y permisos. |
-| [OpenAI Agents SDK para TypeScript](https://github.com/openai/openai-agents-js) | Orquestar agentes, tools, guardrails y handoffs en servicios TypeScript. | No necesario mientras MAUI valida su loop comercial; reevaluar solo si surge un caso concreto y medible. |
-| [Realtime API](https://platform.openai.com/docs/api-reference/realtime?lang=javascript) | Interacción de voz de baja latencia por WebRTC/WebSocket. | Fuera de alcance: añade complejidad y no resuelve un bloqueo actual de cliente, tienda o backend. |
+| Preview tiene health JSON, pero falta error API estructurado y prueba BD desde runtime | T-01/T-02/T-23 | No generalizar el HTML del dominio público; identificar versión y aislamiento del artefacto entregado |
+| DTOs frontend/back divergentes | T-04 | Drift-check PWA/admin correcto no cubre backend |
+| Auth real ausente y adapters frontend vacíos | T-05/T-06/T-17/T-18 | Elegir una solución, no desarrollar tres opciones |
+| Precio cliente confiado, sin envío/final/idempotencia | T-07/T-08/T-10/T-12 | Servidor es fuente de reglas y cálculos |
+| Estado no actualizado condicionalmente y cursor solo por fecha | T-11/T-12/T-15 | Probar concurrencia y desempates reales |
+| Catálogo PWA estático, evento storage admin y build forzado demo | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
+| Seed solo de navegador, sin dataset servidor reproducible | T-16 | Transformar mocks a datos de test; no mantener su lógica simulada |
+| Aislamiento cloud pendiente; Node raíz/local/cloud difiere | T-02 | Neon `dev` y CLI Vercel accesibles; no correr seed/reset sin verificar destino test |
+| Auth y storage pendientes de implementar/configurar | T-05/T-09 | JWT propio admitido; Blob accesible como opción a verificar, sin exigir proveedores/cuentas adicionales por anticipación |
+| Contacto actual debe usar datos persistentes y teléfonos correctos | T-08/T-14/T-17/T-18 | `wa.me` existente es suficiente; no depende de Evolution API ni envío automatizado |
+| Gates locales aún no automatizados en build/CI | T-03b | T-03a pasa en develop reconciliado; workflow debe ejecutar typecheck app explícito, lint, tests y drift antes del build |
+| CI inexistente y runtime por resolver | T-02/T-03b | No implementar CI antes de fijar entorno/versiones; Actions habilitado no equivale a workflow |
+| Sin prueba Postgres ni E2E desplegado | T-15/T-22/T-24 | No declarar equivalencia productiva por tests memory |
 
-### Herramientas comunitarias priorizadas para evaluar
+El hosting comercial y sus condiciones corresponden a una salida productiva posterior; no son un gate de este entregable de test. Mantener las restricciones registradas en el ADR y verificar que el uso efectivo y las cuotas del ambiente de test son compatibles, sin contratar ni cambiar de proveedor por anticipación.
 
-| Herramienta | Motivo | Momento sugerido |
-|---|---|---|
-| [Zod](https://github.com/colinhacks/zod) | Esquemas runtime para payloads de API y límites de confianza entre frontend/backend. | Fase 1, junto con DTOs compartidos (1.8). |
-| [Playwright](https://playwright.dev/) | Pruebas end-to-end de compra, admin y regresiones móviles. | Antes del cutover de mocks a backend real. |
-| [MSW](https://mswjs.io/) | Simular la API HTTP durante desarrollo y pruebas sin depender de localStorage. | Durante el swap gradual de repositorios mock. |
-| [Sentry](https://sentry.io/) | Capturar errores y contexto en PWA, admin y backend. | Antes de los primeros pedidos reales. |
+## Paridad funcional y seed: criterios de aceptación finales
 
----
+- Build PWA/admin de servicios reales, con mismos contratos y reglas que producción; API JSON funcional en la URL entregada.
+- Migraciones y seed ejecutables/repetibles sobre BD aislada. Dataset actual admitido; imágenes y precios son fixtures de test, no compromisos comerciales.
+- Cuentas de test autentican con mecanismo real; roles y permisos se aplican en backend. Auth ficticia de navegador no acredita paridad.
+- Cliente crea pedido, admin lo consulta/actualiza desde otra sesión, captura pesos/sustituciones, obtiene total final y lo entrega/cancela. Histórico, dashboard y audit persisten tras recarga.
+- Admin crea/edita/desactiva producto, sube imagen y cambia tienda/horarios; PWA refleja esos cambios sin deploy ni localStorage compartido.
+- Pedido no se duplica con doble clic/reintento/timeout; error conserva carrito; estado concurrente y tienda cerrada/agotados están controlados.
+- Comprobante/estado se consultan dentro de las apps; enlaces de contacto usan los datos reales y texto preparado. Validación automatizada de contenido/destino sin envío WhatsApp; no simular envío ni prometer notificaciones automáticas. API/BD/storage sí se validan con servicios reales de test.
+- Typecheck/lint, tests unitarios/integración y E2E críticos pasan; smoke/E2E se repite en el despliegue final y queda evidencia de versión/URL.
+- Instrucciones técnicas para setup/seed/reset, configuración y acceso de cuentas de test entregadas sin publicar secretos.
 
-## Gobernanza y proceso
+## Portabilidad a AWS y mínima infraestructura inicial
 
-### SDD Kit — deuda de proceso identificada
-- `tech/wip/20260611-evolucion-admin-panel-demo/` menciona "Cognito" en 2 líneas de sus specs — requiere `/tech.fix` cuando se retome la feature (evitar edit manual respetando el workflow).
-- El scaffold `maui-back/` se creó fuera del workflow SDD por velocidad. **Regularizar con `/tech.start` retroactivo** creando spec técnica corta que documente el layout ya construido.
+Conservar **handlers delgados → usecases → interfaces → adapters** para BD/storage y futuras integraciones cuando se implementen. ULID, contexto de tienda, DTOs, snapshots, versiones y errores independientes del runtime. Vercel permanece como host inicial; Neon/Drizzle como persistencia. No añadir adapters vacíos de mensajería, SAM/CDK, DynamoDB, Cognito, microservicios, multi-región ni WebSockets a este entregable.
 
-### Actualizaciones que requiere este documento
-- Cada vez que una fila cambie de estado (🔴 → 🟡 → ✅), actualizar aquí + fecha en el header.
-- Cada nueva decisión arquitectural se registra en la tabla "Decisiones canónicas" con enlace al documento fuente.
-- Los cambios de fase entera se anuncian en el commit message del cambio.
+Las Functions son stateless: no usar arrays en memoria como BD compartida. Persistencia e idempotencia de pedidos son compatibles con el host; jobs/reintentos de mensajería se diseñarán solo al ejecutar E-07. La migración futura puede cambiar únicamente la entrada HTTP/composición y conservar Postgres; si se cambia BD/auth/storage, probar equivalencia y datos como trabajo adicional.
 
----
+## Evidencia disponible y mantenimiento
 
-## Riesgos vigentes
+La evidencia vigente de apps es la verificación de `e567067` en prioridad 0: 17/17 tests PWA, 75/75 admin, typecheck app explícito, drift y build unificado pasan; lint sin errores/tres warnings por app. Sustituye el diagnóstico inicial de cinco errores PWA y la interpretación incorrecta de los scripts typecheck. Backend memory conserva la evidencia previa de 9/9 tests; no se ejecutaron migraciones, seed ni E2E de negocio real. GET `/` y `/admin/` del dominio público: HTML 200; su `/api/health` devuelve HTML PWA, distinto del Preview de feature identificado arriba.
 
-| Riesgo | Mitigación |
-|---|---|
-| Vercel Hobby "non-commercial" restringe operación real de L&M | Upgrade a Pro (USD 20/mes) cuando MAUI opere comercialmente de forma recurrente |
-| Neon cold starts en free tier | Aceptable en MVP; upgrade cuando el UX lo demande |
-| Divergencia contrato mock ↔ real | Contratos como `interface` compartidas en `shared/` (pendiente 1.8) |
-| WhatsApp Gateway no iniciado | Bloqueará Fase 1 completa; empezar warming del número 2 semanas antes del cutover |
-| Sesiones de validación (0.6) sin fecha aún — 0.5 ya está verde, la ausencia de fecha es lo único que bloquea la Fase 2 del RFC | **Acción inmediata:** fijar semana calendario para 5 usuarios + empleado L&M (owner) |
+GitHub/Vercel CLI/Neon SQL y browser automatizado están comprobados. Preview responde health JSON; aislamiento de recursos pendiente. Versiones, autenticación y ejecuciones de asistentes tienen su evidencia única en la [auditoría de herramientas](auditoria-herramientas.md). Codex/Claude dejan cambios, validación y límites en este plan sin sobrescribir trabajo ajeno.
 
----
+Las capacidades de los asistentes y sus pruebas de acceso se mantienen únicamente en la [auditoría de herramientas](auditoria-herramientas.md); la estrategia y el gitflow únicamente en [orquestación IA](orquestacion-ia.md). La evidencia de esas pruebas no se duplica aquí ni cierra un bloque de implementación.
 
-## Enlaces rápidos
+Registrar para cada `T-*`: estado, fecha, archivos/commit, pruebas y bloqueantes. Al completar, incorporar el avance a la lista 1. No exigir archivo SDD ni tareas operativas. Mantener IDs estables desde esta versión; cambios de alcance/dependencias se registran aquí. Los planes anteriores quedan en el historial Git, no como una segunda lista de tareas activas.
 
-- RFC demo: [`rfc-001-demo-validacion.md`](rfc-001-demo-validacion.md)
-- ADR stack: [`adr-001-stack-backend.md`](adr-001-stack-backend.md)
-- Análisis PO admin: [`../negocio/producto-review-admin-fase0.md`](producto-review-admin-fase0.md)
-- Roadmap v2 (post F&F): [`roadmap-v2-post-ff.md`](roadmap-v2-post-ff.md)
-- Roadmap v3 (escala/SaaS): [`roadmap-v3-saas-escala.md`](roadmap-v3-saas-escala.md)
-- Análisis PM MVP F&F: [`producto-analisis-mvp-ff.md`](producto-analisis-mvp-ff.md)
-- Ideas post-MVP: [`producto-ideas-post-mvp.md`](producto-ideas-post-mvp.md)
-- Backlog técnico SDD: [`../tech/backlog.md`](../tech/backlog.md)
-- Backend: [`../maui-back/README.md`](../maui-back/README.md)
+Referencias: [ADR stack](adr-001-stack-backend.md), [backend](../../maui-back/README.md), [catálogo base](../../shared/catalog/README.md), [contexto](../../MAUI-PWA-customers/MAUI-CONTEXT.md), [v2 histórico](../negocio/roadmap-v2-post-ff.md), [v3 histórico](../negocio/roadmap-v3-saas-escala.md). Los criterios comerciales/humanos de esos documentos no se importan al alcance técnico actual.

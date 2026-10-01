@@ -1,22 +1,9 @@
-## Tech SDD Kit
+# MAUI — Entrada para Claude Code
 
-This project uses **Tech SDD Kit** for spec-driven development.
+Leer y aplicar [AGENTS.md](AGENTS.md) antes de trabajar. Allí están las instrucciones comunes de alcance, clean code, modelos permitidos, coordinación y bloqueos; no se duplican aquí.
 
-### Spec Language
-All specifications MUST be written in **Spanish (Español)** (`es`).
-Do not mix languages in specs. Technical terms (API, REST, CRUD, mock, store) stay in English.
+- Estado y dependencias: [plan global](docs/tecnicos/estado-plan.md).
+- Política única de gitflow, sesiones y ejecución: [orquestación IA](docs/tecnicos/orquestacion-ia.md).
+- Capacidades y evidencia de acceso: [auditoría de herramientas](docs/tecnicos/auditoria-herramientas.md).
 
-### Quick Reference
-- Framework expert: `Skill("tech-sdd-kit-expert")`
-- Workflow: `/tech.start` → `/tech.spec` → `/tech.plan` → `/tech.build` → `/tech.finish`
-- Active feature: `tech/wip/20260611-evolucion-admin-panel-demo/`
-- **Plan de implementación global (fuente única de estado):** `docs/tecnicos/estado-plan.md`
-- **ADR stack backend (Vercel + Postgres, no AWS al inicio):** `docs/tecnicos/adr-001-stack-backend.md`
-- Análisis PO: `docs/negocio/producto-review-admin-fase0.md`
-- RFC demo aprobado: `docs/tecnicos/rfc-001-demo-validacion.md`
-- Backend scaffold: `maui-back/README.md`
-
-### Rules
-- Never create files under `tech/specs/`, `tech/wip/`, or `tech/features/` manually
-- Always go through the `/tech.start` workflow
-- Respect the phased workflow — don't skip phases
+Al trabajar dentro de un package, leer también sus instrucciones y contexto específicos. No importar reglas SDD históricas como requisitos activos.

@@ -19,7 +19,7 @@ Monorepo con **PWA de clientes**, **panel admin del aliado** y **backend serverl
 ├── shared/                  # Contratos y catálogo compartidos entre front y back
 ├── scripts/                 # Build unificado y utilidades
 ├── docs/                    # Toda la documentación estratégica y técnica
-└── tech/                    # SDD Kit (specs formales por feature)
+└── tech/                    # Antecedentes archivados del workflow anterior
 ```
 
 ---
@@ -37,10 +37,12 @@ Cada archivo tiene un rol único.
 
 | Documento | Propósito |
 |---|---|
-| [`estado-plan.md`](docs/tecnicos/estado-plan.md) | **Documento vivo.** Estado global "¿en qué vamos y qué falta?". Bitácora cronológica, fases, tareas y decisiones canónicas. Se actualiza en cada avance material. |
+| [`estado-plan.md`](docs/tecnicos/estado-plan.md) | **Plan de implementación directa con Codex y Claude Code.** Dos listas: avances y pendientes técnicos. Cinco entregas parciales culminan en un ambiente de test con seed, API/BD reales y flujo equivalente a producción; evolución posterior separada. Fuente única del estado global. |
+| [`orquestacion-ia.md`](docs/tecnicos/orquestacion-ia.md) | Política única de gitflow y coordinación Codex/Claude: sesiones, modelos, ownership, validación y separación de commits. |
+| [`auditoria-herramientas.md`](docs/tecnicos/auditoria-herramientas.md) | Capacidades/accesos comprobados y evidencia única de las pruebas de asistentes. |
 | [`adr-001-stack-backend.md`](docs/tecnicos/adr-001-stack-backend.md) | Por qué el backend arranca en **Vercel Functions + Neon Postgres + Drizzle** en vez de AWS SAM + DynamoDB, y bajo qué condiciones se migraría después. |
 | [`rfc-001-demo-validacion.md`](docs/tecnicos/rfc-001-demo-validacion.md) | RFC aprobado del sprint DEMO: validar hipótesis de producto con usuarios reales antes de invertir en backend. Alcance, flujo end-to-end y criterios de éxito. |
-| [`tech/backlog.md`](tech/backlog.md) | Backlog técnico gestionado por el SDD Kit (TODO / DEBT / IDEA). Vive fuera de `docs/` porque lo gestiona el SDD Kit. |
+| [`tech/backlog.md`](tech/backlog.md) | Backlog histórico TODO / DEBT / IDEA. Sus brechas técnicas se consideran en el plan actual; ya no exige SDD. |
 
 ### 💼 Negocio — [`docs/negocio/`](docs/negocio/)
 
@@ -68,7 +70,8 @@ Cada package mantiene su propio README con setup y detalles internos.
 
 | Documento | Propósito |
 |---|---|
-| [`CLAUDE.md`](CLAUDE.md) | Reglas del proyecto para Claude Code: workflow SDD, idioma de specs, punteros a documentos canónicos. |
+| [`AGENTS.md`](AGENTS.md) | Instrucciones comunes: alcance, clean code y referencias a las fuentes canónicas. |
+| [`CLAUDE.md`](CLAUDE.md) | Entrada de Claude Code que remite a AGENTS.md, sin duplicar sus reglas. |
 | [`MAUI-PWA-customers/CLAUDE.md`](MAUI-PWA-customers/CLAUDE.md) | Reglas específicas del paquete PWA. |
 
 ---
@@ -79,4 +82,4 @@ Cada package mantiene su propio README con setup y detalles internos.
 - **Entender qué es MAUI:** [`MAUI-PWA-customers/MAUI-CONTEXT.md`](MAUI-PWA-customers/MAUI-CONTEXT.md).
 - **Levantar la PWA localmente:** `cd MAUI-PWA-customers && npm install && npm run dev`.
 - **Levantar el backend localmente:** ver [`maui-back/README.md`](maui-back/README.md).
-- **Deployar:** cada push a `master` dispara auto-deploy a Production; cada push a `develop` genera Preview.
+- **Ramas e integración:** seguir el [gitflow único](docs/tecnicos/orquestacion-ia.md#gitflow-y-separación-de-entregas); el entregable actual es test. Las promociones/push pendientes se ejecutan con la aprobación que corresponda al encargo.

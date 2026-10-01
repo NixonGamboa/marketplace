@@ -1,12 +1,5 @@
-# CLAUDE.md — Reglas del Proyecto MAUI
+# MAUI PWA — Contexto para Claude Code
 
-## Workflow de Features
-
-Al terminar cada feature (después de `/maui.finish`), actualizar `tareas/roadmap.md`:
-- Marcar la feature como completada (añadir `✅` al título)
-- Anotar la fecha de finalización
-- Actualizar el estado de dependencias desbloqueadas si aplica
-
-## Contexto del Proyecto
-
-Leer `MAUI-CONTEXT.md` para entender el objetivo del producto y el perfil del usuario antes de tomar cualquier decisión de diseño o arquitectura.
+Seguir la [entrada raíz](../CLAUDE.md) y las instrucciones comunes que referencia.
+Leer [MAUI-CONTEXT.md](MAUI-CONTEXT.md) antes de decisiones de diseño o arquitectura.
+Las reglas de ejecución y el estado global se mantienen en sus documentos canónicos; aquí solo se conserva contexto del package.
