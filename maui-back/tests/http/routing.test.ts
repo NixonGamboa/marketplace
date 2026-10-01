@@ -10,6 +10,15 @@ const rewrites = config.rewrites.map(route => ({ ...route, expression: pathToReg
 const fallback = (path: string) => rewrites.find(route => route.expression.test(path))?.destination
 
 describe('fallbacks de routing después del filesystem de Vercel', () => {
+  it.each(['/api/orders/pedido-123', '/api/orders/bad%20id'])('%s llega al handler que valida ID', path => {
+    expect(fallback(path)).toBe('/api/orders/[id]')
+  })
+
+  it('PATCH de estado conserva handler y rutas profundas desconocidas usan 404', () => {
+    expect(fallback('/api/orders/pedido-123/status')).toBe('/api/orders/[id]/status')
+    expect(fallback('/api/orders/pedido-123/status/extra')).toBe('/api/not-found')
+  })
+
   it.each(['/api', '/api/', '/api/no-existe', '/api/no-existe/', '/api/orders/desconocido/ruta'])('%s usa handler JSON 404', path => {
     expect(fallback(path)).toBe('/api/not-found')
   })

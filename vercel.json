@@ -5,6 +5,8 @@
   "installCommand": "npm install",
   "framework": null,
   "rewrites": [
+    { "source": "/api/orders/:id/status", "destination": "/api/orders/[id]/status" },
+    { "source": "/api/orders/:id", "destination": "/api/orders/[id]" },
     { "source": "/api", "destination": "/api/not-found" },
     { "source": "/api/(.*)", "destination": "/api/not-found" },
     { "source": "/admin", "destination": "/admin/index.html" },
