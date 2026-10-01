@@ -21,6 +21,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*", "drizzle.config.ts"],
+  "include": ["src/**/*", "tests/**/*", "drizzle.config.ts", "../api/**/*.ts", "../shared/**/*.ts"],
   "exclude": ["node_modules", "dist", ".vercel"]
 }

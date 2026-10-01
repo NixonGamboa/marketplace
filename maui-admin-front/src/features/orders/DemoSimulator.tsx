@@ -24,7 +24,9 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus | null> = {
   confirmed: 'preparing',
   preparing: 'ready',
   ready:     'delivered',
+  in_delivery: 'delivered',
   delivered: null,
+  cancelled: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ export default function DemoSimulator({
   currentStatus,
   onStatusChange,
 }: DemoSimulatorProps) {
+  const isTerminalStatus = currentStatus === 'delivered' || currentStatus === 'cancelled'
   const [isRunning, setIsRunning] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(DEMO_INTERVAL_MS / 1000)
 
@@ -49,8 +52,8 @@ export default function DemoSimulator({
       return
     }
 
-    // Stop immediately when already at the terminal state
-    if (currentStatus === 'delivered') {
+    // Stop immediately when already at a terminal state
+    if (isTerminalStatus) {
       setIsRunning(false)
       return
     }
@@ -71,21 +74,21 @@ export default function DemoSimulator({
     }, DEMO_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [isRunning, currentStatus, orderId, handleStatusChange])
+  }, [isRunning, currentStatus, isTerminalStatus, orderId, handleStatusChange])
 
   // Countdown tick — runs only while the simulator is running
   useEffect(() => {
-    if (!isRunning || currentStatus === 'delivered') return
+    if (!isRunning || isTerminalStatus) return
 
     const tick = setInterval(() => {
       setSecondsLeft((prev) => (prev > 1 ? prev - 1 : DEMO_INTERVAL_MS / 1000))
     }, 1000)
 
     return () => clearInterval(tick)
-  }, [isRunning, currentStatus])
+  }, [isRunning, isTerminalStatus])
 
   function handleToggle() {
-    if (currentStatus === 'delivered') return
+    if (isTerminalStatus) return
     setIsRunning((prev) => !prev)
   }
 
@@ -93,7 +96,7 @@ export default function DemoSimulator({
   // Render: terminal state
   // ---------------------------------------------------------------------------
 
-  if (currentStatus === 'delivered') {
+  if (isTerminalStatus) {
     return (
       <section
         aria-label="Simulador de demo — finalizado"
@@ -104,7 +107,7 @@ export default function DemoSimulator({
           <span className="text-sm font-medium">Demo finalizada</span>
         </div>
         <p className="mt-1 text-xs text-purple-600">
-          El pedido llegó al estado final: Entregado.
+          El pedido llegó al estado final: {currentStatus === 'cancelled' ? 'Cancelado' : 'Entregado'}.
         </p>
       </section>
     )

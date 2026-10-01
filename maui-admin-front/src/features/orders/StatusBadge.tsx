@@ -15,7 +15,9 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
   confirmed: { label: 'Confirmado', bg: 'bg-yellow-100',  text: 'text-yellow-700' },
   preparing: { label: 'Preparando', bg: 'bg-orange-100',  text: 'text-orange-700' },
   ready:     { label: 'Listo',      bg: 'bg-green-100',   text: 'text-green-700'  },
+  in_delivery: { label: 'En camino', bg: 'bg-purple-100', text: 'text-purple-700' },
   delivered: { label: 'Entregado',  bg: 'bg-gray-100',    text: 'text-gray-600'   },
+  cancelled: { label: 'Cancelado',  bg: 'bg-red-100',     text: 'text-red-700'    },
 }
 
 interface StatusBadgeProps {

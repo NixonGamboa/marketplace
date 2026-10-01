@@ -9,7 +9,7 @@
 // - Delays simulan latencia de red (300–800ms).
 
 import type { OrderStatus, CartItem } from '@/types/orderService'
-import type { AdminOrder } from '@/types/adminOrder'
+import { isCancelled, type AdminOrder } from '@/types/adminOrder'
 import { randomDelay } from './delay'
 import { mockAuditRepository } from './mockAuditRepository'
 import { phoneMatchesQuery } from '@/lib/phone'
@@ -116,7 +116,7 @@ export const mockOrderRepository: OrderRepository = {
     const orders = readAll()
     const current = orders[orderId]
     if (!current) throw new Error(`Pedido ${orderId} no encontrado`)
-    if (current.cancellationReason) {
+    if (isCancelled(current)) {
       throw new Error('No se puede modificar un pedido cancelado (RN-6)')
     }
     if (current.status === 'delivered') {
@@ -187,8 +187,11 @@ export const mockOrderRepository: OrderRepository = {
     const orders = readAll()
     const current = orders[orderId]
     if (!current) throw new Error(`Pedido ${orderId} no encontrado`)
-    if (current.cancellationReason) {
+    if (isCancelled(current)) {
       throw new Error('El pedido ya estaba cancelado (RN-6)')
+    }
+    if (current.status === 'delivered') {
+      throw new Error('No se puede cancelar un pedido entregado')
     }
     const now = new Date().toISOString()
     const updated: AdminOrder = {

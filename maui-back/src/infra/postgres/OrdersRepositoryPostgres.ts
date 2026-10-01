@@ -1,5 +1,6 @@
 import { and, desc, eq, lt } from 'drizzle-orm'
 import type { Order, OrderStatus } from '../../domain/orders/Order.js'
+import { orderFromRecord, orderToRecord } from '../../domain/orders/orderRecord.js'
 import type {
   ListOrdersOptions,
   OrdersRepository,
@@ -12,12 +13,9 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
   constructor(private readonly db: Db) {}
 
   async create(order: Order): Promise<Order> {
-    const [row] = await this.db
-      .insert(ordersTable)
-      .values({ ...order, deliveryAddress: order.deliveryAddress ?? null })
-      .returning()
+    const [row] = await this.db.insert(ordersTable).values(orderToRecord(order)).returning()
     if (!row) throw new Error('Insert failed')
-    return this.rowToOrder(row)
+    return orderFromRecord(row)
   }
 
   async findById(id: string): Promise<Order | null> {
@@ -26,7 +24,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
       .from(ordersTable)
       .where(eq(ordersTable.id, id))
       .limit(1)
-    return row ? this.rowToOrder(row) : null
+    return row ? orderFromRecord(row) : null
   }
 
   async listByStore(storeId: string, opts?: ListOrdersOptions): Promise<Order[]> {
@@ -41,7 +39,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
       .orderBy(desc(ordersTable.createdAt))
       .limit(opts?.limit ?? 50)
 
-    return rows.map((r) => this.rowToOrder(r))
+    return rows.map(orderFromRecord)
   }
 
   async updateStatus(id: string, status: OrderStatus, updatedAt: string): Promise<Order> {
@@ -51,24 +49,6 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
       .where(eq(ordersTable.id, id))
       .returning()
     if (!row) throw new NotFoundError('Order', id)
-    return this.rowToOrder(row)
-  }
-
-  private rowToOrder(row: typeof ordersTable.$inferSelect): Order {
-    return {
-      id: row.id,
-      storeId: row.storeId,
-      customerId: row.customerId,
-      customerName: row.customerName,
-      customerPhone: row.customerPhone,
-      items: row.items,
-      total: row.total,
-      status: row.status as OrderStatus,
-      deliveryMode: row.deliveryMode as Order['deliveryMode'],
-      substitutionPreference: row.substitutionPreference as Order['substitutionPreference'],
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      ...(row.deliveryAddress !== null ? { deliveryAddress: row.deliveryAddress } : {}),
-    }
+    return orderFromRecord(row)
   }
 }

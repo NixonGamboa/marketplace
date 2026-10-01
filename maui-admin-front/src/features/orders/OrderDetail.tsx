@@ -18,7 +18,9 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus | null> = {
   confirmed: 'preparing',
   preparing: 'ready',
   ready:     'delivered',
+  in_delivery: 'delivered',
   delivered: null,
+  cancelled: null,
 }
 
 const TRANSITION_LABELS: Record<OrderStatus, string> = {
@@ -26,7 +28,9 @@ const TRANSITION_LABELS: Record<OrderStatus, string> = {
   confirmed: 'Marcar como preparando',
   preparing: 'Marcar como listo',
   ready:     'Marcar como entregado',
+  in_delivery: 'Marcar como entregado',
   delivered: '',
+  cancelled: '',
 }
 
 // ---------------------------------------------------------------------------
@@ -200,7 +204,11 @@ export default function OrderDetail() {
             {TRANSITION_LABELS[status]}
           </button>
         ) : (
-          <p className="text-sm text-gray-500">El pedido ya fue entregado. No hay más transiciones disponibles.</p>
+          <p className="text-sm text-gray-500">
+            {status === 'cancelled'
+              ? 'El pedido fue cancelado. No hay más transiciones disponibles.'
+              : 'El pedido ya fue entregado. No hay más transiciones disponibles.'}
+          </p>
         )}
       </section>
 

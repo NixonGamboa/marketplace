@@ -10,16 +10,12 @@
                   brand-dark  (#0F172A) sobre blanco = 18.8:1 ✓
 */
 
-import { Inbox, CheckCircle, Package, Truck, Home, Check } from 'lucide-react'
+import { Inbox, CheckCircle, Package, Truck, Home, Check, XCircle } from 'lucide-react'
+import type { OrderStatus } from '@/types/orderService'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type OrderStatus =
-  | 'received'
-  | 'confirmed'
-  | 'preparing'
-  | 'ready'
-  | 'delivered'
+export type { OrderStatus }
 
 export interface OrderTimelineProps {
   currentStatus: OrderStatus
@@ -56,8 +52,10 @@ function getStepState(
   stepKey: OrderStatus,
   currentStatus: OrderStatus,
 ): 'completed' | 'active' | 'future' {
+  // `in_delivery` se muestra sobre el paso «Listo» (rotulado «En camino»); `cancelled` se
+  // resuelve antes en el componente y nunca llega aquí.
   const stepIdx    = STATUS_ORDER.indexOf(stepKey)
-  const currentIdx = STATUS_ORDER.indexOf(currentStatus)
+  const currentIdx = STATUS_ORDER.indexOf(currentStatus === 'in_delivery' ? 'ready' : currentStatus)
   if (stepIdx < currentIdx) return 'completed'
   if (stepIdx === currentIdx) return 'active'
   return 'future'
@@ -82,6 +80,27 @@ export default function OrderTimeline({
   currentStatus,
   timestamps = {},
 }: OrderTimelineProps) {
+  // Cancelado es terminal y no avanza el flujo: no se dibujan pasos como completados.
+  if (currentStatus === 'cancelled') {
+    const cancelledAt = timestamps.cancelled
+    return (
+      <ol role="list" aria-label="Estado del pedido" className="flex flex-col gap-0">
+        <li aria-current="step" className="flex gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+            <XCircle size={20} aria-hidden />
+          </div>
+          <div className="pt-1.5">
+            <p className="text-sm font-semibold leading-tight text-brand-dark">Cancelado</p>
+            <p className="text-xs leading-snug mt-0.5 text-red-700 font-semibold">Pedido cancelado</p>
+            {cancelledAt && (
+              <p className="mt-1 text-xs text-brand-muted">{formatTimestamp(cancelledAt)}</p>
+            )}
+          </div>
+        </li>
+      </ol>
+    )
+  }
+
   return (
     <ol
       role="list"
@@ -174,7 +193,7 @@ export default function OrderTimeline({
             {/* Right column: text content */}
             <div className={['pb-6 pt-1.5', isLast ? 'pb-0' : ''].join(' ')}>
               <p className={['text-sm font-semibold leading-tight', labelClass].join(' ')}>
-                {step.label}
+                {step.key === 'ready' && currentStatus === 'in_delivery' ? 'En camino' : step.label}
               </p>
               <p className={['text-xs leading-snug mt-0.5', statusLabelClass].join(' ')}>
                 {statusWord}

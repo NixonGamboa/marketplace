@@ -110,7 +110,7 @@ async function typeSearch(value: string) {
 }
 
 describe('OrdersListPage', () => {
-  it('AC-1: muestra 5 tabs con badge de conteo', async () => {
+  it('muestra tabs del ciclo de pedidos con badge de conteo', async () => {
     await renderPage()
 
     expect(screen.getByRole('tab', { name: /Recibidos/i })).toBeInTheDocument()
@@ -118,6 +118,34 @@ describe('OrdersListPage', () => {
     expect(screen.getByRole('tab', { name: /Preparando/i })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Listos/i })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Entregados/i })).toBeInTheDocument()
+  })
+
+  it('estados comunes: tab «En camino» y cancelados canónicos con su contador', async () => {
+    const { orderRepo } = await import('@/services')
+    const base = fixture[0]!
+    vi.mocked(orderRepo.list).mockResolvedValue([
+      ...fixture,
+      { ...base, orderId: 'MAUI-005', status: 'in_delivery', customerName: 'Pedro En Camino' },
+      { ...base, orderId: 'MAUI-006', status: 'cancelled', customerName: 'Sara Cancelada' },
+    ])
+    await renderPage()
+
+    const inDeliveryTab = screen.getByRole('tab', { name: /En camino/i })
+    expect(inDeliveryTab).toHaveTextContent('1')
+    expect(screen.getByRole('tab', { name: /Cancelados/i })).toHaveTextContent('1')
+    // Un cancelado canónico no se cuenta en «Recibidos» (2 recibidos: MAUI-001 y MAUI-003).
+    expect(screen.getByRole('tab', { name: /Recibidos/i })).toHaveTextContent('2')
+
+    await act(async () => {
+      fireEvent.click(inDeliveryTab)
+    })
+    expect(screen.getByRole('link', { name: /Pedido MAUI-005 de Pedro En Camino/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Pedido MAUI-006 de Sara Cancelada/ })).not.toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /Cancelados/i }))
+    })
+    expect(screen.getByRole('link', { name: /Pedido MAUI-006 de Sara Cancelada/ })).toBeInTheDocument()
   })
 
   it('AC-2: búsqueda "0101" (4 dígitos) filtra por sufijo de teléfono', async () => {

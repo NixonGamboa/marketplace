@@ -10,7 +10,9 @@ export const WHATSAPP_TEMPLATES: Record<Exclude<OrderStatus, 'received'>, Messag
   confirmed: (name, id) => `Hola ${name}, ya recibimos tu pedido ${id} 🛒 Lo estamos confirmando.`,
   preparing: (name, id) => `Hola ${name}, ya estamos preparando tu pedido ${id} 📦`,
   ready:     (name, id) => `Hola ${name}, tu mercado ${id} está listo para entrega 🎉`,
+  in_delivery: (name, id) => `Hola ${name}, tu pedido ${id} va en camino 🛵`,
   delivered: (name, id) => `Hola ${name}, tu pedido ${id} fue entregado. ¡Gracias por tu compra! 🙏`,
+  cancelled: (name, id) => `Hola ${name}, tu pedido ${id} fue cancelado. Escríbenos si necesitas ayuda.`,
 }
 
 export function buildWhatsAppLink(status: Exclude<OrderStatus, 'received'>, name: string, orderId: string): string {

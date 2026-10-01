@@ -28,7 +28,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   confirmed: 'Confirmados',
   preparing: 'Preparando',
   ready: 'Listos',
+  in_delivery: 'En camino',
   delivered: 'Entregados',
+  cancelled: 'Cancelados',
 }
 
 const STATUS_COLORS: Record<OrderStatus, { bg: string; text: string; border: string }> = {
@@ -36,10 +38,12 @@ const STATUS_COLORS: Record<OrderStatus, { bg: string; text: string; border: str
   confirmed: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
   preparing: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
   ready:     { bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200'  },
+  in_delivery: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   delivered: { bg: 'bg-gray-50',   text: 'text-gray-700',   border: 'border-gray-200'   },
+  cancelled: { bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200'    },
 }
 
-const ORDERED_STATUSES: OrderStatus[] = ['received', 'confirmed', 'preparing', 'ready', 'delivered']
+const ORDERED_STATUSES: OrderStatus[] = ['received', 'confirmed', 'preparing', 'ready', 'in_delivery', 'delivered']
 
 /** Devuelve true si `isoString` corresponde al día de hoy en hora local. */
 function isToday(isoString: string): boolean {
@@ -111,7 +115,7 @@ export function DashboardPage() {
       <h1 className="text-xl font-bold text-gray-900 mb-5">Dashboard del día</h1>
 
       {/* Cards de status */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {ORDERED_STATUSES.map((status) => {
           const { bg, text, border } = STATUS_COLORS[status]
           return (

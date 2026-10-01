@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
-import type { AdminOrder } from '@/types/adminOrder'
+import { isCancelled as isOrderCancelled, isTerminal, type AdminOrder } from '@/types/adminOrder'
 import type { Product } from '@/types/catalog'
 import { orderRepo, catalogRepo } from '@/services'
 import { useSession } from '@/auth/useSession'
@@ -27,6 +27,7 @@ const TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
   confirmed: 'preparing',
   preparing: 'ready',
   ready: 'delivered',
+  in_delivery: 'delivered',
 }
 
 const TRANSITION_LABELS: Record<string, string> = {
@@ -34,6 +35,7 @@ const TRANSITION_LABELS: Record<string, string> = {
   confirmed: 'Marcar como preparando',
   preparing: 'Marcar como listo',
   ready: 'Marcar como entregado',
+  in_delivery: 'Marcar como entregado',
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +248,9 @@ export function OrderDetailPage() {
     )
   }
 
-  const isCancelled = Boolean(order.cancellationReason)
+  const isCancelled = isOrderCancelled(order)
+  // Cancelar solo hasta «listo»; en camino y los estados finales no se cancelan (contrato común).
+  const canCancel = !isTerminal(order) && order.status !== 'in_delivery'
   const { lat, lng } = order.deliveryData
   const hasValidCoordinates = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90
     && typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180
@@ -303,7 +307,9 @@ export function OrderDetailPage() {
       {isCancelled && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
           <p className="text-sm font-semibold text-red-700">Pedido cancelado</p>
-          <p className="text-sm text-red-600 mt-0.5">{order.cancellationReason}</p>
+          {order.cancellationReason && (
+            <p className="text-sm text-red-600 mt-0.5">{order.cancellationReason}</p>
+          )}
         </div>
       )}
 
@@ -412,7 +418,7 @@ export function OrderDetailPage() {
                       {advanceBusy ? 'Guardando...' : TRANSITION_LABELS[order.status]}
                     </button>
                   )}
-                  {order.status !== 'delivered' && (
+                  {canCancel && (
                     <CancelSection
                       orderId={order.orderId}
                       by={by}

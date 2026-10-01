@@ -61,7 +61,9 @@ export const WA_MESSAGES: Record<OrderStatus, (id: string) => string> = {
   confirmed: (id) => `Hola, sobre mi pedido ${id} ¿alguna actualización?`,
   preparing: (id) => `Hola, sobre mi pedido ${id} ¿cuánto falta?`,
   ready:     (id) => `Hola, sobre mi pedido ${id} listo para entrega`,
+  in_delivery: (id) => `Hola, sobre mi pedido ${id} ¿cuánto falta para que llegue?`,
   delivered: (id) => `Hola, sobre mi pedido ${id}`,
+  cancelled: (id) => `Hola, sobre mi pedido ${id} cancelado`,
 }
 
 // ─── Demo ─────────────────────────────────────────────────────────────────────

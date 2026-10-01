@@ -1,10 +1,11 @@
 import type { OrdersRepository } from '../domain/orders/OrdersRepository.js'
-import { config } from '../shared/config.js'
+import { getConfig } from '../shared/config.js'
 import { OrdersRepositoryMemory } from './memory/OrdersRepositoryMemory.js'
 
 let cached: { orders: OrdersRepository } | null = null
 
 export const getRepositories = async (): Promise<{ orders: OrdersRepository }> => {
+  const config = getConfig()
   if (cached) return cached
 
   if (config.DB_DRIVER === 'memory') {

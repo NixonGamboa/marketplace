@@ -21,8 +21,12 @@ export function messageForStatus(status: OrderStatus, orderId: string): string {
       return `Tu pedido ${orderId} ya está en preparación.`
     case 'ready':
       return `Tu pedido ${orderId} está listo para recoger o ser enviado.`
+    case 'in_delivery':
+      return `Tu pedido ${orderId} va en camino.`
     case 'delivered':
       return `Tu pedido ${orderId} fue entregado. ¡Gracias por tu compra!`
+    case 'cancelled':
+      return `Tu pedido ${orderId} fue cancelado. Escríbenos si necesitas ayuda.`
     default:
       return `Actualización sobre tu pedido ${orderId}.`
   }

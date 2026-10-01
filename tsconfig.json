@@ -16,6 +16,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["api/**/*", "maui-back/src/**/*"],
+  "include": ["api/**/*", "maui-back/src/**/*", "shared/**/*"],
   "exclude": ["node_modules", "**/node_modules", "**/dist", "**/.vercel", "MAUI-PWA-customers", "maui-admin-front"]
 }

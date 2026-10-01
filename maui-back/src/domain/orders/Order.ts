@@ -1,74 +1,55 @@
-import { z } from 'zod'
+import type {
+  DeliveryDataDto,
+  DeliveryType,
+  OrderItemDto,
+  OrderStatus,
+  SubstitutionPref,
+} from '../../../../shared/contracts/index.js'
 
-export const OrderStatus = {
-  RECEIVED: 'received',
-  PREPARING: 'preparing',
-  READY: 'ready',
-  IN_DELIVERY: 'in_delivery',
-  DELIVERED: 'delivered',
-  CANCELLED: 'cancelled',
-} as const
+export { OrderStatus } from '../../../../shared/contracts/index.js'
+export type {
+  DeliveryType,
+  SubstitutionPref,
+} from '../../../../shared/contracts/index.js'
 
-export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus]
+/**
+ * Modelo interno del pedido (persistencia/casos de uso). No es el DTO público:
+ * incluye `storeId` y usa `id/customerId`; `toOrderDto` lo proyecta al contrato cliente.
+ */
+export interface Order {
+  id: string
+  storeId: string
+  customerId: string
+  customerName: string
+  /** Celular canónico; ausente solo en pedidos legacy con teléfono irrecuperable. */
+  customerPhone?: string
+  items: OrderItemDto[]
+  status: OrderStatus
+  deliveryType: DeliveryType
+  deliveryData: DeliveryDataDto
+  substitutionPreference: SubstitutionPref
+  /** Snapshot del envío; ausente en pedidos legacy. */
+  shippingCost?: number
+  /** Estimación original (ítems con peso solicitado + envío). */
+  estimatedTotal: number
+  /** Total con pesos reales; se fija al registrarlos (T-12). */
+  finalTotal?: number
+  /** ISO UTC. */
+  createdAt: string
+  updatedAt: string
+}
 
-export const DeliveryMode = {
-  PICKUP: 'pickup',
-  DELIVERY: 'delivery',
-} as const
+/**
+ * Contexto confiable para operar un pedido. Debe derivarse de la sesión/credenciales
+ * (T-05/T-06), nunca del body.
+ *
+ * LÍMITE VIGENTE: sin auth, el handler solo conoce la tienda por defecto y
+ * `customerId` cae al `userId` del payload (no verificado, no otorga permisos).
+ */
+export interface OrderContext {
+  storeId: string
+  customerId?: string
+}
 
-export type DeliveryMode = (typeof DeliveryMode)[keyof typeof DeliveryMode]
-
-export const SubstitutionPreference = {
-  ALLOW: 'allow',
-  ASK: 'ask',
-  NONE: 'none',
-} as const
-
-export type SubstitutionPreference =
-  (typeof SubstitutionPreference)[keyof typeof SubstitutionPreference]
-
-export const orderItemSchema = z.object({
-  productId: z.string().min(1),
-  name: z.string().min(1),
-  priceAtMoment: z.number().int().nonnegative(),
-  quantity: z.number().int().positive().optional(),
-  kilos: z.number().positive().optional(),
-  isVariableWeight: z.boolean(),
-})
-
-export type OrderItem = z.infer<typeof orderItemSchema>
-
-export const orderSchema = z.object({
-  id: z.string(),
-  storeId: z.string().min(1),
-  customerId: z.string().min(1),
-  customerName: z.string().min(1),
-  customerPhone: z.string().min(1),
-  items: z.array(orderItemSchema).min(1),
-  total: z.number().int().nonnegative(),
-  status: z.enum([
-    OrderStatus.RECEIVED,
-    OrderStatus.PREPARING,
-    OrderStatus.READY,
-    OrderStatus.IN_DELIVERY,
-    OrderStatus.DELIVERED,
-    OrderStatus.CANCELLED,
-  ]),
-  deliveryMode: z.enum([DeliveryMode.PICKUP, DeliveryMode.DELIVERY]),
-  deliveryAddress: z.string().optional(),
-  substitutionPreference: z.enum([
-    SubstitutionPreference.ALLOW,
-    SubstitutionPreference.ASK,
-    SubstitutionPreference.NONE,
-  ]),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-})
-
-export type Order = z.infer<typeof orderSchema>
-
-export const newOrderInputSchema = orderSchema
-  .omit({ id: true, status: true, createdAt: true, updatedAt: true, total: true })
-  .strict()
-
-export type NewOrderInput = z.infer<typeof newOrderInputSchema>
+/** Tienda única hasta que T-08 persista la configuración del aliado. */
+export const DEFAULT_STORE_ID = 'leche-y-miel'

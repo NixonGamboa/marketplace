@@ -46,16 +46,32 @@ o de Vercel a AWS Lambda = agregar un adapter + swap del factory.
 cd maui-back
 npm install
 cp .env.example .env.local     # completar DATABASE_URL con tu Neon
+                              # APP_ENV=test y destinos declarados si la BD es remota
 npm run db:generate            # genera migraciones desde schema.ts
-npm run db:migrate             # aplica migraciones en Neon
-npm run dev                    # arranca vercel dev en http://localhost:3000
+npm run db:migrate             # solo tras comprobar aislamiento; lee .env.local
 ```
+
+Node requerido: `24.x` en raíz/backend. Para las Functions locales, ejecutar
+`vercel dev` desde la raíz del monorepo, donde vive `api/`; no iniciar el runtime
+desde `maui-back/`. Las variables del servidor deben estar disponibles en ese proceso.
+
+`APP_ENV` indica el destino (`local/test/production`), independientemente de
+`NODE_ENV`. Preview exige `APP_ENV=test` y Postgres, incluso con
+`NODE_ENV=production`. Las conexiones remotas exigen `TEST_DATABASE_HOST`,
+`TEST_DATABASE_NAME`, `PRODUCTION_DATABASE_HOST` y `PRODUCTION_DATABASE_NAME`
+verificados; los endpoints deben ser distintos. `local` solo admite Postgres en
+loopback. El cliente, migrador y Drizzle validan el destino antes de acceder a BD.
+`db:generate` es offline y no requiere credenciales. No guardar secretos en Git ni
+en variables `VITE_*`. El aislamiento cloud vigente se registra en el plan.
 
 Para desarrollo sin BD:
 
 ```bash
-DB_DRIVER=memory npm run dev
+APP_ENV=local DB_DRIVER=memory vercel dev # desde la raíz
 ```
+
+Con memory, `/api/health` responde 503: este modo sirve para desarrollo/pruebas,
+no acredita conectividad ni persistencia real.
 
 ## Comandos
 
@@ -73,10 +89,15 @@ DB_DRIVER=memory npm run dev
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/health` | Health check |
-| POST | `/api/orders` | Crea pedido |
+| GET / HEAD | `/api/health` | SELECT 1 real; 200 conectado o 503 seguro |
+| POST | `/api/orders` | Request compartido; devuelve `OrderConfirmationDto` |
 | GET | `/api/orders/:id` | Detalle |
 | PATCH | `/api/orders/:id/status` | Cambia estado (con validación de transición) |
+
+GET/PATCH devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
+incluyendo `/api` y `/api/`. Métodos no admitidos responden 405 con `Allow`.
+El health ejecuta SELECT 1 con límite de cinco segundos y no publica URL/credenciales.
+El build unificado todavía usa demo: su eliminación corresponde a T-23.
 
 ## Cambios de schema (migraciones)
 
@@ -141,6 +162,19 @@ Ver ADR §4. En resumen:
 
 ## Contratos con el frontend
 
-Los tipos de `src/domain/orders/Order.ts` deberían moverse a `../shared/` cuando
-se acuerde con el frontend cómo consumirlos (import compartido vs generación
-desde OpenAPI). Por ahora viven en el backend como source of truth.
+DTOs y esquemas runtime en [`../shared/contracts/`](../shared/contracts/README.md).
+PWA/admin consumen tipos comunes; el backend conserva un modelo interno con
+`id/customerId/storeId` y proyecta respuestas por lista blanca con validación runtime.
+El DTO usa `orderId/userId/deliveryType/deliveryData`, teléfono normalizado y
+`call_me/similar/remove`. La estimación conserva pesos solicitados/envío; el total
+final solo puede existir cuando todos los pesos variables reales estén registrados.
+
+La migración aditiva `0001_orders_contract_fields.sql` agrega envío/final/GPS/franja
+sin borrar datos ni reescribir `total`. El mapper lee ítems/sustituciones antiguos;
+`kilos` legacy se interpreta como peso solicitado, nunca real. La migración está
+preparada offline y **no se ha aplicado** en esta feature. Antes de desplegar las
+Functions de pedidos debe aplicarse sobre el destino de test comprobado.
+
+T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas.
+`userId`, nombre/precio y envío del request aún no son autoridad confiable;
+GET/PATCH siguen sin autorización hasta T-05/T-06. T-10/T-12 completan esas reglas.

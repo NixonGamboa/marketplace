@@ -10,7 +10,10 @@
     }
   },
   "rewrites": [
-    { "source": "/admin/:path*", "destination": "/admin/index.html" },
-    { "source": "/((?!admin/|api/|_lib/).*)", "destination": "/index.html" }
+    { "source": "/api", "destination": "/api/not-found" },
+    { "source": "/api/(.*)", "destination": "/api/not-found" },
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/admin/(.*)", "destination": "/admin/index.html" },
+    { "source": "/((?!admin(?:/|$)|api(?:/|$)|_lib(?:/|$)).*)", "destination": "/index.html" }
   ]
 }

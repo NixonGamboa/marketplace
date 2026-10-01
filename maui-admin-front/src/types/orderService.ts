@@ -1,21 +1,28 @@
 // Service-layer types for the Order Service contract.
-// These types match the REST API contract defined in the technical spec
-// and are used by both mockOrderService and realOrderService.
+// Fuente única: `shared/contracts` (esquemas Zod y DTOs, validados también por el backend).
+// Este archivo solo expone esos tipos con los nombres de la UI y define la interfaz del
+// servicio; se replica byte-a-byte en PWA y admin (ADR-002, scripts/check-types-drift.sh).
 
-export type OrderStatus = 'received' | 'confirmed' | 'preparing' | 'ready' | 'delivered'
+import type {
+  CreateOrderRequest,
+  DeliveryDataDto,
+  DeliveryType,
+  OrderConfirmationDto,
+  OrderDto,
+  OrderItemDto,
+  OrderStatus,
+  SubstitutionPref,
+  TimeSlot,
+} from '@shared/contracts'
 
-export type DeliveryType = 'pickup' | 'delivery'
-
-export type SubstitutionPref = 'call_me' | 'similar' | 'remove'
-
-export type TimeSlot = 'morning' | 'afternoon' | 'asap'
+export type { DeliveryType, OrderStatus, SubstitutionPref, TimeSlot }
 
 /**
  * Ítem del carrito / pedido.
  *
  * Productos de **peso variable** (ej. carnes, granos por kg) usan `priceAtMoment`
  * como **precio por kilogramo** (ADR-006). Para esos productos:
- *  - `is_variable_weight = true`
+ *  - `is_variable_weight = true` y `qty = 1`
  *  - `kilosRequested` = peso solicitado por el cliente al ordenar
  *  - `kilosReal` = peso real pesado en mostrador por el aliado al preparar el
  *    pedido (capturado desde el panel admin). Hasta que el aliado lo registra
@@ -23,65 +30,26 @@ export type TimeSlot = 'morning' | 'afternoon' | 'asap'
  * Para productos de peso fijo los tres campos quedan ausentes y `qty` es la
  * cantidad de unidades.
  */
-export interface CartItem {
-  id: string
-  qty: number
-  priceAtMoment: number
-  is_variable_weight?: boolean
-  kilosRequested?: number
-  kilosReal?: number
-}
+export type CartItem = OrderItemDto
 
-export interface DeliveryData {
-  address?: string
-  lat?: number
-  lng?: number
-  timeSlot?: TimeSlot
-}
+export type DeliveryData = DeliveryDataDto
 
-export interface OrderPayload {
-  userId: string
-  items: CartItem[]
-  substitutionPreference: SubstitutionPref
-  deliveryType: DeliveryType
-  deliveryData: DeliveryData
-  customerName: string
-  /** Celular colombiano canónico: prefijo 57 seguido de 10 dígitos. */
-  customerPhone: string
-  /** Costo de envío cotizado al confirmar el checkout. Cero para retiro en tienda. */
-  shippingCost: number
-}
+/**
+ * Request de creación. `customerPhone`: celular colombiano canónico (`57` + 10 dígitos);
+ * `shippingCost`: envío cotizado al confirmar el checkout, cero para retiro en tienda.
+ * No incluye estado, totales ni pesos reales: los asigna el servidor.
+ */
+export type OrderPayload = CreateOrderRequest
 
-export interface OrderConfirmation {
-  orderId: string
-  status: 'received'
-  estimatedTotal: number
-}
+export type OrderConfirmation = OrderConfirmationDto
 
-export interface Order {
-  orderId: string
-  userId: string
-  status: OrderStatus
-  items: CartItem[]
-  deliveryType: DeliveryType
-  deliveryData: DeliveryData
-  substitutionPreference: SubstitutionPref
-  customerName: string
-  /**
-   * Teléfono del cliente normalizado para `wa.me` / `tel:`: sólo dígitos,
-   * incluyendo el prefijo de país sin `+`, sin espacios ni guiones.
-   * Ej: `573015550101` para +57 301 555 0101. Es opcional para pedidos
-   * legacy creados antes de capturar el teléfono.
-   */
-  customerPhone?: string
-  /** Snapshot del costo de envío; ausente en pedidos anteriores. */
-  shippingCost?: number
-  estimatedTotal: number
-  /** Total cobrado tras registrar todos los pesos reales de los productos variables. */
-  finalTotal?: number
-  createdAt: string
-  updatedAt?: string
-}
+/**
+ * Pedido expuesto al cliente. `customerPhone` va normalizado para `wa.me` / `tel:`
+ * (solo dígitos con prefijo de país, ej. `573015550101`); `customerPhone` y `shippingCost`
+ * son opcionales para pedidos legacy. `finalTotal` es el total cobrado tras registrar
+ * todos los pesos reales de los productos variables; `estimatedTotal` se preserva.
+ */
+export type Order = OrderDto
 
 export interface OrderService {
   submit(payload: OrderPayload): Promise<OrderConfirmation>

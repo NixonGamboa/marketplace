@@ -21,7 +21,15 @@ export interface AdminOrderExtensions {
 
 export type AdminOrder = Order & AdminOrderExtensions
 
-/** Indica si el pedido fue cancelado (estado terminal en admin, RN-6). */
+/**
+ * Indica si el pedido fue cancelado (estado terminal en admin, RN-6): estado canónico
+ * `cancelled` o, en pedidos legacy del demo, `cancellationReason` sobre otro estado.
+ */
 export function isCancelled(order: AdminOrder): boolean {
-  return Boolean(order.cancellationReason)
+  return order.status === 'cancelled' || Boolean(order.cancellationReason)
+}
+
+/** Estados finales: no admiten más acciones de avance ni cancelación. */
+export function isTerminal(order: AdminOrder): boolean {
+  return order.status === 'delivered' || isCancelled(order)
 }

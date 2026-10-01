@@ -1,22 +1,18 @@
-import { OrderStatus, type Order } from '../../domain/orders/Order.js'
+import { canTransition } from '../../../../shared/contracts/index.js'
+import type { Order, OrderStatus } from '../../domain/orders/Order.js'
 import type { OrdersRepository } from '../../domain/orders/OrdersRepository.js'
 import type { Clock } from '../../shared/clock.js'
 import { NotFoundError, ValidationError } from '../../shared/errors.js'
-
-const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
-  received: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
-  preparing: [OrderStatus.READY, OrderStatus.CANCELLED],
-  ready: [OrderStatus.IN_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED],
-  in_delivery: [OrderStatus.DELIVERED],
-  delivered: [],
-  cancelled: [],
-}
 
 export interface UpdateOrderStatusDeps {
   orders: OrdersRepository
   clock: Clock
 }
 
+/**
+ * Cambia el estado según la máquina común (`shared/contracts/orderEnums`), que depende de la
+ * modalidad. Lectura + escritura no atómicas: la condición en UPDATE es T-12.
+ */
 export const updateOrderStatus = async (
   deps: UpdateOrderStatusDeps,
   id: string,
@@ -25,10 +21,9 @@ export const updateOrderStatus = async (
   const current = await deps.orders.findById(id)
   if (!current) throw new NotFoundError('Order', id)
 
-  const allowed = allowedTransitions[current.status]
-  if (!allowed.includes(nextStatus)) {
+  if (!canTransition(current.status, nextStatus, current.deliveryType)) {
     throw new ValidationError(
-      `Invalid transition from ${current.status} to ${nextStatus}`,
+      `Invalid transition from ${current.status} to ${nextStatus} (${current.deliveryType})`,
     )
   }
 

@@ -19,7 +19,7 @@ const DEBOUNCE_MS = 150
 const CANCELLED_TAB = 'cancelled' as const
 type TabValue = OrderStatus | typeof CANCELLED_TAB
 
-const ORDERED_STATUSES: OrderStatus[] = ['received', 'confirmed', 'preparing', 'ready', 'delivered']
+const ORDERED_STATUSES: OrderStatus[] = ['received', 'confirmed', 'preparing', 'ready', 'in_delivery', 'delivered']
 const ORDERED_TABS: TabValue[] = [...ORDERED_STATUSES, CANCELLED_TAB]
 
 const STATUS_LABELS: Record<TabValue, string> = {
@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<TabValue, string> = {
   confirmed: 'Confirmados',
   preparing: 'Preparando',
   ready: 'Listos',
+  in_delivery: 'En camino',
   delivered: 'Entregados',
   cancelled: 'Cancelados',
 }
