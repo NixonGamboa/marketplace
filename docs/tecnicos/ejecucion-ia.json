@@ -7,7 +7,7 @@
   "cambiosPreexistentesPreservados": [
     "docs/bitacora/"
   ],
-  "autorizacion": "Implementar T-01/T-02 y T-04 en feature desde develop, validar y actualizar plan. Sin push, integración a develop ni promoción a Production.",
+  "autorizacion": "El usuario respondió sí: confirma Production en Neon main; autoriza incorporar/publicar feature a develop, configurar/desplegar Preview dev/maui y migración aditiva después de verificar aislamiento. Sin promoción a master/Production, seed/reset ni nuevos bloques.",
   "cuotaCodexComprobada": {
     "plan": "plus",
     "usadoVentanaCincoHorasPorcentaje": 3,
@@ -28,7 +28,7 @@
       "esfuerzo": "high",
       "sessionId": null,
       "identificadorEjecucion": "/root/api_entorno",
-      "estado": "ejecutor finalizado; implementación local verificada; cierre cloud pendiente",
+      "estado": "ejecutor finalizado; bloque incorporado y verificado en test",
       "ownership": [
         "api/health.ts",
         "api/not-found.ts",
@@ -36,7 +36,6 @@
         "maui-back/src/shared/config.ts",
         "maui-back/src/infra/postgres/client.ts",
         "maui-back/src/usecases/health/",
-        "maui-back/src/infra/health/",
         "maui-back/tests/config/",
         "maui-back/tests/health/",
         "maui-back/tests/http/",
@@ -60,12 +59,11 @@
         "Backend 268/268 y typecheck incluyendo API/shared",
         "Typecheck raíz",
         "Health real local contra Neon dev: HTTP 200/database connected",
-        "Compilador Vercel: filesystem antes de fallback; smoke cloud pendiente"
+        "Compilador Vercel: filesystem antes de fallback; smoke cloud pendiente",
+        "Preview real: health conectado/test, rutas dinámicas/404/405 y SPAs; 16/16 checks posteriores a migración"
       ],
-      "bloqueantes": [
-        "Asociación actual Preview/Production a Neon no comprobable por lectura de DATABASE_URL sensitive; validación cloud dependiente detenida."
-      ],
-      "siguienteAccion": "Tras intervención: Preview dev/maui, smoke health/routing y destinos desde deployment identificado; después migración aditiva solo dev.",
+      "bloqueantes": [],
+      "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente.",
       "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
       "resumen": "Health portable con SELECT 1/timeout, errores JSON/routing; Node 24.x, destinos separados y acceso a BD/migración/Drizzle protegido."
     },
@@ -79,7 +77,7 @@
       "esfuerzo": "high",
       "evidenciaEsfuerzo": "--effort high aceptado al iniciar la sesión; no se deduce de preferencias globales.",
       "sessionId": "73cc8488-e79d-41b8-9c45-e5ab020395e0",
-      "estado": "ejecutor finalizado; implementación local verificada; incorporación pendiente",
+      "estado": "ejecutor finalizado; bloque incorporado y verificado en test",
       "ownership": [
         "shared/contracts/",
         "maui-back/src/domain/orders/",
@@ -103,12 +101,11 @@
         "268 tests backend, 20 PWA y 80 admin",
         "Typecheck/lint/drift/build unificado pasan",
         "Drizzle generate offline: No schema changes",
-        "GPS-only aceptado y final sin peso real rechazado"
+        "GPS-only aceptado y final sin peso real rechazado",
+        "0001 aplicada solo dev; pedido previo conservado, repository/DTO y GET Vercel 200 validados"
       ],
-      "bloqueantes": [
-        "Migración pendiente de verificar aislamiento cloud; incorporación de feature pendiente de autorización."
-      ],
-      "siguienteAccion": "Incorporar tras autorización; migración aditiva solo dev tras verificar destino. Integración persistente completa corresponde a T-15.",
+      "bloqueantes": [],
+      "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente.",
       "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
       "revisionLocalIgnorada": ".claude/orquestacion/t04-review-output.jsonl",
       "ejecuciones": [
@@ -138,7 +135,7 @@
       "modelo": "claude-sonnet-5-5",
       "esfuerzo": "high",
       "sessionId": "0a5fb688-406d-4b18-ba30-a4676cce6cd1",
-      "estado": "revisión finalizada",
+      "estado": "revisión finalizada; hallazgos resueltos con smoke cloud",
       "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
       "ownership": [],
       "resultadoLocalIgnorado": ".claude/orquestacion/t01-review-output.jsonl",
@@ -150,10 +147,8 @@
         "Read/Glob/Grep sobre implementación y pruebas",
         "Gates locales comprobados por Codex"
       ],
-      "bloqueantes": [
-        "Smoke Vercel pendiente de confirmar destino y autorización."
-      ],
-      "siguienteAccion": "Verificar deployment identificado al resolver bloqueo."
+      "bloqueantes": [],
+      "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente."
     }
   ],
   "evidenciaCloudSoloLectura": {
@@ -183,7 +178,8 @@
       "branchesExistentes": 2,
       "hostTest": "ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech",
       "hostMain": "ep-weathered-salad-auk9jj3u.c-10.us-east-1.aws.neon.tech",
-      "compatibilidadLegacy": "Sondeo agregado del único pedido dev: cero incompatibilidades en campos comprobados; no sustituye integración Postgres T-15."
+      "compatibilidadLegacy": "Sondeo agregado inicial del único pedido dev: cero incompatibilidades en campos comprobados; validación posterior en cierreCloud.",
+      "momento": "evidencia inicial anterior a la continuación autorizada"
     }
   },
   "commitImplementacion": "a577111c4b7665e9de1293564719dfeb2db09022",
@@ -192,7 +188,7 @@
     "orquestador": "Codex",
     "modelo": "gpt-6.1-sol",
     "esfuerzo": "high",
-    "estado": "cierre local; trabajo cloud dependiente detenido",
+    "estado": "incremento cerrado en develop/Preview; T-03b/T-05 no iniciados",
     "revisionCruzada": "Codex revisó T-04; Claude revisó T-01/T-02. Expansiones de ownership coordinadas; sin escrituras concurrentes sobre archivos compartidos.",
     "ownership": [
       "Documentación y registro",
@@ -203,7 +199,7 @@
   },
   "validacion": {
     "backend": {
-      "tests": 268,
+      "tests": 271,
       "suites": 15,
       "typecheck": "pasa"
     },
@@ -226,8 +222,83 @@
     "diffWhitespace": "pasa",
     "buildUnificado": "pasa; sigue demo y precache ~28.2 MiB, no acredita apps reales",
     "drizzleMetadata": "generate offline sobre copia ignorada: No schema changes",
-    "healthReal": "Handler local y adapter real: HTTP 200, database connected, APP_ENV test, endpoint Neon dev; no acredita runtime Vercel"
+    "healthReal": "Local y Vercel Preview: HTTP 200, database connected, APP_ENV test; URL/destinos verificados por guard.",
+    "routing": {
+      "tests": 19,
+      "resultado": "pasa",
+      "tresRegresionesNuevas": true
+    },
+    "postgres": "Ledger inicial confirmado, 0001 aplicada únicamente dev/maui, cinco columnas y dos entradas journal. Pedido existente conservado con fingerprint idéntico; repository/DTO y GET desde Vercel 200 conformes.",
+    "smoke": {
+      "antesMigracion": 15,
+      "despuesMigracion": 16,
+      "resultado": "todos pasan",
+      "lecturaPedidoExistente": "HTTP 200 y shared schema válido; campos internos omitidos"
+    }
   },
-  "intervencionMinima": "Confirmar destino actual de Production (¿Neon main?) y autorizar incorporación/configuración/despliegue Preview dev/maui. T-03b/T-05 y dependientes detenidos.",
-  "propuestaReviewable": "Preview APP_ENV=test, DB_DRIVER=postgres, destinos test/main separados y DATABASE_URL servidor por canal seguro existente. Smoke health/routing/aislamiento antes de migración 0001 exclusivamente dev. Sin promoción Production."
+  "intervencionMinima": "Resuelta con sí del usuario. No hay intervención pendiente en este incremento.",
+  "propuestaReviewable": "Ejecutada dentro del alcance aprobado. Auth/CI, conexión real de apps, catálogo/precios confiables e integración/E2E completos siguen en bloques futuros.",
+  "autorizacionInicial": "Implementar T-01/T-02 y T-04 en feature desde develop, validar y actualizar plan. Sin push, integración a develop ni promoción a Production.",
+  "commitCodigoVerificado": "4400e90dda8302485365b1935b1f8264bd322760",
+  "integracion": {
+    "estado": "incorporada por fast-forward y publicada en develop",
+    "commits": [
+      "a577111",
+      "92f5696",
+      "3233ca4",
+      "3d59dea",
+      "4400e90"
+    ],
+    "ramaProduction": "master",
+    "promocionProduction": false
+  },
+  "conteo": {
+    "claudeSesionesNuevas": 2,
+    "claudeReanudaciones": 1,
+    "claudeInvocaciones": 3,
+    "codexEjecutoresDelegadosNuevos": 1,
+    "codexOrquestador": "chat existente",
+    "codexCliExternos": 0,
+    "rondasCruzadasCorreccion": 2,
+    "rondasCorrectivasProductoDeploy": 2,
+    "ajustesLocales": "Gates y arnés de herramientas, sin sesiones nuevas; no se inventa conteo de microediciones."
+  },
+  "cierreCloud": {
+    "deploymentId": "dpl_8PJq3YoEh9Y1BmBbYZ2YNhGHK69y",
+    "url": "https://marketplace-opctt38lg-infogamboatech-2785.vercel.app",
+    "gitRef": "develop",
+    "gitSha": "4400e90dda8302485365b1935b1f8264bd322760",
+    "estado": "READY",
+    "node": "24.x",
+    "funciones": 5,
+    "variablesConfiguradas": "Siete exclusivas Preview/develop; DATABASE_URL sensitive dev/maui, sin VITE.",
+    "production": "main confirmado por usuario; entrada DATABASE_URL conservada, sin releer valor.",
+    "proteccion": "Conservada; CLI autenticado accedió al Preview.",
+    "migracion": {
+      "nombre": "0001_orders_contract_fields",
+      "destino": "dev/maui",
+      "aplicada": true,
+      "columnas": 5,
+      "journalEntradas": 2,
+      "pedidosAntes": 1,
+      "pedidosDespues": 1,
+      "fingerprintIgual": true
+    },
+    "seedEjecutado": false,
+    "resetEjecutado": false,
+    "pedidosMutados": false,
+    "promocionProduction": false
+  },
+  "correccionesDeploy": [
+    {
+      "commit": "3d59dea",
+      "causa": "BUILD_UTILS_NODE_VERSION_INVALID por runtime @vercel/node@5.0.0",
+      "solucion": "Retirar override y usar detección estándar Node 24.x."
+    },
+    {
+      "commit": "4400e90",
+      "causa": "Fallback capturaba rutas dinámicas; riesgo de revisión Claude confirmado en smoke.",
+      "solucion": "Rewrites específicos lectura/status antes de fallback; tres regresiones nuevas y smoke real."
+    }
+  ]
 }

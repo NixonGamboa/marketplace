@@ -55,7 +55,7 @@ Revisó API, configuración, factory, adapters y pruebas; devolvió cinco hallaz
 
 ## Rondas de corrección
 
-Se cuentan ciclos de **revisión → encargo correctivo → comprobación**, no llamadas de herramienta ni turnos del modelo. Hubo **dos rondas de revisión/corrección por bloque**, una para T-04 y otra para T-01/T-02, más ajustes locales durante el cierre de gates. No hubo una segunda reanudación de Claude ni un tercer reviewer.
+Se cuentan ciclos de **revisión → encargo correctivo → comprobación**, no llamadas de herramienta ni turnos del modelo. Hubo **dos rondas de revisión/corrección en total**, una para T-04 y otra para T-01/T-02, más ajustes locales durante el cierre de gates. No hubo una segunda reanudación de Claude ni un tercer reviewer.
 
 | Ronda | Quién revisó / corrigió | Hallazgos y resolución |
 |---|---|---|
@@ -85,4 +85,38 @@ Los ejecutores terminaron. El trabajo dependiente se detuvo porque los DATABASE_
 
 El usuario respondió «sí» a la confirmación de Production en main y a la propuesta concreta de integración/publicación/Preview dev/maui con migración posterior a verificar aislamiento. Además solicitó esta bitácora. Codex continúa desde el mismo chat; esta ampliación documental y el despliegue no añaden sesiones Claude ni ejecutores Codex. La autorización permite el incremento de test; no promoción a master/Production ni inicio de nuevos bloques.
 
-Los resultados de integración y cloud se añaden aquí al concluir. Se mantiene esta sección separada del cierre local para no atribuir retrospectivamente un deployment o migración a las sesiones de implementación.
+Los resultados siguientes corresponden a la integración y cloud después de esa autorización. Se mantienen separados del cierre local para no atribuir retrospectivamente un deployment o migración a las sesiones de implementación.
+
+### Integración y correcciones de despliegue
+
+La feature se incorporó por fast-forward al worktree de develop y se publicó. La rama de Production del proyecto Vercel se comprobó como master. Se configuraron siete variables únicamente para Preview/develop, con APP_ENV=test y Neon dev/maui; DATABASE_URL permaneció sensitive y la entrada productiva conservó su ID/target. El sí del usuario es la confirmación del destino main: no se afirma haber releído el secreto productivo.
+
+En esta continuación se diagnosticaron problemas de herramientas sin abrir sesiones de IA nuevas. El MCP Vercel devolvió 403 para el scope; el CLI ya autenticado sí tuvo acceso. Dos intentos de configuración masiva devolvieron Invalid JSON: se revisó el código del CLI 56.1 y se encontró que su cliente serializa objetos, pero no arrays top-level. Se enviaron objetos individuales y se verificó metadata, sin imprimir credenciales. El comando curl del mismo CLI reenviaba --scope/--cwd al curl nativo; se usó URL completa y cwd del proceso. También se corrigió el lector local de respuestas HEAD, que no tienen cuerpo JSON. Estos son ajustes del arnés/herramientas; no reanudaciones de Claude ni correcciones de lógica de negocio.
+
+El despliegue aportó **dos rondas correctivas adicionales de producto/configuración**, realizadas por Codex en el mismo chat:
+
+| Ronda adicional | Evidencia / corrección | Commit |
+|---|---|---|
+| **3 — Builder y Node** | Primer deployment rechazó Node 24 por runtime fijado a @vercel/node@5.0.0. Se retiró ese override para usar detección estándar, manteniendo engines 24.x. Las 16 pruebas de routing pasaron y el siguiente Preview quedó READY | `3d59dea` |
+| **4 — Rutas dinámicas** | El smoke devolvió el 404 de fallback para GET de pedido con ID inválido, en lugar del 400 del handler. Confirmó el riesgo de la revisión Claude. Se añadieron rewrites específicos de lectura/status antes del catch-all, con tres tests nuevos; routing 19/19 y typecheck pasan | `4400e90` |
+
+El conteo acumulado es **cuatro ciclos correctivos agrupados**: dos rondas cruzadas antes del cierre local y dos por evidencia de despliegue. Sigue habiendo **dos sesiones Claude, una reanudación Claude, un ejecutor Codex delegado y el chat Codex existente**. Las correcciones cloud no generaron otro ejecutor ni volvieron a repetir toda la validación frontend.
+
+### Resultado de la continuación
+
+El artefacto de código `4400e90dda8302485365b1935b1f8264bd322760`, ref develop, quedó READY en deployment `dpl_8PJq3YoEh9Y1BmBbYZ2YNhGHK69y`: [Preview verificado](https://marketplace-opctt38lg-infogamboatech-2785.vercel.app). Tiene cinco Functions y Node 24.x; conserva la protección de Vercel. Los tres deployments de producto de esta continuación fueron: primero ERROR por builder, segundo READY con fallo de routing descubierto por smoke y tercero READY con routing corregido. La publicación de documentación puede generar otro Preview con el mismo código, sin otra ronda de corrección.
+
+Pasaron **15 checks HTTP antes de migrar**: health GET/HEAD real conectado/test, 405, 404 JSON incluidos slash/fallback, rechazo de ID/body inválidos en handlers y SPAs/rutas profundas. Solo entonces se ejecutó la migración aditiva 0001 en **Neon dev/maui**, con guard y ledger inicial verificados. Quedaron cinco columnas nuevas y dos entradas de migración.
+
+El único pedido previo permaneció intacto: cantidad 1 antes/después y fingerprint de columnas originales idéntico. La comprobación real de repository y DTO pasó; GET desde Vercel respondió 200, validó el esquema compartido y omitió campos internos. El smoke posterior pasó **16/16**, incluido pedido inexistente resuelto por su handler. No se crearon ni cambiaron pedidos para esta comprobación y no hubo seed/reset ni promoción Production.
+
+Validación backend después de la corrección de routing: **271/271 tests en 15 suites**, incluyendo **19 tests de routing**; typecheck pasa. Los 20 tests PWA y 80 admin, lint/typecheck/drift/build del cierre local siguen como evidencia vigente; no se repitieron por una modificación documental. Total local del incremento: **371 tests**. T-01/T-02/T-04 quedan cerrados para el alcance de este incremento. T-03b/T-05 quedan habilitados para otro encargo; auth, apps reales, integración persistente completa y E2E de negocio siguen pendientes en el plan.
+
+### Aprendizajes verificables para orquestación
+
+- Separar el conteo de sesiones, reanudaciones, procesos, turnos internos y rondas de revisión evita cifras engañosas.
+- Reutilizar el ID del implementador para su corrección mantuvo contexto; cambiar a revisión independiente justificó una sesión nueva.
+- El ejecutor sin permisos de comandos puede producir código, pero debe declarar falta de verificación. El orquestador puede ejecutar gates por vías ya disponibles sin alterar seguridad.
+- La revisión independiente produjo un riesgo de routing que solo el smoke cloud confirmó. Compilar configuración y tener tests locales no acreditaban esa frontera.
+- El guard y la verificación del ledger precedieron a la migración; comprobar fingerprint/DTO/HTTP después aportó evidencia sin modificar pedidos.
+- Cerrar ejecutores, conservar IDs/checkpoints y detener dependencias ante una decisión real permitió continuar con la aprobación del usuario sin lanzar sesiones adicionales.

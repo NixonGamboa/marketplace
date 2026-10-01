@@ -34,6 +34,12 @@ El usuario aprobó los commits locales por alcance y la incorporación parcial d
 
 Los conjuntos se preservan mediante worktrees aislados y traslado selectivo verificado. Cada commit incluye únicamente sus archivos asignados; se revisa el diff staged antes de confirmar. Los registros históricos ajenos a esta separación se conservan fuera de estos commits y de las referencias activas del plan. El usuario autorizó posteriormente incorporar `docs/plan-implementacion-directa` a develop el 2026-10-01; la incorporación local por fast-forward incluye el commit documental `1a54b6f` y esta actualización de cierre. Las nuevas features desde develop heredan el plan y las instrucciones vigentes. Esta incorporación no despliega ningún artefacto ni autoriza push o promoción a producción.
 
+### Incremento C1 autorizado el 2026-10-01
+
+El usuario confirmó Production en Neon main y aprobó incorporar/publicar `feature/base-test-contratos` a develop, configurar/desplegar Preview dev/maui y aplicar la migración aditiva solo después de comprobar aislamiento. La incorporación fue fast-forward; código verificado `4400e90`, con correcciones de builder Node y rutas dinámicas. No autoriza promoción a master/Production, seed/reset ni bloques nuevos. La evidencia del cierre está en el plan; sesiones/ownership en `ejecucion-ia.json`.
+
+El scope MCP Vercel no permitió acceso, pero el CLI autenticado sí. La CLI 56.1 requirió objetos individuales en `api --input` (su cliente no serializa arrays top-level) y URL completa/cwd de proceso en `curl` (los flags globales se reenviaban al curl nativo). Se diagnosticó antes de cambiar la vía; no se modificó seguridad ni se imprimieron credenciales. Smoke real es necesario: filesystem antes de rewrites no bastó para demostrar preservación de rutas dinámicas.
+
 ## Reparto de trabajo
 
 | Función | Ejecutor preferido | Contexto que recibe |
