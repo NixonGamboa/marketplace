@@ -67,6 +67,8 @@ El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://market
 | H-15 | Provisionamiento, acceso cloud y API Preview comprobados | GitHub ADMIN/Actions y CLI Vercel accesibles; Neon `dev` responde SELECT. Preview de la feature `706ed8a` sirve health JSON/Functions de pedidos; no acredita incorporación a develop. Aislamiento/CI y conexión BD desde runtime aún por cerrar | [Auditoría de herramientas](auditoria-herramientas.md); origen en prioridad 0, sin secretos |
 | H-16 | Implementaciones demo archivadas y verificación local reconciliada | T-03a hecho: 17 tests PWA + 75 admin, typecheck explícito de ambas apps, drift, lint cero errores y build unificado pasan en `e567067`; tres warnings por app. Backend memory: evidencia previa 9 tests; CI/BD/E2E desplegado pendientes | Prioridad 0; [resumen PWA](../../tech/features/20260602-demo-maui-pwa/implementation-summary.md), [resumen admin](../../tech/features/20260611-evolucion-admin-panel-demo/implementation-summary.md) |
 
+**H-17 — Incremento C1 verificado en feature (pendiente incorporar):** `feature/base-test-contratos`, `a577111`. API/configuración/contratos y mappers disponibles; 268 tests backend, 20 PWA, 80 admin, typecheck/lint/drift/build demo pasan. Health con adapter real local conecta a Neon dev. Aislamiento/runtime Vercel y migración cloud pendientes; evidencia de cierre y [sesiones](ejecucion-ia.json) abajo. No se declara completado en develop.
+
 ## Lista 2 — Implementaciones pendientes en orden de ejecución
 
 ### A — Base técnica y contratos
@@ -75,11 +77,11 @@ El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://market
 
 | ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
 |---|---|---|---|
-| T-01 / P0 | API accesible en el despliegue de test — parcial | H-12, H-13 | Identificar artefacto/rama/commit, routing y Functions. Preview comprobado ya responde health JSON y tiene Functions; API inexistente devuelve 404 text/plain. Completar error API estructurado y comprobar conectividad real desde runtime a BD test; health solo reporta driver. La evidencia HTML del dominio público corresponde a otra URL, no a ese Preview |
-| T-02 / P0 | Configuración y aislamiento de test — por verificar | H-15 | Vercel Preview/test con Neon branch/BD de test, env y storage separados; verificar destino de `DATABASE_URL` sin exponerlo. Neon `dev` es accesible, pero asociación exclusiva Preview→test no comprobada. Alinear raíz Node `22.x` con local/cloud `24.x` tras verificar compatibilidad. Credenciales servidor fuera de `VITE_*`; prohibir recursos productivos desde test. Configurar URLs/destinos y verificar cuotas sin infraestructura anticipada |
+| T-01 / P0 | API accesible en el despliegue de test — parcial; implementación local verificada en `a577111`, tramo cloud detenido | H-12, H-13 | Routing/errores JSON 404/405 y health SELECT 1 real implementados en feature. Health local con adapter real responde 200 conectado a Neon dev. Falta incorporar/desplegar versión identificada y comprobar rutas/BD desde runtime Vercel. El Preview histórico solo reporta driver; no acredita este código |
+| T-02 / P0 | Configuración y aislamiento de test — parcial; controles locales verificados en `a577111`, cloud bloqueado por confirmación de destino | H-15 | Node raíz/backend/locks alineados a `24.x`; guard de entorno/destino antes de cliente/migrador/Drizzle, credenciales fuera de `VITE_*`, memory prohibido cloud. Preview/Production tienen `DATABASE_URL` sensitive no legible; asociación exclusiva Preview→dev y destino Production pendientes. Planes Hobby/Neon free comprobados, margen exacto no expuesto; storage se configura en T-09, sin infraestructura anticipada |
 | T-03a / P0 | Checkout, lint y comprobaciones locales — hecho (2026-10-01, `e567067`) | H-16 | Integración aprobada, hook y cinco errores de tipos originales resueltos; typecheck app explícito de ambos fronts, lint cero errores, 92 tests, drift y build unificado pasan. Omisión de gates en scripts identificada para T-03b; modo real pendiente en T-17/T-18/T-23 |
 | T-03b / P0 | CI reproducible — pendiente | T-02, T-03a | Agregar workflow con versión Node/env test resueltos; ejecutar typecheck real de cada app, lint, tests y contratos antes del build. No inferir CI terminado por Actions habilitado ni por el script raíz que omite referencias TypeScript |
-| T-04 / P0 | Contratos compartidos y validación runtime — parcial (DTOs frontend en `e567067`) | H-11, H-14 | DTOs/esquemas en `shared/`; alinear IDs, estados, sustituciones, teléfono, entrega/GPS/franjas, pesos solicitado/real, totales estimado/final/envío y errores. Reutilizar `customerPhone/shippingCost/finalTotal` ya alineados en PWA/admin; faltan shared/runtime/backend, DTO público/interno, mappers y pruebas de contrato |
+| T-04 / P0 | Contratos compartidos y validación runtime — implementado/verificado localmente en feature `a577111`; parcial en develop hasta incorporación | H-11, H-14 | DTOs/esquemas únicos en `shared/contracts/`, aliases frontend, modelo interno/mappers, estados y sustituciones comunes, teléfono/entrega/GPS/franjas/pesos/totales/errores validados. Pruebas de contratos/legacy/privacidad pasan; migración aditiva/snapshot preparados offline sin aplicar. Persistencia Postgres posterior a migración se verifica en T-15; auth/idempotencia/atomicidad no se declaran cerradas |
 | T-05 / P0 | Acceso y sesiones para admin/cliente — pendiente | T-02, T-04 | Resolver auth con JWT propio o provider del ADR en función de lo mínimo necesario. Sesión, expiración, logout y permisos reales; acceso privado del cliente a sus pedidos. Capturar nombre/teléfono sin fingir verificación. Test usa el mismo mecanismo con cuentas/credenciales de test; Magic Link avanzado queda en E-02 |
 
 ### B — Persistencia y API completa
@@ -160,9 +162,11 @@ flowchart TD
 
 **Ruta crítica:** T-04/T-05 → T-06 → T-07/T-08 → T-10 → T-11/T-12 → T-16 → T-17/T-18 → T-19 → T-22 → T-23 → T-24. T-01/T-02 habilitan la infraestructura; T-09/T-13/T-14 y T-15/T-20/T-21 convergen antes de E2E/entrega. T-14 reutiliza contacto por enlaces y datos de pedido; no necesita credenciales WhatsApp. La mensajería automática solo se considera en E-07.
 
-El siguiente paso es **T-01/T-02 y T-04 dentro de C1**, respetando sus dependencias; prioridad 0 y T-03a ya están resueltos. T-03 se considera cerrado únicamente cuando T-03a y T-03b cumplan sus criterios; T-03b espera T-02. Las tareas pueden implementarse por partes con su evidencia; T-24 sigue pendiente hasta cumplir el conjunto. Los cortes son entregas técnicas, no ceremonias de aprobación SDD.
+El incremento local de **T-01/T-02 y T-04 dentro de C1** está verificado en `feature/base-test-contratos` (`a577111`), pendiente de incorporación autorizada. El siguiente paso es resolver la confirmación/configuración de destinos y autorización del Preview descritas en el cierre local. Prioridad 0 y T-03a siguen resueltos. T-03b espera el cierre de T-02; T-05 requiere ese entorno y la incorporación del contrato. T-24 sigue pendiente hasta cumplir el conjunto. Los cortes son entregas técnicas, no ceremonias de aprobación SDD.
 
-## Contratos que deben reconciliarse (T-04)
+## Divergencias de partida y resolución del contrato (T-04)
+
+La tabla conserva el diagnóstico previo al incremento `a577111`. DTOs, enums, pesos, totales y validación están reconciliados en la feature; contexto confiable, permisos y autoridad de catálogo/envío se completan en T-06/T-07/T-08/T-10. La integración persistente se valida en T-15.
 
 | Concepto | PWA/admin actual | Backend actual | Resultado necesario |
 |---|---|---|---|
@@ -181,13 +185,13 @@ El siguiente paso es **T-01/T-02 y T-04 dentro de C1**, respetando sus dependenc
 | Hallazgo / necesidad | Bloques que lo resuelven | Límite actual |
 |---|---|---|
 | Preview tiene health JSON, pero falta error API estructurado y prueba BD desde runtime | T-01/T-02/T-23 | No generalizar el HTML del dominio público; identificar versión y aislamiento del artefacto entregado |
-| DTOs frontend/back divergentes | T-04 | Drift-check PWA/admin correcto no cubre backend |
+| Contrato común incorporado solo en feature | T-04 | Implementado y verificado en `a577111`; incorporación autorizada y validación persistente pendientes |
 | Auth real ausente y adapters frontend vacíos | T-05/T-06/T-17/T-18 | Elegir una solución, no desarrollar tres opciones |
-| Precio cliente confiado, sin envío/final/idempotencia | T-07/T-08/T-10/T-12 | Servidor es fuente de reglas y cálculos |
+| Precio/envío del cliente aún confiados; idempotencia pendiente | T-07/T-08/T-10/T-12 | Contrato/cálculo base disponibles; servidor debe obtener reglas y snapshots de fuentes autorizadas |
 | Estado no actualizado condicionalmente y cursor solo por fecha | T-11/T-12/T-15 | Probar concurrencia y desempates reales |
 | Catálogo PWA estático, evento storage admin y build forzado demo | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
 | Seed solo de navegador, sin dataset servidor reproducible | T-16 | Transformar mocks a datos de test; no mantener su lógica simulada |
-| Aislamiento cloud pendiente; Node raíz/local/cloud difiere | T-02 | Neon `dev` y CLI Vercel accesibles; no correr seed/reset sin verificar destino test |
+| Aislamiento cloud pendiente; Node declarado alineado a 24.x | T-02 | Neon `dev` y CLI Vercel accesibles; falta verificar destinos y runtime desplegado antes de migración/seed/reset |
 | Auth y storage pendientes de implementar/configurar | T-05/T-09 | JWT propio admitido; Blob accesible como opción a verificar, sin exigir proveedores/cuentas adicionales por anticipación |
 | Contacto actual debe usar datos persistentes y teléfonos correctos | T-08/T-14/T-17/T-18 | `wa.me` existente es suficiente; no depende de Evolution API ni envío automatizado |
 | Gates locales aún no automatizados en build/CI | T-03b | T-03a pasa en develop reconciliado; workflow debe ejecutar typecheck app explícito, lint, tests y drift antes del build |
@@ -216,9 +220,34 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 
 ## Evidencia disponible y mantenimiento
 
-La evidencia vigente de apps es la verificación de `e567067` en prioridad 0: 17/17 tests PWA, 75/75 admin, typecheck app explícito, drift y build unificado pasan; lint sin errores/tres warnings por app. Sustituye el diagnóstico inicial de cinco errores PWA y la interpretación incorrecta de los scripts typecheck. Backend memory conserva la evidencia previa de 9/9 tests; no se ejecutaron migraciones, seed ni E2E de negocio real. GET `/` y `/admin/` del dominio público: HTML 200; su `/api/health` devuelve HTML PWA, distinto del Preview de feature identificado arriba.
+### Cierre local del incremento de C1 — 2026-10-01
 
-GitHub/Vercel CLI/Neon SQL y browser automatizado están comprobados. Preview responde health JSON; aislamiento de recursos pendiente. Versiones, autenticación y ejecuciones de asistentes tienen su evidencia única en la [auditoría de herramientas](auditoria-herramientas.md). Codex/Claude dejan cambios, validación y límites en este plan sin sobrescribir trabajo ajeno.
+Feature `feature/base-test-contratos` desde `develop` en `d384e089139cd83b3e9c422db9f803d92fd72dd9`; implementación local en **`a577111c4b7665e9de1293564719dfeb2db09022`**. No incorporada a develop ni desplegada. `docs/bitacora/` era un cambio ajeno sin seguimiento y se conserva fuera del alcance. Codex GPT-6.1 Sol/high implementó API/configuración; Claude Sonnet 5.5/high implementó contratos. Codex revisó T-04 y Claude revisó T-01/T-02 en solo lectura. Sesiones reales, ownership y checkpoint en [ejecución IA](ejecucion-ia.json); los ejecutores terminaron. Sin API facturada, uso extra ni créditos de reset activados.
+
+**T-01:** errores JSON 404/405 y fallback para `/api`, `/api/` y rutas desconocidas incluyendo slash final. El compilador Vercel instalado confirma filesystem antes del fallback. Health GET/HEAD usa usecase portable y adapter SELECT 1 con timeout 5 s; memory/config inválida/BD caída dan 503 seguro. **Prueba real local:** el handler respondió `200`, `status=ok`, `database=connected`, `environment=test`, usando la credencial local cuyo endpoint coincide con Neon dev. Es evidencia del adapter/local, no del runtime Vercel. Falta smoke de rutas dinámicas/404/health sobre un deployment identificado.
+
+**T-02:** Node raíz/backend/locks `24.x`; `APP_ENV` independiente de `NODE_ENV`. Preview exige test y Postgres; production exige entorno/runtime production. Remoto exige destinos test/producción declarados y separados; normaliza pooler Neon y rechaza overrides de URL. Local Postgres solo loopback. Cliente, migrador y Drizzle validan antes de acceder a BD; migración/studio leen `.env.local`. Generación/check/export de SQL permanecen offline. Ejemplo sin secretos en `maui-back/.env.example`.
+
+**T-04:** DTO/esquemas/errores comunes en `shared/contracts/`; aliases frontend idénticos. Modelo interno separado, mappers por lista blanca y validación de salida/IDs. Estados `confirmed/in_delivery/cancelled` y sustituciones `call_me/similar/remove` reconciliados. Domicilio admite referencia o GPS pareado; teléfono canónico; snapshots y estimación preservados; final rechazado sin todos los pesos reales. Mappers legacy no inventan pesos/envío/final. Timeline/listas/terminales ajustados y probados. Migración aditiva `0001_orders_contract_fields.sql`, snapshot y journal preparados; **no aplicada**. Drizzle generate sobre copia de metadata respondió «No schema changes». El sondeo agregado del único pedido existente en dev no encontró incompatibilidades de identidad, estado, sustitución, entrega, cantidad de ítems o total; no sustituye pruebas de mappers/Postgres después de migrar en T-15.
+
+| Gate local | Resultado |
+|---|---|
+| Backend/API/shared | Typecheck backend con API/shared incluidos y typecheck raíz pasan; **268/268 tests** en 15 suites |
+| PWA | Typecheck explícito `tsconfig.app.json`, **20/20 tests**, lint sin errores/3 warnings previos |
+| Admin | Typecheck explícito `tsconfig.app.json`, **80/80 tests**, lint sin errores/3 warnings previos |
+| Contratos/entrega | Drift frontend, diff sin errores de whitespace, metadata Drizzle offline y build PWA/admin unificado pasan |
+
+La revisión reprodujo y corrigió GPS-only rechazado, final sin pesos reales admitido, etiqueta/tab `in_delivery` ausente y reconocimiento de cancelados canónicos. Revisión cruzada de entornos corrigió el escape remoto con `APP_ENV=local` y el acceso Drizzle sin guard. SELECT 1 se verificó contra Neon real; timeout/fallos seguros tienen pruebas. Claude no pudo ejecutar comandos/escribir su checkpoint en `.claude/` por permisos automáticos: Codex realizó las comprobaciones y guardó evidencia sin desactivar seguridad ni requerir permisos del usuario.
+
+**Tramo cloud detenido / intervención mínima:** Vercel confirma `marketplace`, Node `24.x`, Hobby activo; Neon `free_v3`, BD `maui`, Postgres 18.6. Metadata identifica `dev` en `ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech` y `main` en `ep-weathered-salad-auk9jj3u.c-10.us-east-1.aws.neon.tech`. Esto no demuestra el destino del `DATABASE_URL` usado por Production/Preview: ambos son `sensitive` y no permiten releer el valor guardado ([documentación oficial](https://vercel.com/docs/environment-variables/sensitive-environment-variables)). No se rebajó su protección ni se modificaron recursos cloud; las respuestas de cuenta no exponen porcentaje restante de cuota.
+
+Para continuar se necesita **confirmar el destino actual de Production** (si es Neon `main`) y aprobar la incorporación de esta feature/configuración/despliegue de Preview. Propuesta concreta: Preview→Neon `dev`/BD `maui`, `APP_ENV=test`, `DB_DRIVER=postgres`, destinos declarados test/main; credenciales por canal servidor existente, sin mostrarlas ni usar `VITE_*`. Comprobar primero health/aislamiento/routing desde el deployment identificado; después aplicar exclusivamente la migración aditiva en dev y verificar pedidos. No se han autorizado push, integración a develop ni promoción a Production. No se ejecutaron migración, seed/reset ni modificaciones productivas. T-03b/T-05 y demás trabajo dependiente de T-02 permanecen detenidos.
+
+El build sigue forzando demo y conserva precache de aproximadamente 28.2 MiB; no acredita T-17/T-18/T-20/T-23. Auth/permisos, autoridad de catálogo/precios/envío, idempotencia, atomicidad y audit siguen en T-05/T-06/T-07/T-08/T-10/T-12/T-13. Storage se resuelve en T-09; no se creó infraestructura adicional para este incremento.
+
+Como antecedente, prioridad 0 en `e567067` comprobó 17/17 tests PWA y 75/75 admin, typecheck app explícito, drift y build unificado; corrigió el diagnóstico inicial de cinco errores PWA y la interpretación incorrecta de los scripts typecheck. La evidencia local vigente de esta feature es la tabla de gates anterior. No se ejecutaron migraciones, seed ni E2E de negocio real. El sondeo público previo obtuvo HTML 200 en `/` y `/admin/`; su `/api/health` devolvió HTML PWA, distinto del Preview histórico identificado arriba. No se desplegó este incremento.
+
+GitHub/Vercel CLI/Neon SQL y browser automatizado están comprobados. El Preview histórico responde health JSON; aislamiento de recursos pendiente. Versiones, autenticación y pruebas de acceso de herramientas tienen su evidencia en la [auditoría de herramientas](auditoria-herramientas.md); las sesiones de este incremento están en [ejecución IA](ejecucion-ia.json). Codex/Claude dejan cambios, validación y límites en este plan sin sobrescribir trabajo ajeno.
 
 Las capacidades de los asistentes y sus pruebas de acceso se mantienen únicamente en la [auditoría de herramientas](auditoria-herramientas.md); la estrategia y el gitflow únicamente en [orquestación IA](orquestacion-ia.md). La evidencia de esas pruebas no se duplica aquí ni cierra un bloque de implementación.
 

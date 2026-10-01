@@ -141,7 +141,7 @@ El cierre conserva archivos/diff, ID de sesión, modelo/esfuerzo, pruebas, bloqu
 
 ## Memoria compartida mínima
 
-El plan global conserva estados/dependencias; este archivo conserva la estrategia, sin duplicar el plan. Al ejecutar el primer bloque se añade un registro compacto `docs/tecnicos/ejecucion-ia.json` con sesiones reales. No existe todavía y no se inventan IDs ni tareas en curso.
+El plan global conserva estados/dependencias; este archivo conserva la estrategia, sin duplicar el plan. El primer incremento de C1, ejecutado el 2026-10-01, tiene su registro compacto en [ejecución IA](ejecucion-ia.json), con sesiones reales de Codex/Claude, ownership, versión, validación y bloqueantes. No se inventan IDs reanudables ni tareas en curso.
 
 Registro por bloque: ID, proveedor/ejecutor, **modelo exacto y esfuerzo efectivo**, session ID, estado, archivos/checkout, referencia de versión, pruebas, bloqueantes, resumen y siguiente acción. Tokens/duración solo cuando el CLI los exponga; cuotas Codex y margen Claude solo si se obtuvieron de una fuente verificable. No guardar credenciales, transcripts completos ni errores con secretos. Los checkpoints son comunicación entre agentes, no specs ni aprobaciones SDD.
 
