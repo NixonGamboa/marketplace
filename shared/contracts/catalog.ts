@@ -40,7 +40,7 @@ const text = (max: number) => z.string().trim().min(1).max(max)
 /**
  * Imagen o ilustración: ruta relativa al origen (`/product-images/...`) o URL `https`.
  * Rechaza `//host`, esquemas como `javascript:`/`data:` y caracteres de control.
- * El upload real y su storage llegan en T-09.
+ * T-09 asocia URLs Blob verificadas por el servidor; se conservan URLs manuales/baseline.
  */
 const RELATIVE_ASSET_PATTERN = /^\/(?!\/)[A-Za-z0-9._~%/-]+$/
 
@@ -208,9 +208,10 @@ const publicProductShape = {
 /** Producto público: mismo shape que `shared/catalog` `Product`; solo activos y no archivados. */
 export const productDtoSchema = z.object(publicProductShape).strict().superRefine(refineProductRules)
 
-/** Vista de personal: añade publicación, archivo y fechas. Nunca incluye `storeId`. */
+/** Vista de personal: versión para uploads CAS, publicación, archivo y fechas; sin `storeId`. */
 export const staffProductDtoSchema = z
   .object({
+    version: z.number().int().positive(),
     ...publicProductShape,
     active: productFields.active,
     archived: z.boolean(),

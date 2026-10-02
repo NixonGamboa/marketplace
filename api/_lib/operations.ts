@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { buildApiError, entityIdSchema, issuesFromZodError } from '../../shared/contracts/index.js'
 import { CatalogPersistenceError } from '../../maui-back/src/domain/catalog/errors.js'
 import { StorePersistenceError } from '../../maui-back/src/domain/store/errors.js'
+import { ImageStorageUnavailableError } from '../../maui-back/src/domain/catalog/ProductImageStorage.js'
 import type { StoreActor } from '../../maui-back/src/domain/store/storeAccess.js'
 import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
@@ -55,7 +56,7 @@ export const routeIdFrom = (req: VercelRequest): string => {
 }
 
 const failOperation = (res: VercelResponse, err: unknown, config: AuthConfig | undefined): void => {
-  if (err instanceof CatalogPersistenceError || err instanceof StorePersistenceError) {
+  if (err instanceof CatalogPersistenceError || err instanceof StorePersistenceError || err instanceof ImageStorageUnavailableError) {
     jsonResponse(res, buildApiError('SERVICE_UNAVAILABLE', 'Servicio no disponible'), 503)
     return
   }

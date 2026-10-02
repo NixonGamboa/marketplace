@@ -9,6 +9,8 @@ import { catalogRepo } from '@/services'
 import { Modal } from '@/ui/Modal'
 import { PriceInput } from '@/ui/PriceInput'
 import { useToast } from '@/ui/Toast'
+import { uploadProductImageFile } from '@/services/productImageService'
+import { ProductImagePicker } from './ProductImagePicker'
 
 interface ProductFormModalProps {
   open: boolean
@@ -54,11 +56,16 @@ export function ProductFormModal({
   const toast = useToast()
   const [draft, setDraft] = useState<Product>(() => initial ?? emptyDraft(categories[0]?.id ?? ''))
   const [busy, setBusy] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const isEditing = !!initial
+  const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false'
+  const hasServerVersion = initial !== undefined && 'version' in initial &&
+    typeof initial.version === 'number' && Number.isSafeInteger(initial.version) && initial.version > 0
 
   useEffect(() => {
     if (open) {
       setDraft(initial ?? emptyDraft(categories[0]?.id ?? ''))
+      setImageFile(null)
     }
   }, [open, initial, categories])
 
@@ -86,7 +93,19 @@ export function ProductFormModal({
     }
     setBusy(true)
     try {
-      const saved = await catalogRepo.upsertProduct(finalDraft, by)
+      let saved = await catalogRepo.upsertProduct(finalDraft, by)
+      if (imageFile) {
+        if (demoMode || !('version' in saved) || typeof saved.version !== 'number') {
+          throw new Error('La subida requiere el catálogo real. Recarga antes de continuar.')
+        }
+        try {
+          saved = await uploadProductImageFile(saved.id, saved.version, imageFile)
+        } catch (error) {
+          // Los datos del producto ya se guardaron; informar sin repetir un alta ni fingir foto.
+          onSaved(saved)
+          throw new Error(`Producto guardado, pero la foto no se subió: ${error instanceof Error ? error.message : 'intenta de nuevo'}`)
+        }
+      }
       toast.success(isEditing ? 'Producto actualizado' : 'Producto creado')
       onSaved(saved)
     } catch (err) {
@@ -99,7 +118,7 @@ export function ProductFormModal({
   return (
     <Modal
       open={open}
-      onClose={onCancel}
+      onClose={() => { if (!busy) onCancel() }}
       title={isEditing ? `Editar "${initial?.name}"` : 'Nuevo producto'}
       size="lg"
     >
@@ -153,6 +172,12 @@ export function ProductFormModal({
             className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2"
           />
         </Field>
+
+        <ProductImagePicker file={imageFile} onChange={setImageFile}
+          disabled={busy || demoMode || !hasServerVersion}
+          hint={demoMode ? 'Las fotos estarán disponibles al conectar el catálogo real.' :
+            !hasServerVersion ? 'Guarda primero el producto y vuelve a editarlo para añadir una foto.' :
+              'JPEG, PNG o WebP · hasta 3 MiB. Se comprime al guardar.'} />
 
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-700">

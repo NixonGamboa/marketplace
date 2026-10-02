@@ -39,6 +39,7 @@ export const toProductDto = (product: CatalogProduct): ProductDto => productDtoS
 export const toStaffProductDto = (product: CatalogProduct): StaffProductDto =>
   staffProductDtoSchema.parse({
     ...publicFields(product),
+    version: product.version,
     active: product.active,
     archived: product.archivedAt !== null,
     createdAt: product.createdAt,
