@@ -226,4 +226,4 @@ Los snapshots de creación contienen los datos personales del pedido; una anonim
 
 ## Validación abierta — T-11
 
-Implementación local validada: 1.012 pruebas (895 backend, 20 PWA, 97 admin), tipos, lint, drift y build; tres warnings previos por app. Revisión independiente Codex aprobada y 40 pruebas HTTP/Postgres dirigidas repetidas. Índices 0005 aditivos sin aplicar; baseline dev con ledger 5 y pedido previo intacto. CI y smoke real Preview/Neon pendientes. El cursor conserva microsegundos y vincula actor, rol, alcance y filtros; no autoriza acceso por sí mismo. Apps reales T-17/T-18.
+Implementación local validada: 1.012 pruebas (895 backend, 20 PWA, 97 admin), tipos, lint, drift y build; tres warnings previos por app. Revisión independiente Codex aprobada y 78 pruebas HTTP/Postgres dirigidas repetidas. Índices 0005 aditivos sin aplicar; baseline dev con ledger 5 y pedido previo intacto. CI y smoke real Preview/Neon pendientes. El cursor conserva microsegundos y vincula actor, rol, alcance y filtros; no autoriza acceso por sí mismo. Apps reales T-17/T-18.
