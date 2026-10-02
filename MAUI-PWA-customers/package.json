@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest",
+    "smoke:preview": "vitest run --config vitest.smoke.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
   },
   "overrides": {
