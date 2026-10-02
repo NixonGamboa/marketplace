@@ -93,7 +93,9 @@ Los DTO no contienen token ni hash. Logout revoca y elimina cookie.
 
 **Límite del incremento:** T-06 debe exigir esta identidad en pedidos y aplicar
 los permisos por cliente/tienda. PWA/admin todavía usan auth demo hasta T-17/T-18.
-La migración auth no se aplica a Neon por generar SQL o pasar tests locales.
+La migración 0002 se aplicó solo a Neon dev/maui tras aprobar C2 y verificar
+destino/ledger; 19 checks auth reales en Preview develop pasan. Tres cuentas
+temporales y sus sesiones se retiraron; pedidos conservados. Evidencia en el plan.
 
 ## Validación reproducible
 
