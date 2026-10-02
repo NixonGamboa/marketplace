@@ -58,11 +58,3 @@ export const mockMerchantRepository: MerchantRepository = {
   },
 }
 
-export const realMerchantRepository: MerchantRepository = {
-  get() {
-    throw new Error('realMerchantRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  update() {
-    throw new Error('realMerchantRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}

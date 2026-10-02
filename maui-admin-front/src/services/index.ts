@@ -1,36 +1,20 @@
 // Punto único de exportación de los repositories.
-// El swap a backend real se hace flipping `VITE_DEMO_MODE=false`.
+// `VITE_DEMO_MODE=false` selecciona los repositories reales (API same-origin con cookie de sesión).
+// En modo real, las capacidades sin endpoint (transiciones, pesos, cancelación, auditoría) fallan
+// con `CapabilityUnavailableError`; nunca se degradan a los mocks.
 
-import {
-  mockAuditRepository,
-  realAuditRepository,
-  type AuditRepository,
-} from './mockAuditRepository'
-import {
-  mockOrderRepository,
-  realOrderRepository,
-  type OrderRepository,
-} from './mockOrderRepository'
-import {
-  mockAuthRepository,
-  realAuthRepository,
-  type AuthRepository,
-} from './mockAuthRepository'
-import {
-  mockCatalogRepository,
-  realCatalogRepository,
-  type CatalogRepository,
-} from './mockCatalogRepository'
-import {
-  mockMerchantRepository,
-  realMerchantRepository,
-  type MerchantRepository,
-} from './mockMerchantRepository'
-import {
-  mockStoreStatusRepository,
-  realStoreStatusRepository,
-  type StoreStatusRepository,
-} from './mockStoreStatusRepository'
+import { mockAuditRepository, type AuditRepository } from './mockAuditRepository'
+import { mockOrderRepository, type OrderRepository } from './mockOrderRepository'
+import { mockAuthRepository, type AuthRepository } from './mockAuthRepository'
+import { mockCatalogRepository, type CatalogRepository } from './mockCatalogRepository'
+import { mockMerchantRepository, type MerchantRepository } from './mockMerchantRepository'
+import { mockStoreStatusRepository, type StoreStatusRepository } from './mockStoreStatusRepository'
+import { realAuditRepository } from './realAuditRepository'
+import { realAuthRepository } from './realAuthRepository'
+import { realCatalogRepository } from './realCatalogRepository'
+import { realMerchantRepository } from './realMerchantRepository'
+import { realOrderRepository } from './realOrderRepository'
+import { realStoreStatusRepository } from './realStoreStatusRepository'
 
 const isDemo = (import.meta.env.VITE_DEMO_MODE as string | undefined) !== 'false'
 

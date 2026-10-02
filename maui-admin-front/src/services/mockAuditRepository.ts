@@ -62,14 +62,6 @@ export const mockAuditRepository: AuditRepository = {
   },
 }
 
-export const realAuditRepository: AuditRepository = {
-  log() {
-    throw new Error('realAuditRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  list() {
-    throw new Error('realAuditRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}
 
 /** Helper interno: borra el log (sólo para `ResetDemoButton`). */
 export function _clearAuditLog(): void {
