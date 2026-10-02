@@ -32,6 +32,8 @@ export const canAccessOrder = (actor: OrderActor, order: Pick<Order, 'customerId
 /**
  * Creación de pedidos por cuenta y ventana. La clave es la cuenta autenticada: no depende de
  * cabeceras de IP reenviables. El alta de cuentas ya tiene cota global (`REGISTER_GLOBAL_POLICY`).
+ * Estos valores están fijados también en `maui_commit_order` (migración 0004), que rechaza
+ * cualquier otro límite/ventana; cambiarlos exige una migración nueva (lo vigila una prueba).
  */
 export const ORDER_CREATE_POLICY: Pick<RateLimitRule, 'limit' | 'windowSeconds'> = {
   limit: 20,

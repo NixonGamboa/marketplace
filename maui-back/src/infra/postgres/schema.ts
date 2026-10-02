@@ -19,6 +19,20 @@ import type {
   WeeklyScheduleDto,
 } from '../../../../shared/contracts/index.js'
 import type { StoredOrderItem } from '../../domain/orders/orderRecord.js'
+import type { Order } from '../../domain/orders/Order.js'
+
+/** Claim persistente y snapshot original para reintentos, aislado por cuenta y tienda. */
+export const orderCreationsTable = pgTable('order_creations', {
+  customerId: text('customer_id').notNull(),
+  storeId: text('store_id').notNull(),
+  keyHash: text('key_hash').notNull(),
+  fingerprint: text('fingerprint').notNull(),
+  orderId: text('order_id').notNull().references(() => ordersTable.id, { onDelete: 'cascade' }),
+  snapshot: jsonb('snapshot').$type<Order>().notNull(),
+}, t => ({
+  identity: uniqueIndex('order_creations_identity').on(t.customerId, t.storeId, t.keyHash),
+  orderUnique: uniqueIndex('order_creations_order_unique').on(t.orderId),
+}))
 
 export const ordersTable = pgTable(
   'orders',

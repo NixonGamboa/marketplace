@@ -92,16 +92,9 @@ describe('createOrderRequestSchema — números', () => {
 })
 
 describe('createOrderRequestSchema — pesos solicitado/real', () => {
-  it('peso variable exige kilosRequested y qty = 1', () => {
-    const { kilosRequested: _omit, ...withoutKilos } = variableWeightItem()
-    expect(issuePaths({ ...validPickupRequest(), items: [withoutKilos] })).toContain('items.0.kilosRequested')
-    expect(issuePaths({ ...validPickupRequest(), items: [{ ...variableWeightItem(), qty: 2 }] })).toContain(
-      'items.0.qty',
-    )
-  })
-
-  it('peso fijo no admite kilosRequested', () => {
-    expect(issuePaths(withItem({ kilosRequested: 1 }))).toContain('items.0.kilosRequested')
+  it('la forma de peso se valida contra catálogo, nunca con el flag legacy', () => {
+    expect(parse(withItem({ kilosRequested: 1, is_variable_weight: false })).success).toBe(true)
+    expect(parse({ ...validPickupRequest(), items: [{ id: 'prod_carne', qty: 1, kilosRequested: 1 }] }).success).toBe(true)
   })
 
   it('el cliente no puede enviar el peso real (resultado del aliado)', () => {
@@ -152,7 +145,7 @@ describe('createOrderRequestSchema — entrega, GPS y retiro', () => {
     const base = validPickupRequest()
     expect(parse({ ...base, deliveryData: { address: 'Calle 1' } }).success).toBe(false)
     expect(parse({ ...base, deliveryData: { lat: 3.5, lng: -74.8 } }).success).toBe(false)
-    expect(issuePaths({ ...base, shippingCost: 3000 })).toContain('shippingCost')
+    expect(parse({ ...base, shippingCost: 3000 }).success).toBe(true)
   })
 
   it.each(['night', 'MORNING', '', null])('rechaza franja %j', (timeSlot) => {

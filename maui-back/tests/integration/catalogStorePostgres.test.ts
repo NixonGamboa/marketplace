@@ -53,7 +53,7 @@ describe('catálogo y tienda sobre PostgreSQL embebido con adapters reales', () 
       `select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
     )
     expect(rows.map((r) => r.table_name)).toEqual([
-      'auth_accounts', 'auth_rate_limits', 'auth_sessions', 'catalog_categories', 'catalog_products', 'orders', 'stores',
+      'auth_accounts', 'auth_rate_limits', 'auth_sessions', 'catalog_categories', 'catalog_products', 'order_creations', 'orders', 'stores',
     ])
     const orderColumns = await embedded.pg.query(`select column_name from information_schema.columns where table_name = 'orders'`)
     expect(orderColumns.rows).toHaveLength(18)

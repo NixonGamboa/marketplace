@@ -25,9 +25,25 @@ import { isGramPrecision } from './orderPricing.js'
  * la cuenta autenticada o el servidor deniega (403). El teléfono es contacto no verificado y
  * tampoco otorga acceso.
  *
- * LÍMITE VIGENTE (T-10): `priceAtMoment` y `name` siguen llegando del cliente como datos NO
- * confiables; pasarán a derivarse del catálogo servidor.
+ * Autoridad (T-10): nombre, precio, unidad y peso variable salen del catálogo de la tienda;
+ * subtotal, redondeo, envío y gratuidad, de las reglas de tienda con el reloj del servidor.
+ * `name`, `priceAtMoment` e `is_variable_weight` de los ítems y `shippingCost` se admiten como
+ * campos LEGACY opcionales y se IGNORAN: nunca fijan importes ni el snapshot persistido y no
+ * forman parte de la huella de idempotencia. Stock: solo flags del catálogo, sin descontar.
+ *
+ * Idempotencia: `POST /api/orders` exige la cabecera `Idempotency-Key`. Alcance cuenta + tienda
+ * + clave: repetir la misma petición devuelve el pedido original (aunque el catálogo o la
+ * tienda hayan cambiado) y otra petición con la misma clave responde 409 `IDEMPOTENCY_KEY_REUSED`.
  */
+
+export const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key'
+
+/** Clave opaca generada por el cliente (p. ej. UUID v4), estable entre reintentos del mismo pedido. */
+export const idempotencyKeySchema = z
+  .string()
+  .min(16, 'Idempotency-Key requiere entre 16 y 128 caracteres')
+  .max(128, 'Idempotency-Key requiere entre 16 y 128 caracteres')
+  .regex(/^[A-Za-z0-9._:-]+$/, 'Idempotency-Key solo admite letras, dígitos y . _ : -')
 
 export const ORDER_LIMITS = {
   maxItems: 50,
@@ -47,7 +63,7 @@ const kilosSchema = z
 
 const itemShape = {
   id: entityIdSchema,
-  /** Snapshot del nombre al ordenar. Opcional por compatibilidad con el demo. */
+  /** Snapshot del nombre al ordenar. Opcional en pedidos legacy. */
   name: z.string().trim().min(1).max(200).optional(),
   /** Unidades. En peso variable es siempre 1 (la cantidad real son los kilos). */
   qty: z.number().int().min(1).max(ORDER_LIMITS.maxQtyPerItem),
@@ -57,6 +73,9 @@ const itemShape = {
   /** Peso solicitado por el cliente; se preserva como estimación original. */
   kilosRequested: kilosSchema.optional(),
 }
+
+/** Snapshot de la unidad del catálogo (T-10); ausente en pedidos legacy. */
+const unitSnapshotSchema = z.string().trim().min(1).max(60)
 
 interface WeightRuleItem {
   qty: number
@@ -84,12 +103,19 @@ const refineWeightRules = (item: WeightRuleItem, ctx: z.RefinementCtx): void => 
   }
 }
 
-/** Ítem tal como lo envía el cliente: sin peso real. */
-export const orderItemInputSchema = z.object(itemShape).strict().superRefine(refineWeightRules)
+/**
+ * Ítem tal como lo envía el cliente: producto, cantidad y kilos pedidos. `name`,
+ * `priceAtMoment` e `is_variable_weight` son legacy e ignorados (ver cabecera); el servidor
+ * contrasta qty/kilos con el producto del catálogo.
+ */
+export const orderItemInputSchema = z
+  .object({ ...itemShape, priceAtMoment: copAmountSchema.optional() })
+  .strict()
+  // La forma de peso se contrasta con el catálogo, nunca con el flag legacy del cliente.
 
 /** Ítem persistido/expuesto: snapshot + peso real pesado por el aliado (`kilosReal`). */
 export const orderItemSchema = z
-  .object({ ...itemShape, kilosReal: kilosSchema.optional() })
+  .object({ ...itemShape, unit: unitSnapshotSchema.optional(), kilosReal: kilosSchema.optional() })
   .strict()
   .superRefine(refineWeightRules)
 
@@ -170,10 +196,11 @@ export const createOrderRequestSchema = z
     deliveryData: deliveryDataSchema,
     customerName: customerNameSchema,
     customerPhone: mobileInputSchema,
-    shippingCost: copAmountSchema,
+    /** LEGACY ignorado: el envío lo cotiza el servidor con las reglas de la tienda. */
+    shippingCost: copAmountSchema.optional(),
   })
   .strict()
-  .superRefine(refineDeliveryRules)
+  .superRefine((order, ctx) => refineDeliveryRules({ ...order, shippingCost: 0 }, ctx))
 
 /** PATCH /api/orders/:id/status */
 export const updateOrderStatusRequestSchema = z
