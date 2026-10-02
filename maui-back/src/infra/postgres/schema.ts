@@ -1,15 +1,23 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   check,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import type {
+  NutritionalInfoDto,
+  TimeSlotConfigDto,
+  WeeklyScheduleDto,
+} from '../../../../shared/contracts/index.js'
 import type { StoredOrderItem } from '../../domain/orders/orderRecord.js'
 
 export const ordersTable = pgTable(
@@ -95,3 +103,121 @@ export const authRateLimitsTable = pgTable('auth_rate_limits', {
   windowStart: timestamp('window_start', { withTimezone: true, mode: 'string' }).notNull(),
   attempts: integer('attempts').notNull(),
 })
+
+/**
+ * Configuración de tienda (T-08). Horario y franjas en JSONB validado con el contrato al leer.
+ * Los CHECK repiten las invariantes del contrato para escrituras fuera de la aplicación.
+ * `orders.store_id` y `auth_accounts.store_id` no se vinculan: filas previas se conservan.
+ */
+export const storesTable = pgTable(
+  'stores',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    contactPhone: text('contact_phone'),
+    address: text('address').notNull(),
+    timeZone: text('time_zone').notNull(),
+    weeklySchedule: jsonb('weekly_schedule').$type<WeeklyScheduleDto>().notNull(),
+    scheduleOverride: text('schedule_override').notNull(),
+    deliveryEnabled: boolean('delivery_enabled').notNull(),
+    shippingCost: integer('shipping_cost').notNull(),
+    freeShippingThreshold: integer('free_shipping_threshold'),
+    deliveryCutoff: text('delivery_cutoff'),
+    coverageNote: text('coverage_note'),
+    timeSlots: jsonb('time_slots').$type<TimeSlotConfigDto[]>().notNull(),
+    version: integer('version').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => ({
+    timeZoneValid: check('stores_time_zone_valid', sql`${t.timeZone} = 'America/Bogota'`),
+    overrideValid: check('stores_schedule_override_valid', sql`${t.scheduleOverride} in ('auto', 'open', 'closed')`),
+    amountsValid: check(
+      'stores_delivery_amounts_valid',
+      sql`${t.shippingCost} between 0 and 100000000 and (${t.freeShippingThreshold} is null or ${t.freeShippingThreshold} between 1 and 100000000)`,
+    ),
+    contactValid: check(
+      'stores_contact_phone_valid',
+      sql`${t.contactPhone} is null or (${t.contactPhone} ~ '^573[0-9]{9}$' and ${t.contactPhone} <> '573000000000')`,
+    ),
+    versionValid: check('stores_version_positive', sql`${t.version} >= 1`),
+  }),
+)
+
+/** Categorías (pasillos) por tienda (T-07). `(store_id, id)` es destino de la FK de productos. */
+export const catalogCategoriesTable = pgTable(
+  'catalog_categories',
+  {
+    id: text('id').primaryKey(),
+    storeId: text('store_id')
+      .notNull()
+      .references(() => storesTable.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    icon: text('icon'),
+    slug: text('slug'),
+    illustrationUrl: text('illustration_url'),
+    sortOrder: integer('sort_order'),
+    version: integer('version').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => ({
+    storeScoped: unique('catalog_categories_store_id_unique').on(t.storeId, t.id),
+    slugPerStore: unique('catalog_categories_store_slug_unique').on(t.storeId, t.slug),
+    versionValid: check('catalog_categories_version_positive', sql`${t.version} >= 1`),
+  }),
+)
+
+/**
+ * Productos por tienda (T-07). La FK compuesta `(store_id, category_id)` impide usar una
+ * categoría de otra tienda y, con RESTRICT, borrar una categoría con productos, de forma
+ * atómica incluso ante escrituras concurrentes. No hay borrado de productos: se archivan.
+ */
+export const catalogProductsTable = pgTable(
+  'catalog_products',
+  {
+    id: text('id').primaryKey(),
+    storeId: text('store_id').notNull(),
+    categoryId: text('category_id').notNull(),
+    name: text('name').notNull(),
+    displayName: text('display_name'),
+    legalName: text('legal_name'),
+    price: integer('price').notNull(),
+    originalPrice: integer('original_price'),
+    unit: text('unit').notNull(),
+    imageUrl: text('image_url').notNull(),
+    inStock: boolean('in_stock').notNull(),
+    isVariableWeight: boolean('is_variable_weight').notNull(),
+    badge: text('badge'),
+    currency: text('currency').notNull(),
+    description: text('description'),
+    nutritionalInfo: jsonb('nutritional_info').$type<NutritionalInfoDto>(),
+    availability: text('availability_label'),
+    active: boolean('active').notNull(),
+    archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'string' }),
+    version: integer('version').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (t) => ({
+    categoryOfStore: foreignKey({
+      name: 'catalog_products_category_same_store_fk',
+      columns: [t.storeId, t.categoryId],
+      foreignColumns: [catalogCategoriesTable.storeId, catalogCategoriesTable.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    byStore: index('catalog_products_by_store').on(t.storeId, t.createdAt),
+    byCategory: index('catalog_products_by_category').on(t.storeId, t.categoryId),
+    priceValid: check(
+      'catalog_products_price_valid',
+      sql`${t.price} between 1 and 100000000 and (${t.originalPrice} is null or (${t.originalPrice} > ${t.price} and ${t.originalPrice} <= 100000000))`,
+    ),
+    currencyValid: check('catalog_products_currency_cop', sql`${t.currency} = 'COP'`),
+    unitCoherent: check(
+      'catalog_products_unit_coherent',
+      sql`(${t.isVariableWeight} and ${t.unit} = 'Por Kilogramo') or (not ${t.isVariableWeight} and ${t.unit} <> 'Por Kilogramo')`,
+    ),
+    versionValid: check('catalog_products_version_positive', sql`${t.version} >= 1`),
+  }),
+)

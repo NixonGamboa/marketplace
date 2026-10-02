@@ -22,6 +22,13 @@
       "when": 1790899108684,
       "tag": "0002_auth_accounts_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790910532621,
+      "tag": "0003_catalog_store_settings",
+      "breakpoints": true
     }
   ]
 }

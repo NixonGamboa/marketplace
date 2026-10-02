@@ -7,6 +7,12 @@
   "rewrites": [
     { "source": "/api/orders/:id/status", "destination": "/api/orders/[id]/status" },
     { "source": "/api/orders/:id", "destination": "/api/orders/[id]" },
+    { "source": "/api/catalog/staff", "destination": "/api/catalog?op=staff" },
+    { "source": "/api/catalog/products", "destination": "/api/catalog?op=products" },
+    { "source": "/api/catalog/products/:id", "destination": "/api/catalog?op=product&id=:id" },
+    { "source": "/api/catalog/categories", "destination": "/api/catalog?op=categories" },
+    { "source": "/api/catalog/categories/:id", "destination": "/api/catalog?op=category&id=:id" },
+    { "source": "/api/store/staff", "destination": "/api/store?op=staff" },
     { "source": "/api", "destination": "/api/not-found" },
     { "source": "/api/(.*)", "destination": "/api/not-found" },
     { "source": "/admin", "destination": "/admin/index.html" },
