@@ -91,8 +91,9 @@ Login recibe `{method: "phone", phone, password}` o
 Mutaciones exigen la cabecera Origin configurada; login/registro también JSON.
 Los DTO no contienen token ni hash. Logout revoca y elimina cookie.
 
-**Límite del incremento:** T-06 debe exigir esta identidad en pedidos y aplicar
-los permisos por cliente/tienda. PWA/admin todavía usan auth demo hasta T-17/T-18.
+**Pedidos (T-06):** los tres endpoints exigen esta sesión; actor, rol y tienda salen
+de la cuenta vigente, nunca del body ni de cabeceras. Detalles en la tabla de
+endpoints. PWA/admin todavía usan auth demo hasta T-17/T-18.
 La migración 0002 se aplicó solo a Neon dev/maui tras aprobar C2 y verificar
 destino/ledger; 19 checks auth reales en Preview develop pasan. Tres cuentas
 temporales y sus sesiones se retiraron; pedidos conservados. Evidencia en el plan.
@@ -122,9 +123,17 @@ no sustituyen el smoke real Neon/Preview. El build unificado aún compila demo.
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET / HEAD | `/api/health` | SELECT 1 real; 200 conectado o 503 seguro |
-| POST | `/api/orders` | Request compartido; devuelve `OrderConfirmationDto` |
-| GET | `/api/orders/:id` | Detalle |
-| PATCH | `/api/orders/:id/status` | Cambia estado (con validación de transición) |
+| POST | `/api/orders` | Solo customer; dueño = cuenta de la sesión, tienda fijada por servidor. Devuelve `OrderConfirmationDto` |
+| GET | `/api/orders/:id` | Cliente dueño u owner/operator de la tienda del pedido |
+| PATCH | `/api/orders/:id/status` | Owner/operator de la tienda del pedido (con validación de transición) |
+
+Los pedidos exigen cookie de sesión vigente (401 si falta, expiró, fue revocada o la
+cuenta está deshabilitada). Un pedido de otro cliente u otra tienda responde el mismo
+404 que uno inexistente; un rol sin permiso, 403. `userId` del request debe coincidir
+con la sesión (si no, 403) y `storeId`/`customerId` se rechazan. POST/PATCH exigen
+`Origin` igual a `AUTH_ORIGIN` y JSON; las respuestas son `no-store`. Crear pedidos
+tiene límite persistente de 20 por cuenta y hora (429 con `Retry-After`). No hay
+endpoint de listado: T-11 lo añadirá reutilizando `domain/orders/orderAccess`.
 
 GET/PATCH devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
 incluyendo `/api` y `/api/`. Métodos no admitidos responden 405 con `Allow`.
@@ -209,5 +218,5 @@ pedido previo; la evidencia está en el plan. Las migraciones nuevas requieren
 verificar destino/ledger y su autorización propia antes de ejecutar.
 
 T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas.
-`userId`, nombre/precio y envío del request aún no son autoridad confiable;
-GET/PATCH siguen sin autorización hasta T-05/T-06. T-10/T-12 completan esas reglas.
+Nombre/precio y envío del request aún no son autoridad confiable; T-10/T-12
+completan esas reglas. La autorización por cliente/tienda corresponde a T-06.

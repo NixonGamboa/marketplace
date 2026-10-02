@@ -690,6 +690,97 @@
         "ordersFingerprint": "b4824b11e79c9c366fbcd2ed061ce410",
         "bucketsRateLimit": "conservados, sin reset global"
       }
+    },
+    {
+      "id": "t06-autorizacion-pedidos",
+      "actualizado": "2026-10-01",
+      "estado": "validado en feature local; no integrado ni comprobado en cloud",
+      "rama": "feature/autorizacion-pedidos-tiendas",
+      "base": "1b6019a40ab6e2603cd21179c575de5a7262618f",
+      "checkout": "D:/Proyectos/Maui",
+      "autorizacion": "Usuario: implementar y validar T-06 localmente con commits locales por alcance. Sin push, PR, merge, develop, despliegue ni migraciones/seed/reset cloud.",
+      "contexto": "Codex sin capacidad temporal; Claude ejecuta T-06 de forma autónoma y deja la feature para revisión de Codex. Sin orquestador activo durante el bloque.",
+      "cambiosPreexistentesPreservados": [
+        "docs/bitacora/2026-10-01-auditoria-plan-orquestacion-ia.md"
+      ],
+      "sesiones": [
+        {
+          "bloques": [
+            "T-06"
+          ],
+          "proveedor": "Claude Code",
+          "ejecutor": "sesión interactiva local con suscripción, iniciada por el usuario",
+          "modelo": "claude-opus-5-5",
+          "esfuerzo": "high (solicitado)",
+          "evidenciaModelo": "Comando /model mantuvo Opus 5.5; el entorno de la sesión declara el ID claude-opus-5-5.",
+          "evidenciaEsfuerzo": "Las herramientas de la sesión no exponen el esfuerzo efectivo; se registra el solicitado sin afirmarlo como verificado.",
+          "sessionId": "43dd50df-f3b6-4d39-84f3-faac23916ac1",
+          "subagentes": 0,
+          "ownership": [
+            "api/orders/",
+            "api/_lib/orders.ts",
+            "api/_lib/auth.ts (límite de cuerpo parametrizable y authenticateRequest)",
+            "maui-back/src/domain/orders/",
+            "maui-back/src/usecases/orders/",
+            "maui-back/src/usecases/auth/reserveAttempt.ts",
+            "maui-back/src/usecases/auth/requireRole.ts (comentario)",
+            "shared/contracts/orders.ts (documentación de userId)",
+            "shared/contracts/README.md",
+            "maui-back/tests/orders/",
+            "maui-back/tests/usecases/orders/",
+            "maui-back/tests/integration/",
+            "maui-back/README.md",
+            "docs/tecnicos/adr-002-acceso-sesiones.md",
+            "docs/tecnicos/estado-plan.md",
+            "docs/tecnicos/ejecucion-ia.json"
+          ],
+          "estadoProceso": "Sin procesos auxiliares activos; sesión conservada para correcciones",
+          "bloqueantes": [],
+          "siguienteAccion": "Codex revisa diff 1b6019a..ffac5c7 y decisiones abiertas; con autorización, PR con Actions y smoke real en Preview dev/maui"
+        }
+      ],
+      "referenciaVersion": "ffac5c7",
+      "commits": [
+        {
+          "sha": "a216e14",
+          "alcance": "helper PostgreSQL embebido compartido para pruebas"
+        },
+        {
+          "sha": "ffac5c7",
+          "alcance": "autorización de pedidos por sesión, propiedad y tienda con pruebas"
+        }
+      ],
+      "validacion": [
+        "Node 24.11.0 y npm 11.6.1 con lockfiles vigentes, sin reinstalar dependencias",
+        "ci:check: tipos app/node y backend/API/shared, drift, lint cero errores y 3 warnings previos por app; tests 552 backend +20 PWA +80 admin =652",
+        "ci:build unificado aprobado; build sigue en demo",
+        "26 pruebas HTTP con handlers, scrypt y JWT reales; casos de uso de rol/propiedad/límite; 3 pruebas sobre PostgreSQL embebido",
+        "Mutación temporal de canAccessOrder: 5 pruebas fallan; archivo restaurado",
+        "git diff --check aprobado"
+      ],
+      "limitaciones": [
+        "Sin smoke real en Neon/Preview: memory y PostgreSQL embebido no acreditan cloud",
+        "userId sigue requerido en el contrato para no romper el mock PWA; T-18 debe enviar la cuenta de la sesión",
+        "Sin endpoint de listado; T-11 debe aplicar la misma política",
+        "Cancelación por cliente no definida en el plan: 403",
+        "Sin límite por IP; cotas globales de login/registro conservadas",
+        "Lectura y escritura de estado no atómicas (T-12)"
+      ],
+      "correcciones": [
+        {
+          "ronda": 1,
+          "responsable": "Claude misma sesión",
+          "causa": "ci:check: TS2322 en MAUI-PWA-customers/src/services/mockOrderService.ts al volver userId opcional en el contrato",
+          "resultado": "Se mantuvo userId requerido con regla de coincidencia con la sesión; sin tocar frontends; gates pasan"
+        }
+      ],
+      "arnes": [
+        {
+          "resultado": "fallo de herramienta local, sin efecto en el producto",
+          "causa": "Heredoc de bash con comillas mal interpretado y regex de reemplazo de pruebas demasiado amplio",
+          "solucion": "Restaurar los archivos de prueba desde Git y aplicar reemplazos explícitos desde un script del scratchpad; se eliminó un bash.exe.stackdump generado durante la sesión"
+        }
+      ]
     }
   ]
 }
