@@ -9,8 +9,6 @@ import { DEFAULT_STORE_ID } from '../maui-back/src/domain/orders/Order.js'
 import { getRepositories } from '../maui-back/src/infra/factory.js'
 import { getAuthRuntime } from '../maui-back/src/infra/auth/factory.js'
 import { ownedStoreOf } from '../maui-back/src/domain/store/storeAccess.js'
-import { SharpProductImageProcessor } from '../maui-back/src/infra/storage/SharpProductImageProcessor.js'
-import { loadProductImageStorageConfig, VercelProductImageStorage } from '../maui-back/src/infra/storage/VercelProductImageStorage.js'
 import { uploadProductImage } from '../maui-back/src/usecases/catalog/uploadProductImage.js'
 import { systemClock } from '../maui-back/src/shared/clock.js'
 import { createCategory, deleteCategory, updateCategory } from '../maui-back/src/usecases/catalog/manageCategories.js'
@@ -44,6 +42,9 @@ export default createOperationHandler(
         ownedStoreOf(actor)
         const id = routeIdFrom(req)
         const version = imageVersionFrom(req)
+        // Un fallo del decoder nativo queda limitado a upload, sin afectar lecturas de catálogo.
+        const { SharpProductImageProcessor } = await import('../maui-back/src/infra/storage/SharpProductImageProcessor.js')
+        const { loadProductImageStorageConfig, VercelProductImageStorage } = await import('../maui-back/src/infra/storage/VercelProductImageStorage.js')
         const { catalog } = await getRepositories()
         const { deps } = await getAuthRuntime()
         const storage = new VercelProductImageStorage(loadProductImageStorageConfig(process.env))
