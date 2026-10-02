@@ -195,7 +195,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "272057cb-2dfd-4bb9-bb1b-dbab527bd26d",
       "identificadorEjecucion": null,
-      "estado": "finalizado; validado en feature local, pendiente revisión, PR y smoke"
+      "estado": "finalizado; integrado en develop y comprobado en test real; mismo ID reanudado para helper y documentación de cierre"
     },
     {
       "incremento": "t07-t08-catalogo-tienda",
@@ -208,7 +208,59 @@
       "esfuerzoEfectivo": null,
       "sessionId": "272057cb-2dfd-4bb9-bb1b-dbab527bd26d",
       "identificadorEjecucion": null,
-      "estado": "finalizado; validado en feature local, pendiente revisión, PR y smoke"
+      "estado": "finalizado; integrado en develop y comprobado en test real; mismo ID reanudado para helper y documentación de cierre"
+    },
+    {
+      "incremento": "t07-t08-catalogo-tienda",
+      "rama": "feature/catalogo-tienda-real",
+      "bloque": "T-07",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado; integrado en develop y comprobado en test real"
+    },
+    {
+      "incremento": "t07-t08-catalogo-tienda",
+      "rama": "feature/catalogo-tienda-real",
+      "bloque": "T-08",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado; integrado en develop y comprobado en test real"
+    },
+    {
+      "incremento": "t07-t08-catalogo-tienda",
+      "rama": "feature/evidencia-pr",
+      "bloque": "publicador de evidencia",
+      "proveedor": "Claude Code",
+      "rol": "revisor y ejecutor del publicador",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "43a123f3-914e-4528-b1c4-156eb230339d",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; integrado en develop (PR #6)"
+    },
+    {
+      "incremento": "publicacion-evidencia",
+      "rama": "feature/cierre-catalogo-tienda",
+      "bloque": "publicador",
+      "proveedor": "Codex",
+      "rol": "orquestador y corrector de integración",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado; reporte combinado publicado y verificado"
     }
   ]
 }

@@ -14,7 +14,7 @@ Si los detalles de fallos/suites exceden el espacio, conserva sus totales, prior
 
 ## Preview
 
-Después de un smoke nuevo, el orquestador prepara un JSON **sin credenciales ni datos personales** y ejecuta `evidencia-preview.yml` sobre develop o una feature. El workflow publica un único reporte final **CI + Preview**; no hace requests, modifica cloud ni ejecuta el smoke. Exige resumen de CI, sus SHA/enlace/resultado, SHA del deployment Preview, fecha, limitaciones y preparación/resultado esperado/observado por caso. No asumir que el SHA de CI y el deployment son iguales: identificarlos por separado.
+Después de un smoke nuevo, el orquestador prepara un JSON **sin credenciales ni datos personales** e invoca `ci.yml` con el input `report` sobre develop o una feature. Ese modo ejecuta únicamente el job publicador: no sustituye ni omite los gates de un PR, y exige la referencia a un CI previamente aprobado. Sin input se ejecuta el CI completo. El publicador entrega un único reporte final **CI + Preview**; no hace requests, modifica cloud ni ejecuta el smoke. Exige resumen de CI, sus SHA/enlace/resultado, SHA del deployment Preview, fecha, limitaciones y preparación/resultado esperado/observado por caso. No asumir que el SHA de CI y el deployment son iguales: identificarlos por separado.
 
 Incluir status HTTP y campos relevantes del cuerpo observado en `actual`; añadir comprobaciones SQL y limpieza como casos adicionales. Cada caso ocupa una fila. Una prueba fallida o CI no aprobado deja el workflow rojo pero conserva su evidencia. Un reporte inválido o mayor de 200 líneas no se publica: resumir casos de la misma regla con cantidades y evidencia representativa, conservando todos los fallos y declarando la agrupación.
 
@@ -50,7 +50,7 @@ Formato (valores ilustrativos; reemplazar por evidencia realmente obtenida):
 Enviar el archivo revisado mediante GitHub CLI, sin poner su contenido en comandos o logs:
 
 ```sh
-gh workflow run evidencia-preview.yml --ref develop -F report=@/ruta/al/reporte-nuevo.json
+gh workflow run ci.yml --ref develop -F report=@/ruta/al/reporte-nuevo.json
 ```
 
 El input admite hasta el límite de GitHub para `workflow_dispatch`; mantener el reporte compacto (máximo 65.535 caracteres para los inputs). No adjuntar `.env`, cookies, headers de autenticación, URLs de BD, transcripts o carpetas de trabajo completas. La redacción automática es una defensa adicional, no reemplaza la revisión del productor.
