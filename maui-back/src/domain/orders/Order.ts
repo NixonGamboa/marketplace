@@ -46,6 +46,26 @@ export interface Order {
   /** Motivo y fecha de cancelación; solo en `cancelled` (ausentes en cancelaciones legacy). */
   cancellationReason?: string
   cancelledAt?: string
+  /** Sustituciones y retiros aplicados, en orden. Constancia interna para T-13; no sale en el DTO. */
+  itemAdjustments?: OrderItemAdjustment[]
+}
+
+/**
+ * Registro de un retiro o sustitución de ítem: quién, cuándo y si el personal declaró haber
+ * contactado al cliente antes (obligatorio con preferencia `call_me`). Es una declaración del
+ * operador autenticado, no una confirmación del cliente ni una verificación externa.
+ */
+export interface OrderItemAdjustment {
+  type: 'remove' | 'substitute'
+  /** Línea afectada (producto de `items` antes del cambio). */
+  itemId: string
+  /** Producto sustituto; solo en `substitute`. */
+  productId?: string
+  customerContacted: boolean
+  /** Cuenta del personal que hizo el cambio. */
+  by: string
+  /** ISO UTC (igual a `updatedAt` del cambio). */
+  at: string
 }
 
 /**

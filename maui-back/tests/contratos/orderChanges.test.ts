@@ -90,6 +90,16 @@ describe('updateOrderItemsRequestSchema', () => {
     expect(itemIssues({ expectedVersion: 1, changes: many })).toEqual(['changes'])
   })
 
+  it('customerContacted solo admite `true` y solo en retiro o sustitución', () => {
+    const substitute = { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }
+    expect(itemIssues({ expectedVersion: 1, changes: [{ ...substitute, customerContacted: true }] })).toEqual([])
+    expect(itemIssues({ expectedVersion: 1, changes: [{ type: 'remove', itemId: 'prod_leche', customerContacted: true }] })).toEqual([])
+    for (const customerContacted of [false, 'sí', 1, null]) {
+      expect(itemIssues({ expectedVersion: 1, changes: [{ ...substitute, customerContacted }] })).toEqual(['changes.0.customerContacted'])
+    }
+    expect(itemIssues({ expectedVersion: 1, changes: [{ ...weight(), customerContacted: true }] })).toEqual(['changes.0'])
+  })
+
   it('strict: precio, nombre o unidad del sustituto y tipos desconocidos se rechazan', () => {
     const substitute = { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }
     for (const extra of [{ priceAtMoment: 1 }, { name: 'Queso' }, { unit: '1 kg' }, { is_variable_weight: true }]) {

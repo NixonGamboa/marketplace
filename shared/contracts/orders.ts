@@ -253,7 +253,16 @@ const weightChangeSchema = z
   .object({ type: z.literal('weight'), itemId: entityIdSchema, kilosReal: kilosSchema })
   .strict()
 
-const removeChangeSchema = z.object({ type: z.literal('remove'), itemId: entityIdSchema }).strict()
+/**
+ * Declaración del personal autenticado de que habló con el cliente antes de quitar o sustituir.
+ * Obligatoria si la preferencia es `call_me` («avisar antes de cambiar nada»). Queda registrada
+ * con el cambio; no es una confirmación del cliente ni una verificación externa ni envía mensajes.
+ */
+const customerContactedSchema = z.literal(true).optional()
+
+const removeChangeSchema = z
+  .object({ type: z.literal('remove'), itemId: entityIdSchema, customerContacted: customerContactedSchema })
+  .strict()
 
 /**
  * Sustituye la línea `itemId` por `productId` del catálogo de la misma tienda. Nombre, unidad,
@@ -268,6 +277,7 @@ const substituteChangeSchema = z
     qty: z.number().int().min(1).max(ORDER_LIMITS.maxQtyPerItem),
     kilosRequested: kilosSchema.optional(),
     kilosReal: kilosSchema.optional(),
+    customerContacted: customerContactedSchema,
   })
   .strict()
 

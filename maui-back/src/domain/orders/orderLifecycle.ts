@@ -13,7 +13,7 @@ import {
 } from '../../../../shared/contracts/index.js'
 import { isOrderable, type CatalogProduct } from '../catalog/Catalog.js'
 import { DomainError, ValidationError } from '../../shared/errors.js'
-import type { Order } from './Order.js'
+import type { Order, OrderItemAdjustment } from './Order.js'
 
 /**
  * Ciclo de vida del pedido (T-12): reglas puras, sin persistencia ni HTTP. Cada cambio devuelve el
@@ -89,9 +89,15 @@ const missingRealWeights = (items: readonly OrderItemDto[]): Issue[] =>
       : [],
   )
 
+/** Etapas de entrega: desde `ready` el pedido se cobra con total final. */
+const DELIVERY_STAGES: readonly OrderStatus[] = ['ready', 'in_delivery', 'delivered']
+
 /**
- * Transición de la máquina común según la modalidad. `ready` exige todos los pesos reales y fija
- * el total final; `cancelled` guarda motivo y fecha. Un pedido terminal no admite ninguna.
+ * Transición de la máquina común según la modalidad. Entrar en `ready`, `in_delivery` o
+ * `delivered` exige todos los pesos reales y fija el total final con los ítems vigentes y el envío
+ * cotizado: así un pedido legacy que llegó a `ready`/`in_delivery` sin total o sin peso no termina
+ * entregado sin importe (sin peso se rechaza). `cancelled` guarda motivo y fecha. Un pedido
+ * terminal no admite ninguna transición.
  */
 export const applyStatusChange = (order: Order, change: StatusChange, ctx: OrderChangeContext): Order => {
   assertNotTerminal(order)
@@ -103,10 +109,13 @@ export const applyStatusChange = (order: Order, change: StatusChange, ctx: Order
   }
   const next: Order = { ...order, status: change.status, ...stamp(order, ctx) }
 
-  if (change.status === 'ready') {
+  if (DELIVERY_STAGES.includes(change.status)) {
     const missing = missingRealWeights(order.items)
     if (missing.length > 0) {
-      throw new ValidationError('Registra el peso real de todos los productos de peso variable antes de marcarlo listo', missing)
+      throw new ValidationError(
+        `Falta el peso real de productos de peso variable: el pedido no puede pasar a ${change.status}`,
+        missing,
+      )
     }
     return withFinalTotal(next, finalTotalOf(order.items, order.shippingCost))
   }
@@ -124,10 +133,28 @@ const asOriginalItem = ({ kilosReal: _real, ...item }: OrderItemDto): OrderItemD
 
 type SubstituteChange = Extract<OrderItemChange, { type: 'substitute' }>
 
+type AdjustingChange = Extract<OrderItemChange, { type: 'remove' | 'substitute' }>
+
+/**
+ * Preferencia `call_me`: avisar al cliente antes de cambiar nada. Quitar o sustituir exige que el
+ * personal declare el contacto previo (`customerContacted: true`); el servidor no lo verifica ni
+ * envía mensajes.
+ */
+const contactIssues = (order: Order, change: AdjustingChange): Issue[] =>
+  order.substitutionPreference === 'call_me' && change.customerContacted !== true
+    ? [issue('customerContacted', 'El cliente pidió que lo llamen antes de cambiar: confirma que lo contactaste')]
+    : []
+
+/** Retiro: `null` (línea quitada) o los motivos de rechazo. */
+const removal = (order: Order, change: AdjustingChange): null | Issue[] => {
+  const contact = contactIssues(order, change)
+  return contact.length > 0 ? contact : null
+}
+
 /**
  * Línea sustituta con nombre, unidad, precio y peso variable del catálogo actual de la tienda del
  * pedido; cantidad/kilos siguen las reglas del ítem de creación. Respeta la preferencia del
- * cliente: con `remove` no se reemplaza nada.
+ * cliente: con `remove` no se reemplaza nada y con `call_me` se exige la constancia de contacto.
  */
 const substituteLine = (
   order: Order,
@@ -138,6 +165,8 @@ const substituteLine = (
   if (order.substitutionPreference === 'remove') {
     return [issue('type', 'El cliente pidió quitar los productos agotados sin reemplazo')]
   }
+  const contact = contactIssues(order, change)
+  if (contact.length > 0) return contact
   if (order.items.some((line) => line.id === change.productId)) {
     return [issue('productId', 'El producto ya está en el pedido')]
   }
@@ -164,7 +193,8 @@ const substituteLine = (
  * Cambios de ítems en bloque, solo durante la preparación. Todos se validan contra el pedido leído
  * y se aplican juntos o ninguno: pesos reales (solo peso variable), retiro y sustitución. El pedido
  * no puede quedar vacío (para eso se cancela con motivo). La primera sustitución o retiro fija
- * `originalItems`; el total final se recalcula y queda ausente mientras falte un peso real.
+ * `originalItems`; cada uno queda en `itemAdjustments` con actor, fecha y constancia de contacto.
+ * El total final se recalcula y queda ausente mientras falte un peso real.
  */
 export const applyItemChanges = (
   order: Order,
@@ -182,6 +212,8 @@ export const applyItemChanges = (
   const issues: Issue[] = []
   /** Línea nueva por ID de ítem; `null` = retirada. */
   const replacements = new Map<string, OrderItemDto | null>()
+  const stamped = stamp(order, ctx)
+  const adjustments: OrderItemAdjustment[] = []
   changes.forEach((change, index) => {
     const at = (field: string): string => `changes.${index}${field ? `.${field}` : ''}`
     const item = order.items.find((line) => line.id === change.itemId)
@@ -194,13 +226,22 @@ export const applyItemChanges = (
       else replacements.set(item.id, { ...item, kilosReal: change.kilosReal })
       return
     }
-    if (change.type === 'remove') {
-      replacements.set(item.id, null)
+    const line = change.type === 'remove'
+      ? removal(order, change)
+      : substituteLine(order, item, change, catalog.get(change.productId) ?? null)
+    if (Array.isArray(line)) {
+      issues.push(...line.map(({ path, message }) => issue(at(path), message)))
       return
     }
-    const line = substituteLine(order, item, change, catalog.get(change.productId) ?? null)
-    if (Array.isArray(line)) issues.push(...line.map(({ path, message }) => issue(at(path), message)))
-    else replacements.set(item.id, line)
+    replacements.set(item.id, line)
+    adjustments.push({
+      type: change.type,
+      itemId: item.id,
+      ...(change.type === 'substitute' ? { productId: change.productId } : {}),
+      customerContacted: change.customerContacted === true,
+      by: ctx.actorId,
+      at: stamped.updatedAt,
+    })
   })
   if (issues.length > 0) throw new ValidationError('Cambios de ítems inválidos', issues)
 
@@ -217,11 +258,13 @@ export const applyItemChanges = (
 
   const changesLines = changes.some((change) => change.type !== 'weight')
   const originalItems = order.originalItems ?? (changesLines ? order.items.map(asOriginalItem) : undefined)
+  const itemAdjustments = [...(order.itemAdjustments ?? []), ...adjustments]
   const next: Order = {
     ...order,
     items,
     ...(originalItems !== undefined ? { originalItems } : {}),
-    ...stamp(order, ctx),
+    ...(itemAdjustments.length > 0 ? { itemAdjustments } : {}),
+    ...stamped,
   }
   return withFinalTotal(next, finalTotalOf(items, order.shippingCost))
 }

@@ -6,6 +6,7 @@ import type { CatalogProduct } from '../../src/domain/catalog/Catalog.js'
 import type { OrdersRepository } from '../../src/domain/orders/OrdersRepository.js'
 import { createStaffAccount } from '../../src/usecases/auth/createStaffAccount.js'
 import { HTTP_ORIGIN, HTTP_SECRET, authRequest, bodyOf, cookiePair, mockResponse, statusOf, type MockResponse } from '../auth/httpFixture.js'
+import { internalOrder } from '../contratos/fixtures.js'
 import { initializeOrderCatalog } from '../orders/creationFixture.js'
 import { startEmbeddedPostgres, type EmbeddedPostgres } from './pgliteNeon.js'
 
@@ -89,7 +90,7 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
   const row = async (id: string) => {
     if (!embedded) return undefined
     const { rows } = await embedded.pg.query<Record<string, unknown>>(
-      `select status, total, final_total, shipping_cost, version, updated_by, items, original_items, cancellation_reason,
+      `select status, total, final_total, shipping_cost, version, updated_by, items, original_items, item_adjustments, cancellation_reason,
               cancelled_at is not null as has_cancelled_at, created_at < updated_at as updated_after_created
          from orders where id = $1`, [id])
     return rows[0]
@@ -356,6 +357,56 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     expect(statusOf(list)).toBe(200)
     const page = orderListResponseSchema.parse(bodyOf(list))
     expect(page.items.map((item) => [item.orderId, item.version])).toEqual([[id, 2]])
+  })
+
+  it('call_me: quitar o sustituir exige la constancia de contacto del personal y queda registrada', async () => {
+    const id = await place(world.customer, { ...pickup, substitutionPreference: 'call_me' })
+    const prepared = await advance(id, ['confirmed', 'preparing'])
+    const substitute = { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }
+    for (const change of [substitute, { type: 'remove', itemId: 'prod_leche' }]) {
+      const res = await items(world.operator, id, { expectedVersion: prepared.version, changes: [change] })
+      expect(statusOf(res)).toBe(400)
+      expect(errorOf(res).issues?.map((issue) => issue.path)).toEqual(['changes.0.customerContacted'])
+    }
+    expect(await read(world.operator, id)).toEqual(prepared)
+
+    const changed = ok(await items(world.operator, id, { expectedVersion: prepared.version, changes: [{ ...substitute, customerContacted: true }] }))
+    expect(changed.items[0]).toMatchObject({ id: 'prod_queso', substitutedFor: 'prod_leche' })
+    expect(JSON.stringify(changed)).not.toContain('customerContacted')
+    expect(JSON.stringify(changed)).not.toContain(world.operator.id)
+    const stored = await orders.findById(id)
+    expect(stored?.itemAdjustments).toEqual([
+      { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', customerContacted: true, by: world.operator.id, at: changed.updatedAt },
+    ])
+    if (embedded) expect((await row(id))?.item_adjustments).toEqual(stored?.itemAdjustments)
+  })
+
+  it('legacy en ready/in_delivery: fijo sin total llega a entregado con total; variable sin peso no se entrega', async () => {
+    const legacy = (id: string, status: 'ready' | 'in_delivery', variable: boolean) => {
+      const { shippingCost: _shipping, finalTotal: _final, ...order } = internalOrder({
+        id, status, customerId: world.customer.id, storeId: STORE, createdAt: '2026-09-01T10:00:00.123Z', updatedAt: '2026-09-01T10:00:00.123Z',
+        ...(variable ? {} : { items: [{ id: 'prod_leche', name: 'Leche entera 1L', qty: 2, priceAtMoment: 4500 }], estimatedTotal: 9000 }),
+      })
+      return orders.create(order)
+    }
+    const fixed = await legacy('01HJLEGACYFIJOREADY000T12', 'ready', false)
+    const onTheWay = ok(await status(world.operator, fixed.id, { status: 'in_delivery', expectedVersion: 1 }))
+    expect(onTheWay).toMatchObject({ finalTotal: 9000, estimatedTotal: 9000 })
+    expect(ok(await status(world.operator, fixed.id, { status: 'delivered', expectedVersion: 2 }))).toMatchObject({ status: 'delivered', finalTotal: 9000 })
+
+    for (const [id, from, next] of [['01HJLEGACYVARREADY0000T12', 'ready', 'delivered'], ['01HJLEGACYVARENCAMINOT12', 'in_delivery', 'delivered']] as const) {
+      await legacy(id, from, true)
+      const res = await status(world.operator, id, { status: next, expectedVersion: 1 })
+      expect(statusOf(res)).toBe(400)
+      expect(errorOf(res).issues?.map((issue) => issue.path)).toEqual(['items.1.kilosReal'])
+      const unchanged = await read(world.operator, id)
+      expect(unchanged).toMatchObject({ status: from, version: 1 })
+      expect(unchanged).not.toHaveProperty('finalTotal')
+    }
+    if (embedded) {
+      const { rows } = await embedded.pg.query(`select count(*)::int as n from orders where status = 'delivered' and final_total is null and id like '01HJLEGACY%'`)
+      expect(rows[0]).toEqual({ n: 0 })
+    }
   })
 
   // Requieren SQL directo sobre la BD: solo se registran con PostgreSQL embebido.

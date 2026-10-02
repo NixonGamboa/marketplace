@@ -19,7 +19,7 @@ import type {
   WeeklyScheduleDto,
 } from '../../../../shared/contracts/index.js'
 import type { StoredOrderItem } from '../../domain/orders/orderRecord.js'
-import type { Order } from '../../domain/orders/Order.js'
+import type { Order, OrderItemAdjustment } from '../../domain/orders/Order.js'
 
 /** Claim persistente y snapshot original para reintentos, aislado por cuenta y tienda. */
 export const orderCreationsTable = pgTable('order_creations', {
@@ -61,6 +61,7 @@ export const ordersTable = pgTable(
     version: integer('version').notNull().default(1),
     updatedBy: text('updated_by'),
     originalItems: jsonb('original_items').$type<StoredOrderItem[]>(),
+    itemAdjustments: jsonb('item_adjustments').$type<OrderItemAdjustment[]>(),
     cancellationReason: text('cancellation_reason'),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'string' }),
   },

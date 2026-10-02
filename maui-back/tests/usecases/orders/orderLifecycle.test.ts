@@ -103,6 +103,71 @@ describe('applyStatusChange: máquina común por modalidad', () => {
   })
 })
 
+describe('applyStatusChange: etapas de entrega con total final (pedidos legacy)', () => {
+  const fixedLegacy = (status: OrderStatus): Order => {
+    const { shippingCost: _shipping, finalTotal: _final, ...legacy } = order({
+      status, items: [{ id: 'prod_leche', name: 'Leche', qty: 2, priceAtMoment: 4500 }], estimatedTotal: 9000,
+    })
+    return legacy
+  }
+
+  it('legacy fijo en ready/in_delivery sin total: avanzar fija el total final (sin envío guardado, solo ítems)', () => {
+    expect(applyStatusChange(fixedLegacy('ready'), { status: 'in_delivery' }, ctx)).toMatchObject({ status: 'in_delivery', finalTotal: 9000 })
+    expect(applyStatusChange(fixedLegacy('ready'), { status: 'delivered' }, ctx)).toMatchObject({ status: 'delivered', finalTotal: 9000 })
+    expect(applyStatusChange(fixedLegacy('in_delivery'), { status: 'delivered' }, ctx)).toMatchObject({ status: 'delivered', finalTotal: 9000 })
+    const withShipping = { ...fixedLegacy('ready'), shippingCost: 3000 }
+    expect(applyStatusChange(withShipping, { status: 'delivered' }, ctx).finalTotal).toBe(12000)
+  })
+
+  it('legacy variable sin peso real en ready/in_delivery: no avanza a entrega; ready aún se cancela', () => {
+    const missing = (status: OrderStatus): Order => order({ status })
+    for (const [status, next] of [['ready', 'in_delivery'], ['ready', 'delivered'], ['in_delivery', 'delivered']] as const) {
+      expect(issuePaths(() => applyStatusChange(missing(status), { status: next }, ctx))).toEqual(['items.1.kilosReal'])
+    }
+    expect(applyStatusChange(missing('ready'), { status: 'cancelled', reason: 'Peso no registrado' }, ctx).status).toBe('cancelled')
+  })
+
+  it('un total final previo se recalcula de forma coherente con ítems y envío al entregar', () => {
+    const weighed = order({ status: 'in_delivery', finalTotal: 1, items: [order().items[0]!, { ...order().items[1]!, kilosReal: 1.237 }] })
+    expect(applyStatusChange(weighed, { status: 'delivered' }, ctx).finalTotal).toBe(39214)
+  })
+})
+
+describe('applyItemChanges: preferencia call_me y constancia de contacto', () => {
+  const callMe = (): Order => preparing({ substitutionPreference: 'call_me' })
+  const substitute = { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 } as const
+
+  it('sin constancia de contacto no se quita ni se sustituye', () => {
+    expect(issuePaths(() => items(callMe(), [substitute], catalogOf(product())))).toEqual(['changes.0.customerContacted'])
+    expect(issuePaths(() => items(callMe(), [{ type: 'remove', itemId: 'prod_leche' }]))).toEqual(['changes.0.customerContacted'])
+  })
+
+  it('pesar no es un cambio de producto: no exige contacto', () => {
+    expect(items(callMe(), [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1.5 }]).finalTotal).toBe(45000)
+  })
+
+  it('con la declaración del personal se aplica y queda la constancia con actor y fecha, fuera del DTO', () => {
+    const next = items(callMe(), [{ ...substitute, customerContacted: true }, { type: 'remove', itemId: 'prod_carne', customerContacted: true }], catalogOf(product()))
+    expect(next.items.map((item) => item.id)).toEqual(['prod_queso'])
+    expect(next.itemAdjustments).toEqual([
+      { type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', customerContacted: true, by: 'acc_operador', at: ctx.now },
+      { type: 'remove', itemId: 'prod_carne', customerContacted: true, by: 'acc_operador', at: ctx.now },
+    ])
+    const dto = toOrderDto(next)
+    expect(dto).not.toHaveProperty('itemAdjustments')
+    expect(JSON.stringify(dto)).not.toContain('acc_operador')
+  })
+
+  it('las constancias se acumulan; con `similar` el cambio queda registrado sin contacto declarado', () => {
+    const first = items(preparing(), [substitute], catalogOf(product()))
+    const second = items(first, [{ type: 'remove', itemId: 'prod_carne' }], catalogOf())
+    expect(second.itemAdjustments?.map(({ type, customerContacted }) => [type, customerContacted])).toEqual([
+      ['substitute', false], ['remove', false],
+    ])
+    expect(items(first, [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1 }]).itemAdjustments).toEqual(first.itemAdjustments)
+  })
+})
+
 describe('applyItemChanges: pesos reales', () => {
   it('solo en preparación; terminales siguen inmutables', () => {
     for (const status of ['received', 'confirmed', 'ready', 'in_delivery'] as const) {
@@ -195,7 +260,7 @@ describe('applyItemChanges: retiro y sustitución', () => {
     expect(issuePaths(() => items(base, [{ type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }], catalogOf(product()))))
       .toEqual(['changes.0.type'])
     expect(items(base, [{ type: 'remove', itemId: 'prod_leche' }]).items).toHaveLength(1)
-    expect(items(preparing({ substitutionPreference: 'call_me' }), [{ type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }], catalogOf(product())).items[0]!.id)
+    expect(items(preparing({ substitutionPreference: 'similar' }), [{ type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }], catalogOf(product())).items[0]!.id)
       .toBe('prod_queso')
   })
 

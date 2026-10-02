@@ -11,7 +11,7 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | `orderDtoSchema` | Lecturas cliente/admin, salida explícita sin `storeId` ni campos internos |
 | `listOrdersQuerySchema` / `orderListResponseSchema` | GET `/api/orders` (T-11): query estricta (`q`, `status`, `from` inclusivo, `to` exclusivo, `limit` 1–100, `cursor` opaco) y `{items: OrderDto[], nextCursor}`; el alcance lo fija la sesión |
 | `updateOrderStatusRequestSchema` | PATCH `/api/orders/:id/status` (T-12): `status`, `expectedVersion` y `reason` obligatorio solo al cancelar (5–500) |
-| `updateOrderItemsRequestSchema` | PATCH `/api/orders/:id` (T-12): `expectedVersion` y `changes` (`weight`, `remove`, `substitute`) sin ítems ni sustitutos repetidos |
+| `updateOrderItemsRequestSchema` | PATCH `/api/orders/:id` (T-12): `expectedVersion` y `changes` (`weight`, `remove`, `substitute`) sin ítems ni sustitutos repetidos; `customerContacted: true` (declaración del personal) obligatorio para quitar/sustituir con preferencia `call_me` |
 | `apiErrorSchema` | `{error,message,issues?:[{path,message}]}` |
 | `productDtoSchema` / `categoryDtoSchema` | Catálogo público, mismo shape que `shared/catalog` (`Product`/`Category`) |
 | `staffProductDtoSchema` | Vista de personal: añade `active`, `archived` y fechas; nunca `storeId` |
@@ -30,7 +30,8 @@ T-12 añade al `OrderDto`, como campos opcionales para no romper datos demo: `ve
 `originalItems` (ítems pedidos, desde la primera sustitución o retiro),
 `cancellationReason`/`cancelledAt` (juntos y solo en `cancelled`; ausentes en
 cancelaciones legacy) y `substitutedFor` por ítem sustituto. El actor del cambio no sale
-en el DTO. `finalTotal` refleja los ítems vigentes y existe siempre desde `ready`.
+en el DTO. `finalTotal` refleja los ítems vigentes y existe siempre desde `ready`; ningún pedido
+pasa a `in_delivery`/`delivered` sin total final ni pesos reales completos.
 
 Los importes son enteros COP. `priceAtMoment` es un snapshot unitario o precio por
 kg. En peso variable se usan gramos enteros, hasta tres decimales de kg, y

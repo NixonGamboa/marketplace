@@ -72,8 +72,8 @@ nunca aporta actor, tienda, precios ni importes (esquemas `.strict()`). Ambas ru
 
 | Ruta | Body | Regla |
 |---|---|---|
-| `PATCH /api/orders/:id/status` | `{ status, expectedVersion, reason? }` | Máquina común por modalidad (`in_delivery` solo en domicilio, cancelar hasta `ready`). `ready` exige todos los pesos reales y fija `finalTotal`. `cancelled` exige `reason` (5–500 caracteres, recortado) y guarda motivo y fecha |
-| `PATCH /api/orders/:id` | `{ expectedVersion, changes: [...] }` | Solo en `preparing`, en bloque y todo o nada: `weight` (`itemId`, `kilosReal` 0,001–100 kg en gramos, solo peso variable), `remove` (`itemId`) y `substitute` (`itemId`, `productId`, `qty`, `kilosRequested?`, `kilosReal?`) |
+| `PATCH /api/orders/:id/status` | `{ status, expectedVersion, reason? }` | Máquina común por modalidad (`in_delivery` solo en domicilio, cancelar hasta `ready`). Entrar en `ready`, `in_delivery` o `delivered` exige todos los pesos reales y fija `finalTotal`. `cancelled` exige `reason` (5–500 caracteres, recortado) y guarda motivo y fecha |
+| `PATCH /api/orders/:id` | `{ expectedVersion, changes: [...] }` | Solo en `preparing`, en bloque y todo o nada: `weight` (`itemId`, `kilosReal` 0,001–100 kg en gramos, solo peso variable), `remove` (`itemId`, `customerContacted?`) y `substitute` (`itemId`, `productId`, `qty`, `kilosRequested?`, `kilosReal?`, `customerContacted?`) |
 
 - **Versión optimista:** `version` nace en 1 (también en filas previas) y sube con cada cambio.
   Una `expectedVersion` vieja o una escritura concurrente que gana entre lectura y escritura
@@ -85,23 +85,39 @@ nunca aporta actor, tienda, precios ni importes (esquemas `.strict()`). Ambas ru
   de ítems (400). Cancelaciones previas a T-12 quedan sin motivo/fecha y siguen siendo válidas.
 - **Totales:** `estimatedTotal`, `shippingCost` y el snapshot de idempotencia no cambian.
   `finalTotal` se recalcula con los ítems vigentes (redondeo por línea en gramos, ADR-006) y
-  el envío cotizado al pedir (no se recotiza); falta mientras haya un peso real pendiente y
-  existe siempre desde `ready`. Pedidos legacy sin envío guardado suman solo ítems.
+  el envío cotizado al pedir, que nunca se recotiza; falta mientras haya un peso real pendiente
+  y existe siempre desde `ready` (peso fijo o variable). Cada paso a `ready`, `in_delivery` o
+  `delivered` lo recalcula: un pedido legacy que llegó a `ready`/`in_delivery` sin total lo
+  obtiene al avanzar y, si le falta un peso real, no avanza (400); nunca queda `delivered` sin
+  total. Pedidos legacy sin envío guardado suman solo ítems. Pesos: solo los límites técnicos
+  del contrato (0,001–100 kg en gramos), sin tolerancia respecto al peso pedido.
 - **Sustitución:** producto de la misma tienda, activo, no archivado y con stock, que no esté ya
-  en el pedido; nombre, unidad, precio (vigente) y peso variable salen del catálogo y la
-  escritura exige que ese producto conserve la versión leída (si cambió → 409). La línea lleva
-  `substitutedFor` (producto pedido originalmente). Con preferencia `remove` solo se quita.
-  El pedido no puede quedar vacío: se cancela con motivo.
+  en el pedido; nombre, unidad, precio vigente del catálogo servidor y peso variable salen del
+  catálogo. La misma sentencia que escribe el pedido **bloquea con `FOR SHARE`** (orden por ID)
+  las filas de los sustitutos y exige su versión leída, tienda y disponibilidad: un cambio de
+  catálogo concurrente espera o hace fallar la escritura (409); nunca se confirma un snapshot
+  obsoleto. Los bloqueos duran solo esa sentencia. La línea lleva `substitutedFor` (producto
+  pedido originalmente). El pedido no puede quedar vacío (el DTO exige al menos un ítem): se
+  cancela con motivo.
+- **Preferencias del cliente:** `remove` solo permite quitar, nunca sustituir. `call_me` exige
+  que el personal declare el contacto previo (`customerContacted: true`) para quitar o
+  sustituir; pesar no lo requiere. Es una declaración del operador autenticado: el servidor no
+  la verifica, no envía mensajes y no equivale a una confirmación del cliente. `similar`
+  permite sustituir o quitar.
 - **Snapshots:** la primera sustitución o retiro fija `originalItems` (ítems pedidos, sin pesos
   reales); los pesos solos no lo crean.
 - **Trazabilidad:** cada cambio guarda `updated_by` (cuenta del personal, no expuesta en el DTO),
-  `updated_at` (no retrocede) y la versión; la cancelación guarda motivo y `cancelled_at`. La
-  bitácora persistente de cambios es T-13.
+  `updated_at` (no retrocede) y la versión; la cancelación guarda motivo y `cancelled_at`. Cada
+  retiro o sustitución queda en `item_adjustments` (tipo, ítem, sustituto, constancia de
+  contacto, actor y fecha; interno, no sale en el DTO) para que T-13 lo audite. La bitácora
+  persistente de todos los cambios es T-13.
 
 Migración aditiva `0006_orders_state_cycle`: columnas `version` (default 1), `updated_by`,
-`original_items`, `cancellation_reason` y `cancelled_at`, más CHECK de versión positiva y de
+`original_items`, `item_adjustments`, `cancellation_reason` y `cancelled_at`, más CHECK de versión positiva y de
 motivo+fecha solo en pedidos cancelados. No reescribe filas ni la función de creación.
-Una fila legacy se reescribe en formato canónico al primer cambio de ítems.
+Una fila legacy se reescribe en formato canónico al primer cambio de ítems. Un pedido legacy
+de peso variable que ya estaba en `in_delivery` sin peso real no puede entregarse ni cancelarse
+(los ítems solo se editan en `preparing`): requiere corrección de datos fuera de la API.
 
 **Decisión de stack:** ver [`../docs/tecnicos/adr-001-stack-backend.md`](../docs/tecnicos/adr-001-stack-backend.md).
 

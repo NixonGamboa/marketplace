@@ -36,6 +36,7 @@ const legacyRecord = (overrides: Partial<StoredOrderRecord> = {}): StoredOrderRe
   version: 1,
   updatedBy: null,
   originalItems: null,
+  itemAdjustments: null,
   cancellationReason: null,
   cancelledAt: null,
   ...overrides,

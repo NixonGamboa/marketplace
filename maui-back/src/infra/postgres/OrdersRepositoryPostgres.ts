@@ -65,6 +65,25 @@ const listConditions = (scope: OrderListScope, filter: OrderListFilter): SQL[] =
   return conditions
 }
 
+/**
+ * Condición del UPDATE de un cambio con sustitutos: bloquea con `FOR SHARE` (orden estable por ID)
+ * las filas de catálogo de los sustitutos y exige que todas sigan en la tienda, con la versión
+ * leída, activas, sin archivar y con stock. Bajo READ COMMITTED, si otra transacción cambió el
+ * producto, el bloqueo espera a que confirme y reevalúa la condición sobre la fila nueva (la
+ * versión ya no coincide → sin escritura → 409). Mientras el pedido se escribe, un cambio de
+ * catálogo espera a que termine la sentencia. Los bloqueos duran solo esta sentencia.
+ */
+const substitutesLocked = (storeId: string, products: { id: string; version: number }[]): SQL => sql`(
+  select count(*) from (
+    select 1 from ${catalogProductsTable} as p
+    join jsonb_to_recordset(${JSON.stringify(products)}::jsonb) as expected(id text, version integer)
+      on p.id = expected.id and p.version = expected.version
+    where p.store_id = ${storeId} and p.active and p.archived_at is null and p.in_stock
+    order by p.id
+    for share of p
+  ) as locked
+) = ${products.length}`
+
 export class OrdersRepositoryPostgres implements OrdersRepository {
   constructor(private readonly db: Db) {}
 
@@ -163,16 +182,12 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
 
   /**
    * UPDATE condicional en una sola sentencia (compatible con Neon HTTP y varias instancias): la
-   * fila debe seguir en la tienda, versión y estado leídos y cada sustituto seguir pedible con la
-   * versión leída. Dos cambios concurrentes sobre la misma versión: uno escribe y el otro recibe
-   * `null`. Solo se escriben columnas mutables; estimación, envío, cliente y entrega no se tocan.
+   * fila debe seguir en la tienda, versión y estado leídos. Dos cambios concurrentes sobre la misma
+   * versión: uno escribe y el otro recibe `null`. Solo se escriben columnas mutables; estimación,
+   * envío, cliente y entrega no se tocan. Con sustitutos, la misma sentencia los bloquea (ver
+   * `substitutesLocked`), así el pedido nunca confirma un snapshot de catálogo obsoleto.
    */
   saveChange({ expected, next, products }: OrderChange): Promise<Order | null> {
-    const productsUnchanged = products.map(product => sql`exists (
-      select 1 from ${catalogProductsTable}
-      where ${catalogProductsTable.id} = ${product.id} and ${catalogProductsTable.storeId} = ${expected.storeId}
-        and ${catalogProductsTable.version} = ${product.version} and ${catalogProductsTable.active}
-        and ${catalogProductsTable.archivedAt} is null and ${catalogProductsTable.inStock})`)
     return guardPersistence(async () => {
       const [row] = await this.db
         .update(ordersTable)
@@ -180,6 +195,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
           status: next.status,
           items: next.items,
           originalItems: next.originalItems ?? null,
+          itemAdjustments: next.itemAdjustments ?? null,
           finalTotal: next.finalTotal ?? null,
           version: next.version,
           updatedAt: next.updatedAt,
@@ -192,7 +208,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
           eq(ordersTable.storeId, expected.storeId),
           eq(ordersTable.version, expected.version),
           eq(ordersTable.status, expected.status),
-          ...productsUnchanged,
+          ...(products.length > 0 ? [substitutesLocked(expected.storeId, products)] : []),
         ))
         .returning()
       return row ? orderFromRecord(row) : null

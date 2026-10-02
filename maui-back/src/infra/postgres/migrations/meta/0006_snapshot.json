@@ -1,5 +1,5 @@
 {
-  "id": "8cabf765-5ed6-4ba0-a3ba-089f8e6d180d",
+  "id": "3e55fd49-3633-4fa9-9abb-f9ceefe7916c",
   "prevId": "ce3d296c-8b76-4151-b38c-dd6a52585ce3",
   "version": "7",
   "dialect": "postgresql",
@@ -785,6 +785,12 @@
         },
         "original_items": {
           "name": "original_items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_adjustments": {
+          "name": "item_adjustments",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
