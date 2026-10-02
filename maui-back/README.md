@@ -171,8 +171,11 @@ catálogo público queda vacío: `initializeStore` y `seedCatalogBaseline` son e
 idempotente de servidor para T-16 (no sobrescriben ediciones).
 
 La migración aditiva `0003_catalog_store_settings.sql` crea `stores`,
-`catalog_categories` y `catalog_products` sin tocar tablas previas. Se generó offline
-y se probó en PostgreSQL embebido; **no se aplicó a Neon**.
+`catalog_categories` y `catalog_products` sin tocar tablas previas. Se generó offline,
+se probó en PostgreSQL embebido y se aplicó solo a Neon dev/maui (ledger 4, pedido
+previo conservado); el smoke real en Preview pasó. La BD de test sigue sin tienda ni
+catálogo sembrados hasta T-16: `/api/store` responde 404 y `/api/catalog` vacío.
+Evidencia en el plan.
 
 GET/PATCH de pedidos devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
 incluyendo `/api` y `/api/`. Métodos no admitidos responden 405 con `Allow`.
