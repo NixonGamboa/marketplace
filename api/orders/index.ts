@@ -4,10 +4,12 @@ import { toOrderConfirmation } from '../../maui-back/src/domain/orders/orderMapp
 import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import { getRepositories } from '../../maui-back/src/infra/factory.js'
+import { OrderPersistenceError } from '../../maui-back/src/domain/orders/orderCreation.js'
 import { createOrder } from '../../maui-back/src/usecases/orders/createOrder.js'
 import { allowMethods, failAuth, prepareAuthResponse, readJsonBody } from '../_lib/auth.js'
 import { MAX_ORDER_BODY_BYTES, authorizeOrderRequest } from '../_lib/orders.js'
-import { ok } from '../_lib/response.js'
+import { jsonResponse, ok } from '../_lib/response.js'
+import { buildApiError } from '../../shared/contracts/errors.js'
 
 /** POST /api/orders — solo cliente autenticado; dueño y tienda los fija el servidor. */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -30,6 +32,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     )
     ok(res, toOrderConfirmation(created), 201)
   } catch (err) {
+    if (err instanceof OrderPersistenceError) {
+      jsonResponse(res, buildApiError('SERVICE_UNAVAILABLE', 'Servicio no disponible'), 503)
+      return
+    }
     failAuth(res, err, config)
   }
 }

@@ -18,6 +18,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "order_creations_order_unique" ON "order_creat
 --> statement-breakpoint
 -- Una llamada SQL confirma claim + cuota + pedido, con locks durante toda la transacción.
 -- SECURITY INVOKER: no eleva privilegios. Los snapshots originales sobreviven a cambios de estado.
+-- Límite 20 y ventana 3600 s duplican ORDER_CREATE_POLICY (orderAccess.ts); si cambia la política,
+-- hace falta una migración nueva de la función, no editar esta ya aplicada (lo vigila una prueba).
 CREATE FUNCTION public.maui_commit_order(
   p_customer text, p_store text, p_key text, p_fingerprint text, p_order jsonb,
   p_store_version integer, p_products jsonb, p_bucket text, p_limit integer, p_window integer

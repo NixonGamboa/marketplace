@@ -32,6 +32,19 @@ export class IdempotencyConflictError extends DomainError {
   constructor() { super('La clave de idempotencia ya corresponde a otra petición', 'IDEMPOTENCY_KEY_REUSED') }
 }
 
+/**
+ * Fallo de persistencia de la creación de pedidos (→ 503). No es `DomainError`: el manejador
+ * común mapearía ese tipo a 409. No conserva el error original: puede contener URLs, SQL o PII.
+ */
+export class OrderPersistenceError extends Error {
+  readonly code = 'ORDER_PERSISTENCE_UNAVAILABLE'
+
+  constructor() {
+    super('La persistencia de pedidos no está disponible')
+    this.name = 'OrderPersistenceError'
+  }
+}
+
 /** Validación runtime del snapshot interno usando el mismo DTO de pedidos. */
 export function decodeCreationOrder(value: unknown): Order {
   const internal = z.object({ id: entityIdSchema, storeId: entityIdSchema,

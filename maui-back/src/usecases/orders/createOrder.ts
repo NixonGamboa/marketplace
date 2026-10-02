@@ -25,6 +25,8 @@ export interface CreateOrderDeps {
   keys: BucketKeyer
 }
 const hash = (value: string): string => createHash('sha256').update(value).digest('hex')
+/** Orden por unidades de código UTF-16: independiente del locale del runtime. */
+const byIdCodeUnits = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 const replay = (creation: StoredOrderCreation, fingerprint: string): Order => {
   if (creation.fingerprint !== fingerprint) throw new IdempotencyConflictError()
   return creation.order
@@ -46,7 +48,7 @@ export const createOrder = async (
   // Forma explícita/canónica: campos legacy ignorados no cambian la intención de compra.
   const fingerprint = hash(JSON.stringify({
     items: data.items.map(({ id, qty, kilosRequested }) => ({ id, qty, kilosRequested }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort(byIdCodeUnits),
     substitutionPreference: data.substitutionPreference, deliveryType: data.deliveryType,
     deliveryData: { address: data.deliveryData.address, lat: data.deliveryData.lat,
       lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
@@ -96,7 +98,8 @@ export const createOrder = async (
   } catch (error) {
     // Otro request pudo confirmar después de la primera lectura, mientras cambiaba catálogo
     // o se perdía la respuesta. Una sola lectura adicional recupera su creación inmutable.
-    const completed = await deps.orders.findCreation(identity)
+    // Si esa lectura falla, el error útil es el original, no el de la recuperación.
+    const completed = await deps.orders.findCreation(identity).catch(() => null)
     if (completed) return replay(completed, fingerprint)
     throw error
   }

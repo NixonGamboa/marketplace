@@ -10,21 +10,36 @@ import { NotFoundError } from '../../shared/errors.js'
 import type { Db } from './client.js'
 import { ordersTable, orderCreationsTable } from './schema.js'
 import type { CommitOrderCreation, CommitOrderResult, OrderCreationIdentity, StoredOrderCreation } from '../../domain/orders/orderCreation.js'
-import { decodeCreationOrder } from '../../domain/orders/orderCreation.js'
+import { OrderPersistenceError, decodeCreationOrder } from '../../domain/orders/orderCreation.js'
+
+/** Fallo del driver/SQL o snapshot inválido → `OrderPersistenceError` (503), sin propagar detalles. */
+const guardCreation = async <T>(operation: () => Promise<T>): Promise<T> => {
+  try {
+    return await operation()
+  } catch {
+    throw new OrderPersistenceError()
+  }
+}
 
 export class OrdersRepositoryPostgres implements OrdersRepository {
   constructor(private readonly db: Db) {}
 
-  async findCreation(identity: OrderCreationIdentity): Promise<StoredOrderCreation | null> {
-    const [row] = await this.db.select().from(orderCreationsTable).where(and(
-      eq(orderCreationsTable.customerId, identity.customerId),
-      eq(orderCreationsTable.storeId, identity.storeId),
-      eq(orderCreationsTable.keyHash, identity.keyHash),
-    )).limit(1)
-    return row ? { fingerprint: row.fingerprint, order: decodeCreationOrder(row.snapshot) } : null
+  findCreation(identity: OrderCreationIdentity): Promise<StoredOrderCreation | null> {
+    return guardCreation(async () => {
+      const [row] = await this.db.select().from(orderCreationsTable).where(and(
+        eq(orderCreationsTable.customerId, identity.customerId),
+        eq(orderCreationsTable.storeId, identity.storeId),
+        eq(orderCreationsTable.keyHash, identity.keyHash),
+      )).limit(1)
+      return row ? { fingerprint: row.fingerprint, order: decodeCreationOrder(row.snapshot) } : null
+    })
   }
 
-  async createIdempotently(input: CommitOrderCreation): Promise<CommitOrderResult> {
+  createIdempotently(input: CommitOrderCreation): Promise<CommitOrderResult> {
+    return guardCreation(() => this.commitCreation(input))
+  }
+
+  private async commitCreation(input: CommitOrderCreation): Promise<CommitOrderResult> {
     // Una llamada/una transacción SQL, compatible con Neon HTTP y varias instancias.
     const result = await this.db.execute<{ result: unknown }>(sql`
       SELECT maui_commit_order(

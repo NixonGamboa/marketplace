@@ -7,6 +7,8 @@ import { StoreRepositoryMemory } from '../../../src/infra/memory/StoreRepository
 import { HmacBucketKeyer } from '../../../src/infra/auth/randomIds.js'
 import { TestClock, TEST_SECRET } from '../../auth/fixtures.js'
 import { AuthorizationError, RateLimitedError } from '../../../src/domain/auth/errors.js'
+import { createHash } from 'node:crypto'
+import { createOrderRequestSchema } from '../../../../shared/contracts/index.js'
 import { ValidationError } from '../../../src/shared/errors.js'
 import { toOrderDto } from '../../../src/domain/orders/orderMappers.js'
 import { orderDtoSchema } from '../../../../shared/contracts/index.js'
@@ -94,6 +96,47 @@ describe('creación autoritativa e idempotente', () => {
     vi.spyOn(orders, 'findCreation').mockResolvedValueOnce(null)
     expect(await create(validPickupRequest(), key)).toEqual(original)
     expect(await orders.listByStore(context.storeId)).toHaveLength(1)
+  })
+  it('si falla la lectura de recuperación se conserva el error original del commit', async () => {
+    vi.spyOn(orders, 'createIdempotently').mockRejectedValueOnce(new Error('commit perdido'))
+    vi.spyOn(orders, 'findCreation').mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('reread caído'))
+    await expect(create()).rejects.toThrow('commit perdido')
+    expect(await orders.listByStore(context.storeId)).toHaveLength(0)
+  })
+  it('la recuperación que encuentra otra intención con la misma clave responde conflicto, no el error del commit', async () => {
+    const key = randomUUID(); await create(validPickupRequest(), key)
+    const other = { ...validPickupRequest(), customerName: 'Otra intención' }
+    vi.spyOn(orders, 'findCreation').mockResolvedValueOnce(null)
+    vi.spyOn(orders, 'createIdempotently').mockRejectedValueOnce(new Error('respuesta perdida'))
+    await expect(create(other, key)).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+    expect(await orders.listByStore(context.storeId)).toHaveLength(1)
+  })
+  it('misma clave con dos intenciones distintas en concurrencia: un pedido, un cupo y 409 para la otra', async () => {
+    const key = randomUUID(), a = validPickupRequest(), b = { ...validPickupRequest(), customerName: 'Otra intención' }
+    const settled = await Promise.allSettled(Array.from({ length: 10 }, (_, i) => create(i % 2 ? a : b, key)))
+    const created = settled.flatMap(r => (r.status === 'fulfilled' ? [r.value] : []))
+    const rejected = settled.flatMap(r => (r.status === 'rejected' ? [r.reason as { code: string }] : []))
+    expect(created.length).toBeGreaterThan(0); expect(rejected.length).toBeGreaterThan(0)
+    expect(new Set(created.map(o => o.id)).size).toBe(1)
+    expect(rejected.every(error => error.code === 'IDEMPOTENCY_KEY_REUSED')).toBe(true)
+    expect(await orders.listByStore(context.storeId)).toHaveLength(1)
+  })
+  it('la huella ordena los IDs por unidades de código, no por locale', async () => {
+    const base = await catalog.findProduct(context.storeId, 'prod_leche')
+    if (!base) throw Error('Missing fixture')
+    for (const id of ['prod_Zz', 'prod_aa']) await catalog.createProduct({ ...base, id, version: 1 })
+    const body = { ...validPickupRequest(), items: [{ id: 'prod_aa', qty: 1 }, { id: 'prod_Zz', qty: 1 }] }
+    const commit = vi.spyOn(orders, 'createIdempotently')
+    await create(body)
+    const data = createOrderRequestSchema.parse(body)
+    const expected = createHash('sha256').update(JSON.stringify({
+      items: [{ id: 'prod_Zz', qty: 1 }, { id: 'prod_aa', qty: 1 }],
+      substitutionPreference: data.substitutionPreference, deliveryType: data.deliveryType,
+      deliveryData: { address: data.deliveryData.address, lat: data.deliveryData.lat,
+        lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
+      customerName: data.customerName, customerPhone: data.customerPhone,
+    })).digest('hex')
+    expect(commit.mock.calls[0]?.[0].fingerprint).toBe(expected)
   })
   it('concurrencia devuelve un ID y un cupo; nuevos pedidos respetan veinte por hora', async () => {
     const key = randomUUID()

@@ -251,6 +251,19 @@ describe('T-10: idempotencia y precios por HTTP con sesión real', () => {
     expect(bodyOf(conflict)).toMatchObject({ error: 'IDEMPOTENCY_KEY_REUSED' })
   })
 
+  it('fallo de persistencia de la creación: 503 genérico sin SQL ni datos y sin pedido guardado', async () => {
+    const actor = await registerCustomer('Caída HTTP', '3009800004')
+    const { getRepositories } = await import('../../src/infra/factory.js')
+    const { OrderPersistenceError } = await import('../../src/domain/orders/orderCreation.js')
+    const { orders } = await getRepositories()
+    vi.spyOn(orders, 'createIdempotently').mockRejectedValueOnce(new OrderPersistenceError())
+    const before = await storedOrderCount()
+    const res = await call('create', createReq({ cookie: actor.cookie, body: orderBody(actor) }))
+    expect(statusOf(res)).toBe(503)
+    expect(bodyOf(res)).toEqual({ error: 'SERVICE_UNAVAILABLE', message: 'Servicio no disponible' })
+    expect(await storedOrderCount()).toBe(before)
+  })
+
   it('dos POST concurrentes de la misma intención devuelven un pedido', async () => {
     const actor = await registerCustomer('Doble clic HTTP', '3009800003'), key = randomUUID()
     const before = await storedOrderCount()
