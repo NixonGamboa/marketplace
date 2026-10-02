@@ -1,5 +1,7 @@
 import { defineConfig } from 'drizzle-kit'
-import { getPostgresUrl, loadConfig } from './src/shared/config.js'
+// Drizzle carga este archivo fuente con su loader CJS: la extensión real evita
+// buscar un .js que no existe (los otros runtimes usan su resolver TypeScript).
+import { getPostgresUrl, loadConfig } from './src/shared/config.ts'
 
 // Generar/verificar/exportar SQL no conecta a una BD ni requiere credenciales.
 const offline = ['generate', 'check', 'export'].includes(process.argv[2] ?? '')

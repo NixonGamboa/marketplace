@@ -85,11 +85,8 @@ export default defineConfig(() => ({
             handler: 'CacheFirst',
             options: { cacheName: 'images-cache' },
           },
-          {
-            urlPattern: /\/api\//,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'api-cache' },
-          },
+          // Auth y pedidos privados deben viajar a la red sin persistir respuestas.
+          // T-20 definirá caché explícita únicamente para catálogo público.
         ],
       },
     }),

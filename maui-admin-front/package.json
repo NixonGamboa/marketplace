@@ -12,7 +12,7 @@
     "build:unified": "cross-env VITE_ADMIN_BASE=/admin/ vite build --outDir dist-unified",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },
