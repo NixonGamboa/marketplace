@@ -11,8 +11,9 @@ Backend real de MAUI. Vercel Functions + Neon Postgres.
 ├── api/                       # Adaptadores Vercel Functions (handlers delgados)
 │   ├── health.ts              # → GET  /api/health
 │   ├── _lib/                  # helpers HTTP compartidos
+│   ├── auth/                  # registro cliente, login, sesión y logout
 │   └── orders/
-│       ├── create.ts          # → POST /api/orders
+│       ├── index.ts           # → POST /api/orders
 │       ├── [id].ts            # → GET  /api/orders/:id
 │       └── [id]/status.ts     # → PATCH /api/orders/:id/status
 └── maui-back/
@@ -72,6 +73,35 @@ APP_ENV=local DB_DRIVER=memory vercel dev # desde la raíz
 
 Con memory, `/api/health` responde 503: este modo sirve para desarrollo/pruebas,
 no acredita conectividad ni persistencia real.
+
+## Acceso y sesiones
+
+La base de T-05 añade `POST /api/auth/register`, `POST /api/auth/login`,
+`GET /api/auth/session` y `POST /api/auth/logout`, con cookie HttpOnly y
+sesiones revocables en Postgres. Configuración, contrato y límites están en
+[`ADR-002`](../docs/tecnicos/adr-002-acceso-sesiones.md) y
+`../shared/contracts/auth.ts`. Registro solo crea customer; staff se provisiona
+desde servidor. No hay envío ni verificación WhatsApp.
+
+Configurar `AUTH_JWT_SECRET` y `AUTH_ORIGIN` en el servidor. El origen es exacto
+y HTTPS fuera de local; el secreto no tiene fallback. Auth valida su configuración
+al usarla y responde 503 si falta. Health sigue disponible independientemente.
+Login recibe `{method: "phone", phone, password}` o
+`{method: "email", email, password}`; registro `{name, phone, password}`.
+Mutaciones exigen la cabecera Origin configurada; login/registro también JSON.
+Los DTO no contienen token ni hash. Logout revoca y elimina cookie.
+
+**Límite del incremento:** T-06 debe exigir esta identidad en pedidos y aplicar
+los permisos por cliente/tienda. PWA/admin todavía usan auth demo hasta T-17/T-18.
+La migración auth no se aplica a Neon por generar SQL o pasar tests locales.
+
+## Validación reproducible
+
+Desde la raíz: `npm run ci:install`, `npm run ci:check`, `npm run ci:build`.
+CI usa Node 24.x, cuatro lockfiles, typecheck explícito app/node de ambos fronts,
+lint frontend, drift de contratos y las tres suites antes del build unificado.
+Las pruebas memory y PostgreSQL embebido son fixtures aislados sin secretos cloud;
+no sustituyen el smoke real Neon/Preview. El build unificado aún compila demo.
 
 ## Comandos
 
@@ -171,9 +201,10 @@ final solo puede existir cuando todos los pesos variables reales estén registra
 
 La migración aditiva `0001_orders_contract_fields.sql` agrega envío/final/GPS/franja
 sin borrar datos ni reescribir `total`. El mapper lee ítems/sustituciones antiguos;
-`kilos` legacy se interpreta como peso solicitado, nunca real. La migración está
-preparada offline y **no se ha aplicado** en esta feature. Antes de desplegar las
-Functions de pedidos debe aplicarse sobre el destino de test comprobado.
+`kilos` legacy se interpreta como peso solicitado, nunca real. La migración fue
+aplicada y comprobada en Neon dev/maui durante C1 el 2026-10-01, conservando el
+pedido previo; la evidencia está en el plan. Las migraciones nuevas requieren
+verificar destino/ledger y su autorización propia antes de ejecutar.
 
 T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas.
 `userId`, nombre/precio y envío del request aún no son autoridad confiable;

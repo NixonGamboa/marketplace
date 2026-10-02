@@ -40,6 +40,22 @@ El usuario confirmó Production en Neon main y aprobó incorporar/publicar `feat
 
 El scope MCP Vercel no permitió acceso, pero el CLI autenticado sí. La CLI 56.1 requirió objetos individuales en `api --input` (su cliente no serializa arrays top-level) y URL completa/cwd de proceso en `curl` (los flags globales se reenviaban al curl nativo). Se diagnosticó antes de cambiar la vía; no se modificó seguridad ni se imprimieron credenciales. Smoke real es necesario: filesystem antes de rewrites no bastó para demostrar preservación de rutas dinámicas.
 
+### Incremento C2 iniciado el 2026-10-01
+
+El usuario pidió continuar después de proponer T-03b/T-05. Se abrió
+`feature/ci-acceso-sesiones` desde develop `cde73d3`. La autorización actual cubre
+implementación y validación local; no reutiliza la autorización cloud limitada a
+C1. CI/configuración/locks/migración/documentación tienen como escritor a Codex;
+Claude Code escribe únicamente auth y sus tests, con Sonnet/high y modelo
+efectivo registrado. Se usa un ejecutor por defecto: Codex tenía 66% consumido
+en la ventana de cinco horas y conserva margen para revisar/integrar.
+
+`ejecucion-ia.json` versión 2 conserva el registro completo de C1 en
+`ejecuciones[0]` y añade C2 en `ejecuciones[1]`, sin reemplazar IDs/evidencia
+históricos. Los fixtures SQL locales no acreditan despliegue ni migración Neon.
+T-05 no se declara cerrado por sesiones locales mientras el API de pedidos
+no aplique la autorización de T-06 y falte verificación real en test.
+
 ## Reparto de trabajo
 
 | Función | Ejecutor preferido | Contexto que recibe |

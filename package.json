@@ -10,11 +10,24 @@
     "install:back": "npm --prefix maui-back install --no-audit --no-fund",
     "install:all": "npm run install:pwa && npm run install:admin && npm run install:back",
     "build:unified": "npm run install:all && npm --prefix MAUI-PWA-customers run build:unified",
-    "vercel-build": "npm run build:unified"
+    "vercel-build": "npm run build:unified",
+    "ci:install": "npm ci --no-audit --no-fund && npm --prefix maui-back ci --no-audit --no-fund && npm --prefix MAUI-PWA-customers ci --no-audit --no-fund && npm --prefix maui-admin-front ci --no-audit --no-fund",
+    "typecheck:back": "npm --prefix maui-back run typecheck",
+    "typecheck:pwa": "npm --prefix MAUI-PWA-customers run typecheck",
+    "typecheck:admin": "npm --prefix maui-admin-front run typecheck",
+    "check:contracts": "bash scripts/check-types-drift.sh",
+    "lint:pwa": "npm --prefix MAUI-PWA-customers run lint",
+    "lint:admin": "npm --prefix maui-admin-front run lint",
+    "test:back": "npm --prefix maui-back run test",
+    "test:pwa": "npm --prefix MAUI-PWA-customers run test -- --run",
+    "test:admin": "npm --prefix maui-admin-front run test",
+    "ci:check": "node scripts/ci-check.mjs",
+    "ci:build": "npm --prefix MAUI-PWA-customers run build:unified"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.36.4",
+    "jose": "^6.2.12",
     "pino": "^9.5.0",
     "ulid": "^2.3.0",
     "zod": "^3.23.8"

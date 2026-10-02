@@ -1,0 +1,51 @@
+name: Validación MAUI
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, 'feature/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maui-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      APP_ENV: local
+      NODE_ENV: test
+      DB_DRIVER: memory
+      LOG_LEVEL: error
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Configurar Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: package.json
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            maui-back/package-lock.json
+            MAUI-PWA-customers/package-lock.json
+            maui-admin-front/package-lock.json
+      - name: Instalar versiones del lockfile
+        run: npm run ci:install
+        env:
+          NODE_ENV: development
+      - name: Validar tipos, lint, contratos y pruebas
+        run: npm run ci:check
+      - name: Construir origen unificado
+        run: npm run ci:build
+        env:
+          NODE_ENV: production
