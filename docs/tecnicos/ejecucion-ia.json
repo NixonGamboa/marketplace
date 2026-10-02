@@ -1,786 +1,188 @@
 {
-  "version": 2,
+  "version": 3,
   "actualizado": "2026-10-01",
-  "ejecuciones": [
+  "sesiones": [
     {
-      "version": 1,
-      "actualizado": "2026-10-01",
+      "incremento": "c1-base-test-contratos",
       "rama": "feature/base-test-contratos",
-      "base": "d384e089139cd83b3e9c422db9f803d92fd72dd9",
-      "checkout": "D:/Proyectos/Maui",
-      "cambiosPreexistentesPreservados": [
-        "docs/bitacora/"
-      ],
-      "autorizacion": "El usuario respondió sí: confirma Production en Neon main; autoriza incorporar/publicar feature a develop, configurar/desplegar Preview dev/maui y migración aditiva después de verificar aislamiento. Sin promoción a master/Production, seed/reset ni nuevos bloques.",
-      "cuotaCodexComprobada": {
-        "plan": "plus",
-        "usadoVentanaCincoHorasPorcentaje": 3,
-        "usadoVentanaSemanalPorcentaje": 35,
-        "creditos": 0,
-        "resetConsumido": false,
-        "momento": "inicio de ejecución"
-      },
-      "sesiones": [
-        {
-          "bloques": [
-            "T-01",
-            "T-02"
-          ],
-          "proveedor": "Codex",
-          "ejecutor": "api_entorno",
-          "modelo": "gpt-6.1-sol",
-          "esfuerzo": "high",
-          "sessionId": null,
-          "identificadorEjecucion": "/root/api_entorno",
-          "estado": "ejecutor finalizado; bloque incorporado y verificado en test",
-          "ownership": [
-            "api/health.ts",
-            "api/not-found.ts",
-            "api/_lib/response.ts",
-            "maui-back/src/shared/config.ts",
-            "maui-back/src/infra/postgres/client.ts",
-            "maui-back/src/usecases/health/",
-            "maui-back/tests/config/",
-            "maui-back/tests/health/",
-            "maui-back/tests/http/",
-            "maui-back/tests/setup.ts",
-            "vercel.json",
-            "maui-back/.env.example",
-            "package.json",
-            "package-lock.json",
-            "maui-back/tsconfig.json",
-            "maui-back/src/shared/logger.ts",
-            "maui-back/src/infra/factory.ts",
-            "maui-back/src/infra/postgres/health.ts",
-            "maui-back/src/infra/postgres/migrate.ts",
-            "maui-back/drizzle.config.ts",
-            "maui-back/package.json",
-            "maui-back/package-lock.json",
-            "tsconfig.json"
-          ],
-          "limitacionIdentificador": "La herramienta de subagentes expone un identificador de ejecución, no un session ID de Codex CLI. No se inventa un ID reanudable.",
-          "pruebas": [
-            "Backend 268/268 y typecheck incluyendo API/shared",
-            "Typecheck raíz",
-            "Health real local contra Neon dev: HTTP 200/database connected",
-            "Compilador Vercel: filesystem antes de fallback; smoke cloud pendiente",
-            "Preview real: health conectado/test, rutas dinámicas/404/405 y SPAs; 16/16 checks posteriores a migración"
-          ],
-          "bloqueantes": [],
-          "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente.",
-          "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
-          "resumen": "Health portable con SELECT 1/timeout, errores JSON/routing; Node 24.x, destinos separados y acceso a BD/migración/Drizzle protegido."
-        },
-        {
-          "bloques": [
-            "T-04"
-          ],
-          "proveedor": "Claude Code",
-          "ejecutor": "CLI local autenticado claude.ai/Pro firstParty",
-          "modelo": "claude-sonnet-5-5",
-          "esfuerzo": "high",
-          "evidenciaEsfuerzo": "--effort high aceptado al iniciar la sesión; no se deduce de preferencias globales.",
-          "sessionId": "73cc8488-e79d-41b8-9c45-e5ab020395e0",
-          "estado": "ejecutor finalizado; bloque incorporado y verificado en test",
-          "ownership": [
-            "shared/contracts/",
-            "maui-back/src/domain/orders/",
-            "maui-back/src/usecases/orders/",
-            "maui-back/src/infra/postgres/schema.ts",
-            "maui-back/src/infra/postgres/OrdersRepositoryPostgres.ts",
-            "maui-back/src/infra/postgres/migrations/",
-            "maui-back/tests/contratos/",
-            "maui-back/tests/usecases/orders/",
-            "api/orders/",
-            "MAUI-PWA-customers/src/types/orderService.ts",
-            "maui-admin-front/src/types/orderService.ts",
-            "MAUI-PWA-customers/src/features/orders/",
-            "maui-admin-front/src/features/orders/",
-            "maui-admin-front/src/types/adminOrder.ts",
-            "maui-admin-front/src/services/mockOrderRepository.ts"
-          ],
-          "resultadoLocalIgnorado": ".claude/orquestacion/t04-output.jsonl",
-          "checkpointLocalIgnorado": ".claude/orquestacion/t04-checkpoint.md",
-          "pruebas": [
-            "268 tests backend, 20 PWA y 80 admin",
-            "Typecheck/lint/drift/build unificado pasan",
-            "Drizzle generate offline: No schema changes",
-            "GPS-only aceptado y final sin peso real rechazado",
-            "0001 aplicada solo dev; pedido previo conservado, repository/DTO y GET Vercel 200 validados"
-          ],
-          "bloqueantes": [],
-          "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente.",
-          "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
-          "revisionLocalIgnorada": ".claude/orquestacion/t04-review-output.jsonl",
-          "ejecuciones": [
-            {
-              "modo": "implementación",
-              "durationMs": 661177,
-              "numTurns": 110,
-              "permissionDeniedCount": 5
-            },
-            {
-              "modo": "reanudar mismo sessionId para correcciones",
-              "durationMs": 152880,
-              "numTurns": 61,
-              "permissionDeniedCount": 0
-            }
-          ],
-          "permisos": "Comandos/checkpoint inicial rechazados por permisos automáticos. Codex ejecutó los gates y escribió el checkpoint por vías disponibles; Claude se reanudó solo con herramientas de archivos. Sin desactivar seguridad.",
-          "resumen": "Contrato común, validación, mappers privados/legacy, precios COP, pesos solicitados/reales, estados y UI reconciliados; migración aditiva preparada, no aplicada."
-        },
-        {
-          "bloques": [
-            "T-01",
-            "T-02"
-          ],
-          "proveedor": "Claude Code",
-          "ejecutor": "revisión independiente solo lectura",
-          "modelo": "claude-sonnet-5-5",
-          "esfuerzo": "high",
-          "sessionId": "0a5fb688-406d-4b18-ba30-a4676cce6cd1",
-          "estado": "revisión finalizada; hallazgos resueltos con smoke cloud",
-          "referenciaVersion": "a577111c4b7665e9de1293564719dfeb2db09022",
-          "ownership": [],
-          "resultadoLocalIgnorado": ".claude/orquestacion/t01-review-output.jsonl",
-          "durationMs": 83384,
-          "numTurns": 26,
-          "permissionDeniedCount": 0,
-          "resumen": "Codex atendió hallazgos sobre local remoto, Drizzle online, NODE_ENV production y engines. SELECT 1 comprobado realmente. Routing dinámico requiere smoke cloud.",
-          "pruebas": [
-            "Read/Glob/Grep sobre implementación y pruebas",
-            "Gates locales comprobados por Codex"
-          ],
-          "bloqueantes": [],
-          "siguienteAccion": "Sin trabajo activo. T-03b/T-05 habilitados para próximo encargo; integración persistente completa T-15 pendiente."
-        }
-      ],
-      "evidenciaCloudSoloLectura": {
-        "vercel": {
-          "proyecto": "marketplace",
-          "projectId": "prj_JJSJxLWORkC7WVZGcGziLPxGQ4dk",
-          "node": "24.x",
-          "plan": "hobby",
-          "estadoPlan": "active",
-          "limitesDeUso": "No expuestos en la respuesta consultada; no se presume margen exacto.",
-          "databaseUrlPreview": "sensitive, valor no legible",
-          "databaseUrlProduction": "sensitive, valor no legible"
-        },
-        "neon": {
-          "proyecto": "rough-morning-66975813",
-          "plan": "free_v3",
-          "branchTest": "br-rough-mud-au9ohq6s",
-          "branchTestNombre": "dev",
-          "branchProduction": "br-patient-mouse-au2580c5",
-          "branchProductionNombre": "main",
-          "database": "maui",
-          "lectura": "SELECT current_database(), current_setting('server_version'), to_regclass('public.orders')",
-          "resultado": "maui; Postgres 18.6; orders presente",
-          "migracionesEjecutadas": false,
-          "seedEjecutado": false,
-          "limiteBranches": 10,
-          "branchesExistentes": 2,
-          "hostTest": "ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech",
-          "hostMain": "ep-weathered-salad-auk9jj3u.c-10.us-east-1.aws.neon.tech",
-          "compatibilidadLegacy": "Sondeo agregado inicial del único pedido dev: cero incompatibilidades en campos comprobados; validación posterior en cierreCloud.",
-          "momento": "evidencia inicial anterior a la continuación autorizada"
-        }
-      },
-      "commitImplementacion": "a577111c4b7665e9de1293564719dfeb2db09022",
-      "capacidad": "Codex ChatGPT y Claude Code claude.ai/Pro firstParty; sin API facturada, créditos adicionales ni resets.",
-      "coordinacion": {
-        "orquestador": "Codex",
-        "modelo": "gpt-6.1-sol",
-        "esfuerzo": "high",
-        "estado": "incremento cerrado en develop/Preview; T-03b/T-05 no iniciados",
-        "revisionCruzada": "Codex revisó T-04; Claude revisó T-01/T-02. Expansiones de ownership coordinadas; sin escrituras concurrentes sobre archivos compartidos.",
-        "ownership": [
-          "Documentación y registro",
-          "Correcciones de límites DTO/UI",
-          "Validación final y sondeos BD de solo lectura"
-        ],
-        "ejecutoresTerminados": true
-      },
-      "validacion": {
-        "backend": {
-          "tests": 271,
-          "suites": 15,
-          "typecheck": "pasa"
-        },
-        "pwa": {
-          "tests": 20,
-          "suites": 5,
-          "typecheck": "pasa",
-          "lintErrors": 0,
-          "lintWarningsPrevios": 3
-        },
-        "admin": {
-          "tests": 80,
-          "suites": 13,
-          "typecheck": "pasa",
-          "lintErrors": 0,
-          "lintWarningsPrevios": 3
-        },
-        "typecheckRaiz": "pasa",
-        "driftFrontend": "pasa",
-        "diffWhitespace": "pasa",
-        "buildUnificado": "pasa; sigue demo y precache ~28.2 MiB, no acredita apps reales",
-        "drizzleMetadata": "generate offline sobre copia ignorada: No schema changes",
-        "healthReal": "Local y Vercel Preview: HTTP 200, database connected, APP_ENV test; URL/destinos verificados por guard.",
-        "routing": {
-          "tests": 19,
-          "resultado": "pasa",
-          "tresRegresionesNuevas": true
-        },
-        "postgres": "Ledger inicial confirmado, 0001 aplicada únicamente dev/maui, cinco columnas y dos entradas journal. Pedido existente conservado con fingerprint idéntico; repository/DTO y GET desde Vercel 200 conformes.",
-        "smoke": {
-          "antesMigracion": 15,
-          "despuesMigracion": 16,
-          "resultado": "todos pasan",
-          "lecturaPedidoExistente": "HTTP 200 y shared schema válido; campos internos omitidos"
-        }
-      },
-      "intervencionMinima": "Resuelta con sí del usuario. No hay intervención pendiente en este incremento.",
-      "propuestaReviewable": "Ejecutada dentro del alcance aprobado. Auth/CI, conexión real de apps, catálogo/precios confiables e integración/E2E completos siguen en bloques futuros.",
-      "autorizacionInicial": "Implementar T-01/T-02 y T-04 en feature desde develop, validar y actualizar plan. Sin push, integración a develop ni promoción a Production.",
-      "commitCodigoVerificado": "4400e90dda8302485365b1935b1f8264bd322760",
-      "integracion": {
-        "estado": "incorporada por fast-forward y publicada en develop",
-        "commits": [
-          "a577111",
-          "92f5696",
-          "3233ca4",
-          "3d59dea",
-          "4400e90"
-        ],
-        "ramaProduction": "master",
-        "promocionProduction": false
-      },
-      "conteo": {
-        "claudeSesionesNuevas": 2,
-        "claudeReanudaciones": 1,
-        "claudeInvocaciones": 3,
-        "codexEjecutoresDelegadosNuevos": 1,
-        "codexOrquestador": "chat existente",
-        "codexCliExternos": 0,
-        "rondasCruzadasCorreccion": 2,
-        "rondasCorrectivasProductoDeploy": 2,
-        "ajustesLocales": "Gates y arnés de herramientas, sin sesiones nuevas; no se inventa conteo de microediciones."
-      },
-      "cierreCloud": {
-        "deploymentId": "dpl_8PJq3YoEh9Y1BmBbYZ2YNhGHK69y",
-        "url": "https://marketplace-opctt38lg-infogamboatech-2785.vercel.app",
-        "gitRef": "develop",
-        "gitSha": "4400e90dda8302485365b1935b1f8264bd322760",
-        "estado": "READY",
-        "node": "24.x",
-        "funciones": 5,
-        "variablesConfiguradas": "Siete exclusivas Preview/develop; DATABASE_URL sensitive dev/maui, sin VITE.",
-        "production": "main confirmado por usuario; entrada DATABASE_URL conservada, sin releer valor.",
-        "proteccion": "Conservada; CLI autenticado accedió al Preview.",
-        "migracion": {
-          "nombre": "0001_orders_contract_fields",
-          "destino": "dev/maui",
-          "aplicada": true,
-          "columnas": 5,
-          "journalEntradas": 2,
-          "pedidosAntes": 1,
-          "pedidosDespues": 1,
-          "fingerprintIgual": true
-        },
-        "seedEjecutado": false,
-        "resetEjecutado": false,
-        "pedidosMutados": false,
-        "promocionProduction": false
-      },
-      "correccionesDeploy": [
-        {
-          "commit": "3d59dea",
-          "causa": "BUILD_UTILS_NODE_VERSION_INVALID por runtime @vercel/node@5.0.0",
-          "solucion": "Retirar override y usar detección estándar Node 24.x."
-        },
-        {
-          "commit": "4400e90",
-          "causa": "Fallback capturaba rutas dinámicas; riesgo de revisión Claude confirmado en smoke.",
-          "solucion": "Rewrites específicos lectura/status antes de fallback; tres regresiones nuevas y smoke real."
-        }
-      ]
+      "bloque": "T-01",
+      "proveedor": "Codex",
+      "rol": "ejecutor",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "/root/api_entorno",
+      "estado": "finalizado; incorporado a develop"
     },
     {
-      "id": "c2-ci-acceso-sesiones",
-      "actualizado": "2026-10-01",
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-02",
+      "proveedor": "Codex",
+      "rol": "ejecutor",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "/root/api_entorno",
+      "estado": "finalizado; incorporado a develop"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-04",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": "high",
+      "sessionId": "73cc8488-e79d-41b8-9c45-e5ab020395e0",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; incorporado a develop"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-01",
+      "proveedor": "Claude Code",
+      "rol": "revisor solo lectura",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "0a5fb688-406d-4b18-ba30-a4676cce6cd1",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; hallazgos resueltos"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-02",
+      "proveedor": "Claude Code",
+      "rol": "revisor solo lectura",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "0a5fb688-406d-4b18-ba30-a4676cce6cd1",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; hallazgos resueltos"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-01",
+      "proveedor": "Codex",
+      "rol": "orquestador",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-02",
+      "proveedor": "Codex",
+      "rol": "orquestador",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado"
+    },
+    {
+      "incremento": "c1-base-test-contratos",
+      "rama": "feature/base-test-contratos",
+      "bloque": "T-04",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado"
+    },
+    {
+      "incremento": "c2-ci-acceso-sesiones",
       "rama": "feature/ci-acceso-sesiones",
-      "base": "cde73d3a0fd74c532e17d2a3cad77574b949d7a8",
-      "checkout": "D:/Proyectos/Maui",
-      "autorizacion": "Usuario zi: incorporar/publicar develop, dos variables auth solo Preview/develop, migración 0002 solo Neon dev/maui tras guard/ledger y smoke de auth con cuentas temporales. C2 adopta PR después de la consulta del usuario. Sin master/Production, main, seed/reset ni T-06.",
-      "cambiosPreexistentesPreservados": [
-        "docs/bitacora/2026-10-01-auditoria-plan-orquestacion-ia.md"
-      ],
-      "cuotaCodexComprobada": {
-        "plan": "plus",
-        "usadoVentanaCincoHorasPorcentaje": 66,
-        "usadoVentanaSemanalPorcentaje": 45,
-        "creditos": 0,
-        "resetConsumido": false
-      },
-      "sesiones": [
-        {
-          "bloques": [
-            "T-05"
-          ],
-          "proveedor": "Claude Code",
-          "ejecutor": "CLI local autenticado claude.ai/Pro firstParty",
-          "modelo": "claude-sonnet-5-5",
-          "esfuerzo": "high",
-          "evidenciaEsfuerzo": "--effort high aceptado; per_turn_effort_active=true; modelo efectivo del init estructurado.",
-          "sessionId": "c1481c21-bde9-457b-a39f-02605fea0407",
-          "estado": "ejecutor cerrado; implementación revisada, integrada por PR y base auth comprobada en test",
-          "ownership": [
-            "shared/contracts/auth.ts",
-            "shared/contracts/index.ts",
-            "maui-back/src/domain/auth/",
-            "maui-back/src/usecases/auth/",
-            "maui-back/src/infra/auth/",
-            "maui-back/src/infra/memory/AuthRepositoryMemory.ts",
-            "maui-back/src/infra/postgres/AuthRepositoryPostgres.ts",
-            "maui-back/src/infra/postgres/schema.ts (tablas auth)",
-            "maui-back/tests/auth/",
-            "api/auth/",
-            "api/_lib/auth.ts"
-          ],
-          "resultadoLocalIgnorado": ".claude/orquestacion/t05-output.jsonl",
-          "checkpointLocalIgnorado": null,
-          "reanudaciones": [
-            {
-              "ronda": 1,
-              "modelo": "claude-sonnet-5-5",
-              "esfuerzo": "high",
-              "resultadoLocalIgnorado": ".claude/orquestacion/t05-resume-1.jsonl",
-              "motivo": "Typecheck helpers y revisión Codex: límite global login, protocolos locales y claims enteros",
-              "turnos": 15,
-              "duracionMs": 86881,
-              "denegacionesHerramienta": 0
-            }
-          ],
-          "ejecucionInicial": {
-            "turnos": 108,
-            "duracionMs": 1203779,
-            "denegacionesHerramienta": 1
-          },
-          "checkpoint": "Resumen final devuelto por Claude; decisiones/pruebas/limitaciones registradas en esta ejecución.",
-          "pruebas": [
-            "Backend 518/518 en 24 suites, 38 HTTP auth y 5 PostgreSQL embebido",
-            "Typecheck backend/API/shared y raíz"
-          ],
-          "bloqueantes": [],
-          "siguienteAccion": "Sin proceso activo; siguiente bloque T-06 con encargo propio"
-        }
-      ],
-      "orquestador": {
-        "proveedor": "Codex",
-        "ejecutor": "chat existente",
-        "ownership": [
-          ".github/workflows/ci.yml",
-          "scripts/ci-check.mjs",
-          "manifests y lockfiles",
-          "migración aditiva generada offline",
-          "documentación y gates",
-          "MAUI-PWA-customers/vite.config.ts (exclusión de caché API)"
-        ],
-        "limitacionModelo": "El modelo efectivo del chat no está expuesto por las herramientas; no se inventa un ID de modelo ni una sesión CLI."
-      },
-      "conteo": {
-        "sesionesClaude": 1,
-        "reanudacionesClaude": 1,
-        "ejecutoresCodexDelegados": 0,
-        "sesionesCodexCLI": 0,
-        "chatCodexExistente": 1,
-        "rondasCorreccionProducto": 3,
-        "procesosClaudeConSesion": 2,
-        "invocacionesClaudeCLI": 3,
-        "fallosAntesDeSesion": 1
-      },
-      "arnes": [
-        {
-          "resultado": "fallo antes de iniciar proveedor",
-          "causa": "Archivo de configuración MCP vacío inexistente",
-          "solucion": "Crear archivo local sin servidores y reiniciar; no añadió sesión IA."
-        },
-        {
-          "resultado": "checkpoint devuelto en texto final",
-          "causa": "Claude denegó Write a .claude/orquestacion como archivo sensible",
-          "solucion": "No reintentar ni cambiar permisos; Codex registra checkpoint en documentación asignada"
-        }
-      ],
-      "validacion": [
-        "Instalación reproducible cuatro lockfiles; backend reinstalado tras añadir PGlite",
-        "ci:check: tipos explícitos app/node, backend/API/shared; drift; lint cero errores y 3 warnings previos por app; tests 518 backend +20 PWA +80 admin =618",
-        "ci:build unificado aprobado; demo y precache 28920.06 KiB conservados",
-        "Typecheck raíz aprobado",
-        "Workflow YAML parseado; orden gates antes de build y permisos mínimos comprobados; Actions pinned por SHA oficial",
-        "Migración 0002 generada offline: tres tablas auth, FK y únicos; no cambia orders",
-        "PostgreSQL embebido: 5/5, SQL real de adapter con solo transporte de Neon sustituido en test",
-        "git diff --check aprobado; registro C1 preservado íntegro",
-        "Actions remoto aprobado antes de PR merge; 5 preflight +19 auth reales, 0002 solo dev, cleanup y orders verificados"
-      ],
-      "limitaciones": [
-        "T-05 parcial: base auth real verificada en Neon/Preview; acceso privado de pedidos depende de T-06, consumidores de T-17/T-18",
-        "Pedidos existentes aún sin autorización: T-06 requerido para acceso privado; UI auth demo hasta T-17/T-18",
-        "Cota global temporal compartida: login60/15min y registro30/h; T-06 afina abuso sin confiar en cabeceras arbitrarias",
-        "No recuperación de contraseña, OTP ni verificación WhatsApp; phoneVerified=false",
-        "T-20 pendiente: se retiró caché API genérica, falta política completa pública/privada"
-      ],
-      "referenciaVersion": "5b95e0de7f744cc0839da113a5f520ac98294aba",
-      "correcciones": [
-        {
-          "ronda": 1,
-          "responsable": "Codex revisión / Claude misma sesión",
-          "causa": "TS2345 helpers y límites de login/origen local/claims",
-          "resultado": "Helpers tipados, cota global persistente antes del hash, protocolos http/https y NumericDate entero seguro; gates pasan"
-        },
-        {
-          "ronda": 2,
-          "responsable": "Codex chat existente",
-          "causa": "CLI Drizzle no resuelve import .js hacia fuente .ts; intento con tsx encontró conflicto de loaders Node 24",
-          "diagnostico": "Dos fallos distintos, no bucle: resolver fuente con extensión real en config Drizzle y allowImportingTsExtensions solo backend; mantener loader original y guards",
-          "resultado": "Generación offline 0002 correcta; typecheck y tests Drizzle pasan"
-        },
-        {
-          "ronda": 3,
-          "responsable": "Codex chat existente",
-          "causa": "npm 11.19/Linux requiere peers @emnapi/core/runtime 1.11.3 ausentes del lock Windows/npm 11.6",
-          "resultado": "Locks regenerados con npm 11.19 en carpeta ignorada; comprobación Linux y Actions aprobados; commit d427758"
-        }
-      ],
-      "cierre": {
-        "desarrolladoEnFeature": true,
-        "incorporadoDevelop": true,
-        "push": true,
-        "migracionNeon": true,
-        "configuracionVercel": true,
-        "seedCloud": false,
-        "promocionProduction": false,
-        "ejecutoresActivos": 0,
-        "siguienteAccion": "T-03b hecho; T-05 parcial, siguiente T-06. Sin intervención pendiente C2."
-      },
-      "autorizacionInicial": "Usuario: continua, después de proponer T-03b/T-05. Implementación y validación local. La autorización cloud del incremento anterior no se extiende a este.",
-      "ajustesComprobadorCloud": [
-        "Guard histórico detectó CRLF Windows: hash canónico LF coincide con ledger; SQL/ledger históricos intactos",
-        "DELETE de tres IDs temporales terminó; consulta auxiliar de verificación falló. SQL independiente confirmó cero cuentas/sesiones y orders/fingerprint idénticos; sin repetir smoke/reset"
-      ],
-      "integracion": {
-        "pr": 1,
-        "url": "https://github.com/NixonGamboa/marketplace/pull/1",
-        "head": "d427758fb8ffd0ffe3142c6e43f88c29a3abb253",
-        "merge": "be5ba89f7363b073456074b21f878576df0d7ce0",
-        "metodo": "merge",
-        "ciAntesDeFusion": true,
-        "cierreDocumental": "feature/cierre-ci-sesiones desde origin/develop, PR separada"
-      },
-      "ci": {
-        "run": 36945438832,
-        "job": 110646388920,
-        "conclusion": "success",
-        "head": "d427758fb8ffd0ffe3142c6e43f88c29a3abb253",
-        "url": "https://github.com/NixonGamboa/marketplace/actions/runs/36945438832",
-        "node": "24.21.0",
-        "npm": "11.19.0",
-        "tests": 618,
-        "runInicialFallido": 36944975009
-      },
-      "cierreCloud": {
-        "deployment": {
-          "id": "dpl_75LY31bbMYRKJYGxYHSRemBE4rQZ",
-          "url": "marketplace-ld6cwdsv2-infogamboatech-2785.vercel.app",
-          "readyState": "READY",
-          "node": "24.x",
-          "gitSource": {
-            "ref": "develop",
-            "repoId": 1217610201,
-            "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
-            "type": "github",
-            "prId": null
-          },
-          "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
-          "ref": "develop"
-        },
-        "configuracion": {
-          "configured": [
-            {
-              "key": "AUTH_JWT_SECRET",
-              "id": "WtAL1sK61mTWdmeA",
-              "type": "sensitive",
-              "target": [
-                "preview"
-              ],
-              "gitBranch": "develop"
-            },
-            {
-              "key": "AUTH_ORIGIN",
-              "id": "LphWqw8rF9AchkWG",
-              "type": "plain",
-              "target": [
-                "preview"
-              ],
-              "gitBranch": "develop"
-            }
-          ],
-          "origin": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
-          "productionMetadataPreserved": true
-        },
-        "preflight": {
-          "url": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
-          "deploymentId": "dpl_75LY31bbMYRKJYGxYHSRemBE4rQZ",
-          "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
-          "ref": "develop",
-          "passed": true,
-          "results": [
-            {
-              "name": "GET /api/health",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/register",
-              "status": 405,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 403,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 400,
-              "passed": true
-            }
-          ]
-        },
-        "migracion": {
-          "target": "Neon dev/maui",
-          "migration": "0002_auth_accounts_sessions",
-          "journalEntries": 3,
-          "authTables": 3,
-          "ordersPreserved": 1,
-          "fingerprintEqual": true,
-          "applied": true
-        },
-        "authSmoke": {
-          "url": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
-          "passed": true,
-          "accountsTested": 3,
-          "roles": [
-            "customer",
-            "owner",
-            "operator"
-          ],
-          "realNeon": true,
-          "realVercel": true,
-          "results": [
-            {
-              "name": "POST /api/auth/register",
-              "status": 201,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/register",
-              "status": 400,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/logout",
-              "status": 204,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/logout",
-              "status": 204,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/login",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 200,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/logout",
-              "status": 204,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/logout",
-              "status": 403,
-              "passed": true
-            },
-            {
-              "name": "POST /api/auth/logout",
-              "status": 204,
-              "passed": true
-            },
-            {
-              "name": "GET /api/auth/session",
-              "status": 401,
-              "passed": true
-            }
-          ]
-        },
-        "limpieza": {
-          "ownedTemporaryAccounts": 3,
-          "removed": true,
-          "cascadeSessions": true,
-          "verification": "Consulta independiente Neon dev/maui: cero cuentas y sesiones tras DELETE de los tres IDs temporales; orders=1, fingerprint conservado"
-        },
-        "ordersCount": 1,
-        "ordersFingerprint": "b4824b11e79c9c366fbcd2ed061ce410",
-        "bucketsRateLimit": "conservados, sin reset global"
-      }
+      "bloque": "T-05",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": "high",
+      "sessionId": "c1481c21-bde9-457b-a39f-02605fea0407",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; integrado en develop"
     },
     {
-      "id": "t06-autorizacion-pedidos",
-      "actualizado": "2026-10-01",
-      "estado": "validado en feature local; no integrado ni comprobado en cloud",
+      "incremento": "c2-ci-acceso-sesiones",
+      "rama": "feature/ci-acceso-sesiones",
+      "bloque": "T-03b",
+      "proveedor": "Codex",
+      "rol": "orquestador y ejecutor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado; integrado en develop"
+    },
+    {
+      "incremento": "c2-ci-acceso-sesiones",
+      "rama": "feature/ci-acceso-sesiones",
+      "bloque": "T-05",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "finalizado; integrado en develop"
+    },
+    {
+      "incremento": "t06-autorizacion-pedidos",
       "rama": "feature/autorizacion-pedidos-tiendas",
-      "base": "1b6019a40ab6e2603cd21179c575de5a7262618f",
-      "checkout": "D:/Proyectos/Maui",
-      "autorizacion": "Usuario: implementar y validar T-06 localmente con commits locales por alcance. Sin push, PR, merge, develop, despliegue ni migraciones/seed/reset cloud.",
-      "contexto": "Codex sin capacidad temporal; Claude ejecuta T-06 de forma autónoma y deja la feature para revisión de Codex. Sin orquestador activo durante el bloque.",
-      "cambiosPreexistentesPreservados": [
-        "docs/bitacora/2026-10-01-auditoria-plan-orquestacion-ia.md"
-      ],
-      "sesiones": [
-        {
-          "bloques": [
-            "T-06"
-          ],
-          "proveedor": "Claude Code",
-          "ejecutor": "sesión interactiva local con suscripción, iniciada por el usuario",
-          "modelo": "claude-opus-5-5",
-          "esfuerzo": "high (solicitado)",
-          "evidenciaModelo": "Comando /model mantuvo Opus 5.5; el entorno de la sesión declara el ID claude-opus-5-5.",
-          "evidenciaEsfuerzo": "Las herramientas de la sesión no exponen el esfuerzo efectivo; se registra el solicitado sin afirmarlo como verificado.",
-          "sessionId": "43dd50df-f3b6-4d39-84f3-faac23916ac1",
-          "subagentes": 0,
-          "ownership": [
-            "api/orders/",
-            "api/_lib/orders.ts",
-            "api/_lib/auth.ts (límite de cuerpo parametrizable y authenticateRequest)",
-            "maui-back/src/domain/orders/",
-            "maui-back/src/usecases/orders/",
-            "maui-back/src/usecases/auth/reserveAttempt.ts",
-            "maui-back/src/usecases/auth/requireRole.ts (comentario)",
-            "shared/contracts/orders.ts (documentación de userId)",
-            "shared/contracts/README.md",
-            "maui-back/tests/orders/",
-            "maui-back/tests/usecases/orders/",
-            "maui-back/tests/integration/",
-            "maui-back/README.md",
-            "docs/tecnicos/adr-002-acceso-sesiones.md",
-            "docs/tecnicos/estado-plan.md",
-            "docs/tecnicos/ejecucion-ia.json"
-          ],
-          "estadoProceso": "Sin procesos auxiliares activos; sesión conservada para correcciones",
-          "bloqueantes": [],
-          "siguienteAccion": "Codex revisa diff 1b6019a..ffac5c7 y decisiones abiertas; con autorización, PR con Actions y smoke real en Preview dev/maui"
-        }
-      ],
-      "referenciaVersion": "ffac5c7",
-      "commits": [
-        {
-          "sha": "a216e14",
-          "alcance": "helper PostgreSQL embebido compartido para pruebas"
-        },
-        {
-          "sha": "ffac5c7",
-          "alcance": "autorización de pedidos por sesión, propiedad y tienda con pruebas"
-        }
-      ],
-      "validacion": [
-        "Node 24.11.0 y npm 11.6.1 con lockfiles vigentes, sin reinstalar dependencias",
-        "ci:check: tipos app/node y backend/API/shared, drift, lint cero errores y 3 warnings previos por app; tests 552 backend +20 PWA +80 admin =652",
-        "ci:build unificado aprobado; build sigue en demo",
-        "26 pruebas HTTP con handlers, scrypt y JWT reales; casos de uso de rol/propiedad/límite; 3 pruebas sobre PostgreSQL embebido",
-        "Mutación temporal de canAccessOrder: 5 pruebas fallan; archivo restaurado",
-        "git diff --check aprobado"
-      ],
-      "limitaciones": [
-        "Sin smoke real en Neon/Preview: memory y PostgreSQL embebido no acreditan cloud",
-        "userId sigue requerido en el contrato para no romper el mock PWA; T-18 debe enviar la cuenta de la sesión",
-        "Sin endpoint de listado; T-11 debe aplicar la misma política",
-        "Cancelación por cliente no definida en el plan: 403",
-        "Sin límite por IP; cotas globales de login/registro conservadas",
-        "Lectura y escritura de estado no atómicas (T-12)"
-      ],
-      "correcciones": [
-        {
-          "ronda": 1,
-          "responsable": "Claude misma sesión",
-          "causa": "ci:check: TS2322 en MAUI-PWA-customers/src/services/mockOrderService.ts al volver userId opcional en el contrato",
-          "resultado": "Se mantuvo userId requerido con regla de coincidencia con la sesión; sin tocar frontends; gates pasan"
-        }
-      ],
-      "arnes": [
-        {
-          "resultado": "fallo de herramienta local, sin efecto en el producto",
-          "causa": "Heredoc de bash con comillas mal interpretado y regex de reemplazo de pruebas demasiado amplio",
-          "solucion": "Restaurar los archivos de prueba desde Git y aplicar reemplazos explícitos desde un script del scratchpad; se eliminó un bash.exe.stackdump generado durante la sesión"
-        }
-      ]
+      "bloque": "T-06",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "43dd50df-f3b6-4d39-84f3-faac23916ac1",
+      "identificadorEjecucion": null,
+      "estado": "implementación finalizada en feature local; sesión conservada; pendiente revisión Codex"
+    },
+    {
+      "incremento": "t06-autorizacion-pedidos",
+      "rama": "feature/autorizacion-pedidos-tiendas",
+      "bloque": "T-06",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor",
+      "modelo": null,
+      "esfuerzoSolicitado": null,
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "chat existente",
+      "estado": "revisión local y 57 pruebas dirigidas aprobadas; PR y smoke pendientes"
+    },
+    {
+      "incremento": "mantenimiento-documentacion",
+      "rama": "feature/autorizacion-pedidos-tiendas",
+      "bloque": "documentacion",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "medium",
+      "esfuerzoEfectivo": null,
+      "sessionId": "8af877cf-e1c7-43db-96d5-eaacecdaed3e",
+      "identificadorEjecucion": null,
+      "estado": "finalizado"
     }
   ]
 }
