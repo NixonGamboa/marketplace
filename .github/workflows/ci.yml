@@ -39,13 +39,65 @@ jobs:
             maui-back/package-lock.json
             MAUI-PWA-customers/package-lock.json
             maui-admin-front/package-lock.json
+      - name: Preparar evidencia de esta ejecución
+        id: evidencia
+        run: |
+          mkdir -p "$RUNNER_TEMP/maui-evidence"
+          printf 'MAUI_EVIDENCE_DIR=%s/maui-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Instalar versiones del lockfile
+        id: instalar
         run: npm run ci:install
         env:
           NODE_ENV: development
       - name: Validar tipos, lint, contratos y pruebas
+        id: comprobar
         run: npm run ci:check
       - name: Construir origen unificado
+        id: construir
         run: npm run ci:build
         env:
           NODE_ENV: production
+      - name: Identificar versión y resultado
+        if: always() && steps.evidencia.outcome == 'success'
+        env:
+          INSTALL_RESULT: ${{ steps.instalar.outcome }}
+          CHECK_RESULT: ${{ steps.comprobar.outcome }}
+          BUILD_RESULT: ${{ steps.construir.outcome }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs'
+          import { join } from 'node:path'
+          const e = process.env
+          const metadata = {
+            scope: 'CI local: memory y PostgreSQL embebido; no es smoke cloud',
+            testedCommit: e.GITHUB_SHA,
+            prHeadCommit: e.PR_HEAD_SHA || null,
+            ref: e.GITHUB_REF,
+            run: `${e.GITHUB_SERVER_URL}/${e.GITHUB_REPOSITORY}/actions/runs/${e.GITHUB_RUN_ID}`,
+            attempt: e.GITHUB_RUN_ATTEMPT,
+            recordedAt: new Date().toISOString(),
+            install: e.INSTALL_RESULT,
+            checks: e.CHECK_RESULT,
+            build: e.BUILD_RESULT,
+          }
+          writeFileSync(join(e.MAUI_EVIDENCE_DIR, 'metadata.json'), JSON.stringify(metadata, null, 2))
+          NODE
+      - name: Generar reporte de máximo 200 líneas
+        if: always() && steps.evidencia.outcome == 'success'
+        run: node scripts/ci-evidence.mjs
+      - name: Publicar reportes de validación
+        id: publicar
+        if: always() && steps.evidencia.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: evidencia-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.MAUI_EVIDENCE_DIR }}/report.md
+          if-no-files-found: error
+          retention-days: 90
+      - name: Mostrar enlace para la PR
+        if: always() && steps.publicar.outcome == 'success'
+        env:
+          ARTIFACT_URL: ${{ steps.publicar.outputs.artifact-url }}
+        run: |
+          printf '### Evidencia de la PR\n\n[Descargar reporte, máximo 200 líneas](%s) · Retención: 90 días.\n\nIncluye resumen CI, gates, suites y fallos. Incorporar Preview al reporte final cuando aplique.\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"

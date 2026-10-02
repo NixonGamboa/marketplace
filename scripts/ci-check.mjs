@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const npmCli = process.env.npm_execpath
@@ -31,11 +33,42 @@ const checks = [
   ['test:admin'],
 ]
 
+// Solo CI activa reportes; la validación local conserva sus comandos habituales.
+const evidenceDir = process.env.MAUI_EVIDENCE_DIR
+  ? resolve(root, process.env.MAUI_EVIDENCE_DIR)
+  : null
+const reports = {
+  'test:back': { app: 'maui-back', file: 'backend.json' },
+  'test:pwa': { app: 'MAUI-PWA-customers', file: 'pwa.json' },
+  'test:admin': { app: 'maui-admin-front', file: 'admin.json' },
+}
+const gates = checks.map(([script]) => ({ script, status: 'no ejecutado' }))
+if (evidenceDir) mkdirSync(evidenceDir, { recursive: true })
+const saveGates = () => {
+  if (evidenceDir) writeFileSync(join(evidenceDir, 'gates.json'), JSON.stringify(gates, null, 2))
+}
+saveGates()
+
 for (const [script] of checks) {
   console.log(`\nValidando ${script}`)
-  const result = spawnSync(process.execPath, [npmCli, 'run', script], {
+  let args = [npmCli, 'run', script]
+  if (evidenceDir && reports[script]) {
+    const report = reports[script]
+    // Invocar el paquete directamente: los scripts raíz contienen un segundo npm.
+    args = [npmCli, '--prefix', report.app, 'run', 'test', '--', '--run',
+      '--reporter=default', '--reporter=json', `--outputFile=${join(evidenceDir, report.file)}`]
+  }
+  const startedAt = new Date().toISOString()
+  const result = spawnSync(process.execPath, args, {
     cwd: root, env, stdio: 'inherit',
   })
+  Object.assign(gates.find(gate => gate.script === script), {
+    status: result.status === 0 ? 'aprobado' : 'fallido',
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    exitCode: result.status,
+  })
+  saveGates()
   if (result.error) throw result.error
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
