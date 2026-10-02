@@ -351,7 +351,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "f64badbf-b091-4f45-9776-dd50895db596",
       "identificadorEjecucion": null,
-      "estado": "implementación local validada; ejecutor cerrado"
+      "estado": "finalizado; integrado y validado en test"
     },
     {
       "incremento": "t11-listado-historico",
@@ -364,7 +364,7 @@
       "esfuerzoEfectivo": "high",
       "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
       "identificadorEjecucion": "turn_context 2026-10-02T14:05:16.17Z",
-      "estado": "revisión aprobada; integración y validación cloud pendientes"
+      "estado": "finalizado; integrado y validado en test"
     }
   ]
 }
