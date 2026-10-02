@@ -14,6 +14,7 @@ import type { Order } from './Order.js'
 const toItemDto = (item: OrderItemDto): OrderItemDto => ({
   id: item.id,
   ...(item.name !== undefined ? { name: item.name } : {}),
+  ...(item.unit !== undefined ? { unit: item.unit } : {}),
   qty: item.qty,
   priceAtMoment: item.priceAtMoment,
   ...(item.is_variable_weight !== undefined ? { is_variable_weight: item.is_variable_weight } : {}),
