@@ -177,7 +177,7 @@ La tabla conserva el diagnóstico previo al incremento `a577111`. DTOs, enums, p
 |---|---|---|
 | Sesiones y autorización de pedidos hechas en servidor; adapters frontend pendientes | T-05/T-06/T-17/T-18 | [PR #3](https://github.com/NixonGamboa/marketplace/pull/3); consumidores reales T-17/T-18 |
 | Autoridad de creación e idempotencia resueltas en servidor | T-10/T-12/T-18 | [PR #8](https://github.com/NixonGamboa/marketplace/pull/8); cliente real T-18 y transiciones atómicas T-12 pendientes |
-| Estado no actualizado condicionalmente y cursor solo por fecha | T-11/T-12/T-15 | Probar concurrencia y desempates reales |
+| Estado sin actualización condicional | T-12/T-15 | Paginación estable hecha en T-11; probar atomicidad de estados y concurrencia en T-12 |
 | Catálogo PWA estático, evento storage admin y build forzado demo | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
 | Seed solo de navegador, sin dataset servidor reproducible | T-16 | Transformar mocks a datos de test; no mantener su lógica simulada |
 | Upload de catálogo hecho en servidor; auth solo Preview/develop | T-09, T-17, E-08 | [PR #10](https://github.com/NixonGamboa/marketplace/pull/10), [cierre PR #11](https://github.com/NixonGamboa/marketplace/pull/11); UI real T-17, R2 en primera versión estable |
@@ -222,6 +222,6 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 
 ## Seguimiento vigente
 
-Siguiente bloque: T-12 (estados, pesos y sustituciones), con Opus según la matriz y revisión independiente Codex. Reevaluar margen de ambos proveedores antes de asignarlo; conservar capacidad suficiente para corrección, integración y smoke. Las dependencias T-06/T-10 están cerradas en servidor. Activación del upload, reducción de cámara >3 MiB y cancelación al desmontar corresponden a T-17.
+Siguiente bloque: T-12 (estados, pesos y sustituciones), con Opus según la matriz y revisión independiente Codex. Reevaluar margen de ambos proveedores antes de asignarlo; conservar capacidad suficiente para corrección, integración y smoke. Las dependencias T-06/T-10/T-11 están cerradas en servidor. Activación del upload, reducción de cámara >3 MiB y cancelación al desmontar corresponden a T-17.
 
 Los snapshots de creación contienen los datos personales del pedido; una anonimización por UPDATE y la retención futura deben abarcar también `order_creations`. Borrar un pedido elimina su claim por cascada. No se añade una política de retención en T-10.
