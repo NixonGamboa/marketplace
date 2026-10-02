@@ -15,8 +15,11 @@ export const assertCanCreateOrder = (actor: OrderActor): void => {
   if (actor.role !== 'customer') throw new AuthorizationError()
 }
 
-/** Cambiar estado es operación de personal (owner/operator); la tienda se comprueba aparte. */
-export const assertCanUpdateOrderStatus = (actor: OrderActor): void => {
+/**
+ * Cambiar estado, pesos o ítems es operación de personal (owner/operator); la tienda se comprueba
+ * aparte. El cliente no muta pedidos (ni siquiera cancela) en esta entrega.
+ */
+export const assertCanManageOrder = (actor: OrderActor): void => {
   if (actor.role !== 'owner' && actor.role !== 'operator') throw new AuthorizationError()
 }
 

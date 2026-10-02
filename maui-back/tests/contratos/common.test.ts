@@ -77,11 +77,12 @@ describe('primitivas', () => {
   })
 
   it('rechaza estados desconocidos y campos extra al cambiar estado', () => {
-    for (const status of ['received', 'confirmed', 'preparing', 'ready', 'in_delivery', 'delivered', 'cancelled']) {
-      expect(updateOrderStatusRequestSchema.safeParse({ status }).success).toBe(true)
+    for (const status of ['received', 'confirmed', 'preparing', 'ready', 'in_delivery', 'delivered']) {
+      expect(updateOrderStatusRequestSchema.safeParse({ status, expectedVersion: 1 }).success).toBe(true)
     }
-    expect(updateOrderStatusRequestSchema.safeParse({ status: 'ask' }).success).toBe(false)
-    expect(updateOrderStatusRequestSchema.safeParse({ status: 'ready', storeId: 'x' }).success).toBe(false)
+    expect(updateOrderStatusRequestSchema.safeParse({ status: 'cancelled', expectedVersion: 1, reason: 'Sin stock' }).success).toBe(true)
+    expect(updateOrderStatusRequestSchema.safeParse({ status: 'ask', expectedVersion: 1 }).success).toBe(false)
+    expect(updateOrderStatusRequestSchema.safeParse({ status: 'ready', expectedVersion: 1, storeId: 'x' }).success).toBe(false)
   })
 })
 
@@ -98,7 +99,7 @@ describe('envelope de error', () => {
   })
 
   it('convierte errores Zod a issues con ruta', () => {
-    const result = updateOrderStatusRequestSchema.safeParse({ status: 'nope' })
+    const result = updateOrderStatusRequestSchema.safeParse({ status: 'nope', expectedVersion: 1 })
     if (result.success) throw new Error('debía fallar')
     expect(issuesFromZodError(result.error)).toEqual([
       expect.objectContaining({ path: 'status', message: expect.any(String) }),
