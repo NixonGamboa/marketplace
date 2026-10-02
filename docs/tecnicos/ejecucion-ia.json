@@ -312,7 +312,7 @@
       "rama": "feature/ci-acceso-sesiones",
       "base": "cde73d3a0fd74c532e17d2a3cad77574b949d7a8",
       "checkout": "D:/Proyectos/Maui",
-      "autorizacion": "Usuario: continua, después de proponer T-03b/T-05. Implementación y validación local. La autorización cloud del incremento anterior no se extiende a este.",
+      "autorizacion": "Usuario zi: incorporar/publicar develop, dos variables auth solo Preview/develop, migración 0002 solo Neon dev/maui tras guard/ledger y smoke de auth con cuentas temporales. C2 adopta PR después de la consulta del usuario. Sin master/Production, main, seed/reset ni T-06.",
       "cambiosPreexistentesPreservados": [
         "docs/bitacora/2026-10-01-auditoria-plan-orquestacion-ia.md"
       ],
@@ -334,7 +334,7 @@
           "esfuerzo": "high",
           "evidenciaEsfuerzo": "--effort high aceptado; per_turn_effort_active=true; modelo efectivo del init estructurado.",
           "sessionId": "c1481c21-bde9-457b-a39f-02605fea0407",
-          "estado": "ejecutor cerrado; implementación local revisada y validada; cloud pendiente",
+          "estado": "ejecutor cerrado; implementación revisada, integrada por PR y base auth comprobada en test",
           "ownership": [
             "shared/contracts/auth.ts",
             "shared/contracts/index.ts",
@@ -372,10 +372,8 @@
             "Backend 518/518 en 24 suites, 38 HTTP auth y 5 PostgreSQL embebido",
             "Typecheck backend/API/shared y raíz"
           ],
-          "bloqueantes": [
-            "Aplicación 0002 y auth config/smoke cloud pendientes de autorización"
-          ],
-          "siguienteAccion": "Sin proceso activo; no reanudar para dominio nuevo. Completar cloud tras autorización y T-06 para acceso privado."
+          "bloqueantes": [],
+          "siguienteAccion": "Sin proceso activo; siguiente bloque T-06 con encargo propio"
         }
       ],
       "orquestador": {
@@ -397,7 +395,7 @@
         "ejecutoresCodexDelegados": 0,
         "sesionesCodexCLI": 0,
         "chatCodexExistente": 1,
-        "rondasCorreccionProducto": 2,
+        "rondasCorreccionProducto": 3,
         "procesosClaudeConSesion": 2,
         "invocacionesClaudeCLI": 3,
         "fallosAntesDeSesion": 1
@@ -422,11 +420,11 @@
         "Workflow YAML parseado; orden gates antes de build y permisos mínimos comprobados; Actions pinned por SHA oficial",
         "Migración 0002 generada offline: tres tablas auth, FK y únicos; no cambia orders",
         "PostgreSQL embebido: 5/5, SQL real de adapter con solo transporte de Neon sustituido en test",
-        "git diff --check aprobado; registro C1 preservado íntegro"
+        "git diff --check aprobado; registro C1 preservado íntegro",
+        "Actions remoto aprobado antes de PR merge; 5 preflight +19 auth reales, 0002 solo dev, cleanup y orders verificados"
       ],
       "limitaciones": [
-        "T-03b parcial: CI local validado, ejecución Actions remota pendiente",
-        "T-05 parcial: cuentas/sesiones reales implementadas, sin aplicación 0002/config auth/smoke en Neon/Preview",
+        "T-05 parcial: base auth real verificada en Neon/Preview; acceso privado de pedidos depende de T-06, consumidores de T-17/T-18",
         "Pedidos existentes aún sin autorización: T-06 requerido para acceso privado; UI auth demo hasta T-17/T-18",
         "Cota global temporal compartida: login60/15min y registro30/h; T-06 afina abuso sin confiar en cabeceras arbitrarias",
         "No recuperación de contraseña, OTP ni verificación WhatsApp; phoneVerified=false",
@@ -446,18 +444,251 @@
           "causa": "CLI Drizzle no resuelve import .js hacia fuente .ts; intento con tsx encontró conflicto de loaders Node 24",
           "diagnostico": "Dos fallos distintos, no bucle: resolver fuente con extensión real en config Drizzle y allowImportingTsExtensions solo backend; mantener loader original y guards",
           "resultado": "Generación offline 0002 correcta; typecheck y tests Drizzle pasan"
+        },
+        {
+          "ronda": 3,
+          "responsable": "Codex chat existente",
+          "causa": "npm 11.19/Linux requiere peers @emnapi/core/runtime 1.11.3 ausentes del lock Windows/npm 11.6",
+          "resultado": "Locks regenerados con npm 11.19 en carpeta ignorada; comprobación Linux y Actions aprobados; commit d427758"
         }
       ],
       "cierre": {
         "desarrolladoEnFeature": true,
-        "incorporadoDevelop": false,
-        "push": false,
-        "migracionNeon": false,
-        "configuracionVercel": false,
+        "incorporadoDevelop": true,
+        "push": true,
+        "migracionNeon": true,
+        "configuracionVercel": true,
         "seedCloud": false,
         "promocionProduction": false,
         "ejecutoresActivos": 0,
-        "siguienteAccion": "Obtener autorización para integrar/publicar develop, configurar dos variables auth Preview/develop, aplicar 0002 solo Neon dev/maui y validar con cuentas temporales de test."
+        "siguienteAccion": "T-03b hecho; T-05 parcial, siguiente T-06. Sin intervención pendiente C2."
+      },
+      "autorizacionInicial": "Usuario: continua, después de proponer T-03b/T-05. Implementación y validación local. La autorización cloud del incremento anterior no se extiende a este.",
+      "ajustesComprobadorCloud": [
+        "Guard histórico detectó CRLF Windows: hash canónico LF coincide con ledger; SQL/ledger históricos intactos",
+        "DELETE de tres IDs temporales terminó; consulta auxiliar de verificación falló. SQL independiente confirmó cero cuentas/sesiones y orders/fingerprint idénticos; sin repetir smoke/reset"
+      ],
+      "integracion": {
+        "pr": 1,
+        "url": "https://github.com/NixonGamboa/marketplace/pull/1",
+        "head": "d427758fb8ffd0ffe3142c6e43f88c29a3abb253",
+        "merge": "be5ba89f7363b073456074b21f878576df0d7ce0",
+        "metodo": "merge",
+        "ciAntesDeFusion": true,
+        "cierreDocumental": "feature/cierre-ci-sesiones desde origin/develop, PR separada"
+      },
+      "ci": {
+        "run": 36945438832,
+        "job": 110646388920,
+        "conclusion": "success",
+        "head": "d427758fb8ffd0ffe3142c6e43f88c29a3abb253",
+        "url": "https://github.com/NixonGamboa/marketplace/actions/runs/36945438832",
+        "node": "24.21.0",
+        "npm": "11.19.0",
+        "tests": 618,
+        "runInicialFallido": 36944975009
+      },
+      "cierreCloud": {
+        "deployment": {
+          "id": "dpl_75LY31bbMYRKJYGxYHSRemBE4rQZ",
+          "url": "marketplace-ld6cwdsv2-infogamboatech-2785.vercel.app",
+          "readyState": "READY",
+          "node": "24.x",
+          "gitSource": {
+            "ref": "develop",
+            "repoId": 1217610201,
+            "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
+            "type": "github",
+            "prId": null
+          },
+          "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
+          "ref": "develop"
+        },
+        "configuracion": {
+          "configured": [
+            {
+              "key": "AUTH_JWT_SECRET",
+              "id": "WtAL1sK61mTWdmeA",
+              "type": "sensitive",
+              "target": [
+                "preview"
+              ],
+              "gitBranch": "develop"
+            },
+            {
+              "key": "AUTH_ORIGIN",
+              "id": "LphWqw8rF9AchkWG",
+              "type": "plain",
+              "target": [
+                "preview"
+              ],
+              "gitBranch": "develop"
+            }
+          ],
+          "origin": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
+          "productionMetadataPreserved": true
+        },
+        "preflight": {
+          "url": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
+          "deploymentId": "dpl_75LY31bbMYRKJYGxYHSRemBE4rQZ",
+          "sha": "be5ba89f7363b073456074b21f878576df0d7ce0",
+          "ref": "develop",
+          "passed": true,
+          "results": [
+            {
+              "name": "GET /api/health",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/register",
+              "status": 405,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 403,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 400,
+              "passed": true
+            }
+          ]
+        },
+        "migracion": {
+          "target": "Neon dev/maui",
+          "migration": "0002_auth_accounts_sessions",
+          "journalEntries": 3,
+          "authTables": 3,
+          "ordersPreserved": 1,
+          "fingerprintEqual": true,
+          "applied": true
+        },
+        "authSmoke": {
+          "url": "https://marketplace-git-develop-infogamboatech-2785.vercel.app",
+          "passed": true,
+          "accountsTested": 3,
+          "roles": [
+            "customer",
+            "owner",
+            "operator"
+          ],
+          "realNeon": true,
+          "realVercel": true,
+          "results": [
+            {
+              "name": "POST /api/auth/register",
+              "status": 201,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/register",
+              "status": 400,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/logout",
+              "status": 204,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/logout",
+              "status": 204,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/login",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 200,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/logout",
+              "status": 204,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/logout",
+              "status": 403,
+              "passed": true
+            },
+            {
+              "name": "POST /api/auth/logout",
+              "status": 204,
+              "passed": true
+            },
+            {
+              "name": "GET /api/auth/session",
+              "status": 401,
+              "passed": true
+            }
+          ]
+        },
+        "limpieza": {
+          "ownedTemporaryAccounts": 3,
+          "removed": true,
+          "cascadeSessions": true,
+          "verification": "Consulta independiente Neon dev/maui: cero cuentas y sesiones tras DELETE de los tres IDs temporales; orders=1, fingerprint conservado"
+        },
+        "ordersCount": 1,
+        "ordersFingerprint": "b4824b11e79c9c366fbcd2ed061ce410",
+        "bucketsRateLimit": "conservados, sin reset global"
       }
     }
   ]

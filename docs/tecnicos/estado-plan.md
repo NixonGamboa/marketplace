@@ -66,7 +66,8 @@ El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://market
 | H-14 | Núcleo de pedidos y migración inicial | Repository create/findById/listByStore/updateStatus; usecases create/status. HTTP: POST, GET detalle, PATCH estado y health. No hay endpoint de listado | `api/`, `maui-back/src/`, migración inicial |
 | H-15 | Provisionamiento, acceso cloud y API Preview comprobados | GitHub ADMIN/Actions y CLI Vercel accesibles; Neon `dev` responde SELECT. Preview histórico `706ed8a` es antecedente; aislamiento y health real desde develop comprobados en H-17. CI pendiente | [Auditoría de herramientas](auditoria-herramientas.md); H-17 |
 | H-16 | Implementaciones demo archivadas y verificación local reconciliada | T-03a hecho: 17 tests PWA + 75 admin, typecheck explícito de ambas apps, drift, lint cero errores y build unificado pasan en `e567067`; tres warnings por app. Backend memory: evidencia previa 9 tests; CI y E2E de negocio pendientes | Prioridad 0; [resumen PWA](../../tech/features/20260602-demo-maui-pwa/implementation-summary.md), [resumen admin](../../tech/features/20260611-evolucion-admin-panel-demo/implementation-summary.md) |
-| H-17 | T-01/T-02/T-04 incorporados y comprobados en Preview de develop | `a577111` más correcciones `3d59dea`/`4400e90`; 271 tests backend, 20 PWA y 80 admin. Preview Node 24.x conecta a Neon dev, 16 checks HTTP pasan. Migración 0001 aplicada exclusivamente dev; pedido previo conservado y DTO leído por HTTP real. Apps siguen demo, auth/CI/E2E pendientes | Cierre cloud abajo; [sesiones](ejecucion-ia.json) |
+| H-17 | T-01/T-02/T-04 incorporados y comprobados en Preview de develop | `a577111` más correcciones `3d59dea`/`4400e90`; 271 tests backend, 20 PWA y 80 admin. Preview Node 24.x conecta a Neon dev, 16 checks HTTP pasan. Migración 0001 aplicada exclusivamente dev; pedido previo conservado y DTO leído por HTTP real. Apps siguen demo; auth/CI posteriores en H-18, E2E pendiente | Cierre cloud abajo; [sesiones](ejecucion-ia.json) |
+| H-18 | CI y base de cuentas/sesiones reales integrados por PR | PR #1 con Actions aprobado: 618 tests, tipos/lint/drift/build. Preview develop `be5ba89` y migración 0002 solo dev/maui; 5 checks previos y 19 de auth reales pasan, tres cuentas temporales retiradas. Pedido previo conservado. Privacidad de pedidos y apps reales pendientes | Cierre C2 abajo; [sesiones](ejecucion-ia.json) |
 
 ## Lista 2 — Implementaciones pendientes en orden de ejecución
 
@@ -79,9 +80,9 @@ El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://market
 | T-01 / P0 | API accesible en el despliegue de test — hecho (2026-10-01, `4400e90`) | H-12, H-13 | Preview identificado desde develop, cinco Functions, health GET/HEAD conectado a BD test; 404/405 JSON, rutas dinámicas de pedidos y SPAs comprobadas por 16 checks HTTP. Override de builder antiguo retirado; rewrites de pedidos preceden fallback |
 | T-02 / P0 | Configuración y aislamiento de test — hecho para Preview/develop (2026-10-01) | H-15 | Node 24.x alineado y Preview operativo; siete variables exclusivas de Preview/develop, URL sensitive a Neon dev/maui validada por guard/health. Production en main confirmada por usuario, entrada productiva conservada. Cliente/migrador/Drizzle protegidos y migración dev verificada. Hobby/Neon free comprobados, margen exacto no expuesto; storage/aislamiento de upload se resuelven al implementar T-09 |
 | T-03a / P0 | Checkout, lint y comprobaciones locales — hecho (2026-10-01, `e567067`) | H-16 | Integración aprobada, hook y cinco errores de tipos originales resueltos; typecheck app explícito de ambos fronts, lint cero errores, 92 tests, drift y build unificado pasan. Omisión de gates en scripts identificada para T-03b; modo real pendiente en T-17/T-18/T-23 |
-| T-03b / P0 | CI reproducible — parcial: implementación local validada (`feature/ci-acceso-sesiones`, `5b95e0d`), Actions remoto pendiente | T-02, T-03a | Agregar workflow con versión Node/env test resueltos; ejecutar typecheck real de cada app, lint, tests y contratos antes del build. No inferir CI terminado por Actions habilitado ni por el script raíz que omite referencias TypeScript |
+| T-03b / P0 | CI reproducible — hecho (2026-10-01, PR #1, `be5ba89`; Actions 36945438832 aprobado) | T-02, T-03a | Agregar workflow con versión Node/env test resueltos; ejecutar typecheck real de cada app, lint, tests y contratos antes del build. No inferir CI terminado por Actions habilitado ni por el script raíz que omite referencias TypeScript |
 | T-04 / P0 | Contratos compartidos y validación runtime — hecho (2026-10-01, `a577111` incorporado) | H-11, H-14 | DTOs/esquemas/errores comunes, aliases frontend, modelo interno/mappers, estados/sustituciones/teléfono/entrega/GPS/franjas/pesos/totales validados. Migración aditiva 0001 aplicada en dev; lectura del pedido legacy con repository/DTO y HTTP Vercel validada, sin cambiar sus datos. Integración persistente completa T-15 y auth/idempotencia/atomicidad siguen pendientes |
-| T-05 / P0 | Acceso y sesiones para admin/cliente — parcial: base real local validada (`feature/ci-acceso-sesiones`, `5b95e0d`); cloud y privacidad de pedidos pendientes | T-02, T-04 | Resolver auth con JWT propio o provider del ADR en función de lo mínimo necesario. Sesión, expiración, logout y permisos reales; acceso privado del cliente a sus pedidos. Capturar nombre/teléfono sin fingir verificación. Test usa el mismo mecanismo con cuentas/credenciales de test; Magic Link avanzado queda en E-02 |
+| T-05 / P0 | Acceso y sesiones para admin/cliente — parcial: base real integrada y comprobada en Neon/Preview (`be5ba89`); privacidad de pedidos T-06 y consumidores T-17/T-18 pendientes | T-02, T-04 | Resolver auth con JWT propio o provider del ADR en función de lo mínimo necesario. Sesión, expiración, logout y permisos reales; acceso privado del cliente a sus pedidos. Capturar nombre/teléfono sin fingir verificación. Test usa el mismo mecanismo con cuentas/credenciales de test; Magic Link avanzado queda en E-02 |
 
 ### B — Persistencia y API completa
 
@@ -161,7 +162,7 @@ flowchart TD
 
 **Ruta crítica:** T-04/T-05 → T-06 → T-07/T-08 → T-10 → T-11/T-12 → T-16 → T-17/T-18 → T-19 → T-22 → T-23 → T-24. T-01/T-02 habilitan la infraestructura; T-09/T-13/T-14 y T-15/T-20/T-21 convergen antes de E2E/entrega. T-14 reutiliza contacto por enlaces y datos de pedido; no necesita credenciales WhatsApp. La mensajería automática solo se considera en E-07.
 
-El incremento de **T-01/T-02/T-04 dentro de C1** está incorporado a develop y comprobado en Preview (`4400e90`). Se resolvió la intervención de destino/autorización y se aplicó exclusivamente la migración dev. **Siguientes bloques habilitados: T-03b y T-05**, aún pendientes y no iniciados en este encargo. Prioridad 0 y T-03a siguen resueltos. T-24 espera el conjunto; C1 no está completo sin CI/acceso. Los cortes son entregas técnicas, no ceremonias de aprobación SDD.
+El incremento de **T-01/T-02/T-04 dentro de C1** está incorporado a develop y comprobado en Preview (`4400e90`). Se resolvió la intervención de destino/autorización y se aplicó exclusivamente la migración dev. C2 completó T-03b y verificó la base real de T-05 en test. **Siguiente bloque: T-06**, autorización de pedidos y aislamiento; T-05 permanece parcial hasta cubrir acceso privado y consumidores. Prioridad 0 y T-03a siguen resueltos. T-24 espera el conjunto. Los cortes son entregas técnicas, no ceremonias de aprobación SDD.
 
 ## Divergencias de partida y resolución del contrato (T-04)
 
@@ -183,15 +184,14 @@ La tabla conserva el diagnóstico previo al incremento `a577111`. DTOs, enums, p
 
 | Hallazgo / necesidad | Bloques que lo resuelven | Límite actual |
 |---|---|---|
-| Auth real ausente y adapters frontend vacíos | T-05/T-06/T-17/T-18 | Elegir una solución, no desarrollar tres opciones |
+| Sesiones reales disponibles; autorización de pedidos y adapters frontend pendientes | T-05/T-06/T-17/T-18 | JWT revocable comprobado en test; exigir identidad/tienda en pedidos y reemplazar consumidores demo |
 | Precio/envío del cliente aún confiados; idempotencia pendiente | T-07/T-08/T-10/T-12 | Contrato/cálculo base disponibles; servidor debe obtener reglas y snapshots de fuentes autorizadas |
 | Estado no actualizado condicionalmente y cursor solo por fecha | T-11/T-12/T-15 | Probar concurrencia y desempates reales |
 | Catálogo PWA estático, evento storage admin y build forzado demo | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
 | Seed solo de navegador, sin dataset servidor reproducible | T-16 | Transformar mocks a datos de test; no mantener su lógica simulada |
-| Auth y storage pendientes de implementar/configurar | T-05/T-09 | JWT propio admitido; Blob accesible como opción a verificar, sin exigir proveedores/cuentas adicionales por anticipación |
+| Storage pendiente; auth configurado solo Preview/develop | T-09 | JWT propio comprobado; Blob accesible como opción a verificar, sin exigir proveedores/cuentas adicionales por anticipación |
 | Contacto actual debe usar datos persistentes y teléfonos correctos | T-08/T-14/T-17/T-18 | `wa.me` existente es suficiente; no depende de Evolution API ni envío automatizado |
-| Gates locales aún no automatizados en build/CI | T-03b | T-03a pasa en develop reconciliado; workflow debe ejecutar typecheck app explícito, lint, tests y drift antes del build |
-| CI inexistente con entorno/runtime ya fijados | T-03b | T-02 habilita implementación; Actions habilitado no equivale a workflow |
+| Gates automatizados en CI; E2E de negocio pendiente | T-22/T-23 | T-03b hecho: Actions ejecuta tipos explícitos, lint, tests y drift antes del build; no acredita el ciclo de negocio |
 | Integración Postgres y E2E de negocio incompletos | T-15/T-22/T-24 | Migración/lectura legacy y smoke reales comprobados; no sustituyen fixtures, permisos, idempotencia/concurrencia ni ciclo completo |
 
 El hosting comercial y sus condiciones corresponden a una salida productiva posterior; no son un gate de este entregable de test. Mantener las restricciones registradas en el ADR y verificar que el uso efectivo y las cuotas del ambiente de test son compatibles, sin contratar ni cambiar de proveedor por anticipación.
@@ -259,7 +259,9 @@ Registrar para cada `T-*`: estado, fecha, archivos/commit, pruebas y bloqueantes
 
 Referencias: [ADR stack](adr-001-stack-backend.md), [backend](../../maui-back/README.md), [catálogo base](../../shared/catalog/README.md), [contexto](../../MAUI-PWA-customers/MAUI-CONTEXT.md), [v2 histórico](../negocio/roadmap-v2-post-ff.md), [v3 histórico](../negocio/roadmap-v3-saas-escala.md). Los criterios comerciales/humanos de esos documentos no se importan al alcance técnico actual.
 
-## Incremento C2 — T-03b/T-05 preparado localmente (2026-10-01)
+## Incremento C2 — cierre local y continuación cloud (2026-10-01)
+
+Los párrafos siguientes conservan el cierre local anterior a la aprobación. El estado vigente es el cierre cloud al final de esta sección.
 
 El usuario pidió continuar después de proponer CI y sesiones. `feature/ci-acceso-sesiones` nace de develop `cde73d3`; código local `5b95e0de7f744cc0839da113a5f520ac98294aba`, aún no incorporado ni publicado. La autorización cloud anterior era exclusiva de C1.
 
@@ -274,3 +276,15 @@ Las **38 pruebas HTTP de auth** validan handlers con fixtures aislados y crypto 
 **Orquestación:** un ejecutor Claude Sonnet/high, mismo ID reanudado una vez; Codex implementó CI y revisó/validó auth desde el chat existente. Dos rondas correctivas agrupadas (auth/types; loader Drizzle); registro preserva C1 y añade C2 en [ejecución IA](ejecucion-ia.json). Ambos procesos Claude terminaron; ningún delegado Codex nuevo activo.
 
 **Intervención mínima pendiente:** autorizar incorporar/publicar esta feature en develop, configurar `AUTH_JWT_SECRET` sensitive y `AUTH_ORIGIN` exacto únicamente Preview/develop, aplicar 0002 solo a Neon dev/maui tras verificar guard/ledger y ejecutar smoke de sesión/revocación con cuentas temporales de test. Detenido el trabajo cloud dependiente; no se extiende la aprobación de C1 ni se inicia T-06 por esta continuación.
+
+### Cierre cloud autorizado y verificado
+
+El usuario respondió «zi» a la propuesta concreta de integración/publicación, dos variables auth solo Preview/develop, migración 0002 solo Neon dev/maui y smoke con cuentas temporales. Al consultar el uso de PR se adoptó PR para C2. [PR #1](https://github.com/NixonGamboa/marketplace/pull/1) fusionada mediante merge, head `d427758`, commit develop `be5ba89f7363b073456074b21f878576df0d7ce0`. [Actions 36945438832](https://github.com/NixonGamboa/marketplace/actions/runs/36945438832) pasó antes de fusionar: instalación, tipos, lint, 618 tests y build; Linux Node 24.21.0/npm 11.19.0. El primer run falló por peers omitidos en lock Windows/npm 11.6; tercera ronda correctiva: regeneración con npm 11.19, comprobación Linux y push, sin subir versiones funcionales existentes.
+
+Preview READY: `dpl_75LY31bbMYRKJYGxYHSRemBE4rQZ`, [artefacto verificado](https://marketplace-ld6cwdsv2-infogamboatech-2785.vercel.app), ref develop/SHA `be5ba89`, Node 24.x. `AUTH_JWT_SECRET` sensitive y `AUTH_ORIGIN` exacto se configuraron únicamente Preview/develop; [origen estable](https://marketplace-git-develop-infogamboatech-2785.vercel.app). Protección Vercel conservada y bypass de automatización existente usado sin divulgarlo. Cinco comprobaciones previas pasan: health conectado/test, sesión anónima 401, método 405, origen 403 y body inválido 400.
+
+0002 se aplicó exclusivamente a Neon dev/maui después de validar destino y ledger. Tres tablas auth y tres entradas de journal; el único pedido mantiene fingerprint completo `b4824b11e79c9c366fbcd2ed061ce410`. El guard inicial detectó CRLF en el checkout Windows de 0000; comparar contenido canónico LF confirmó el hash histórico sin cambiar SQL/ledger.
+
+**19/19 checks HTTP reales**: registro customer no verificado, cookie Secure/HttpOnly/Strict, sesión, rechazo de escalamiento por body, contraseña inválida, login customer/owner/operator, tienda obtenida del servidor, logout/replay rechazado, cuenta deshabilitada y origen inválido. Staff se creó mediante caso de uso real del servidor, sin endpoint público. Tres cuentas temporales eliminadas por ID; SQL independiente confirmó cero cuentas y sesiones. La consulta auxiliar de verificación de limpieza falló después de los DELETE; no se repitió el smoke ni se hizo reset. Los buckets opacos de rate limit se conservan. Orders no se modificó. Sin seed/reset, cambios en main/master/Production ni mensajes externos.
+
+**Estado:** T-03b hecho; T-05 parcial por privacidad de pedidos T-06 y consumidores T-17/T-18. El siguiente bloque autorizado deberá cubrir T-06; no se inició aquí. Cierre documental en `feature/cierre-ci-sesiones` desde develop integrado, mediante PR independiente. Misma sesión Claude y chat Codex: no hubo nuevas sesiones cloud. Tres rondas correctivas del producto/proyecto; dos ajustes de comprobación cloud registrados separadamente. No queda intervención pendiente en C2.

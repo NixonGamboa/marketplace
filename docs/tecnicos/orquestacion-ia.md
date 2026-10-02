@@ -43,8 +43,8 @@ El scope MCP Vercel no permitió acceso, pero el CLI autenticado sí. La CLI 56.
 ### Incremento C2 iniciado el 2026-10-01
 
 El usuario pidió continuar después de proponer T-03b/T-05. Se abrió
-`feature/ci-acceso-sesiones` desde develop `cde73d3`. La autorización actual cubre
-implementación y validación local; no reutiliza la autorización cloud limitada a
+`feature/ci-acceso-sesiones` desde develop `cde73d3`. La autorización inicial cubría
+implementación y validación local; no reutilizaba la autorización cloud limitada a
 C1. CI/configuración/locks/migración/documentación tienen como escritor a Codex;
 Claude Code escribe únicamente auth y sus tests, con Sonnet/high y modelo
 efectivo registrado. Se usa un ejecutor por defecto: Codex tenía 66% consumido
@@ -55,6 +55,12 @@ en la ventana de cinco horas y conserva margen para revisar/integrar.
 históricos. Los fixtures SQL locales no acreditan despliegue ni migración Neon.
 T-05 no se declara cerrado por sesiones locales mientras el API de pedidos
 no aplique la autorización de T-06 y falte verificación real en test.
+
+### Continuación C2 e integración mediante PR
+
+El usuario aprobó explícitamente la propuesta cloud con «zi». C2 se integró por [PR #1](https://github.com/NixonGamboa/marketplace/pull/1), feature → develop, después de Actions aprobado sobre head `d427758`; merge `be5ba89`. Las incorporaciones anteriores por fast-forward se conservan como historia. El cierre documental se separa en `feature/cierre-ci-sesiones`, desde develop integrado, y también se publica mediante PR con CI previo a merge. No se promociona master/Production.
+
+Codex continuó desde el mismo chat: corrigió peers del lockfile Linux (tercera ronda), configuró únicamente Preview/develop, verificó el deployment, aplicó 0002 con guard y ledger y probó auth real con tres cuentas temporales. No lanzó nuevas sesiones Claude/Codex. Ajustes del comprobador cloud: hash histórico CRLF/LF y verificación SQL independiente de limpieza; no añaden rondas del producto. El plan y `ejecucion-ia.json` contienen evidencia, límites y estado vigente. No queda intervención pendiente de C2; T-06 requiere su propio encargo.
 
 ## Reparto de trabajo
 
