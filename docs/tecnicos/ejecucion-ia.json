@@ -273,7 +273,7 @@
       "esfuerzoEfectivo": "high",
       "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
       "identificadorEjecucion": null,
-      "estado": "en curso"
+      "estado": "finalizado; integrado y validado en test"
     },
     {
       "incremento": "t09-imagenes-catalogo",
@@ -286,7 +286,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": null,
       "identificadorEjecucion": "/root/t09_uploads",
-      "estado": "implementado; validado localmente"
+      "estado": "finalizado; integrado y validado en test"
     },
     {
       "incremento": "t09-imagenes-catalogo",
@@ -299,7 +299,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "be2de2fc-4628-4967-8971-6282fc74a989",
       "identificadorEjecucion": null,
-      "estado": "revisión aprobada; observaciones menores"
+      "estado": "finalizado; integrado y validado en test"
     }
   ]
 }
