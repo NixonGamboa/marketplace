@@ -390,7 +390,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "b872a38e-aec9-4dbe-ae1b-980cbe50473f",
       "identificadorEjecucion": null,
-      "estado": "en curso; implementación, gates y preparación de smoke"
+      "estado": "finalizado; revisión cruzada y test real aprobados; cierre en PR #18"
     },
     {
       "incremento": "t12-ciclo-estados-pesos",
@@ -403,7 +403,7 @@
       "esfuerzoEfectivo": "high",
       "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
       "identificadorEjecucion": "chat existente; turn_context verificado",
-      "estado": "en curso; asignación y revisión crítica pendiente"
+      "estado": "finalizado; revisión cruzada y test real aprobados; cierre en PR #18"
     },
     {
       "incremento": "t17-adapters-admin",
