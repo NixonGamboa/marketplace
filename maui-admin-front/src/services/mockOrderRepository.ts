@@ -212,20 +212,3 @@ export const mockOrderRepository: OrderRepository = {
   },
 }
 
-export const realOrderRepository: OrderRepository = {
-  list() {
-    throw new Error('realOrderRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  getById() {
-    throw new Error('realOrderRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  updateStatus() {
-    throw new Error('realOrderRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  setRealWeights() {
-    throw new Error('realOrderRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  cancel() {
-    throw new Error('realOrderRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}

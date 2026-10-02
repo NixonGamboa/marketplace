@@ -98,17 +98,3 @@ export const mockStoreStatusRepository: StoreStatusRepository = {
   },
 }
 
-export const realStoreStatusRepository: StoreStatusRepository = {
-  get() {
-    throw new Error('realStoreStatusRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  setOverride() {
-    throw new Error('realStoreStatusRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  setSchedule() {
-    throw new Error('realStoreStatusRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  isOpenNow() {
-    throw new Error('realStoreStatusRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}
