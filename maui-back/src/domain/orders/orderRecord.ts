@@ -58,6 +58,12 @@ export interface StoredOrderRecord {
   finalTotal: number | null
   createdAt: string
   updatedAt: string
+  version: number
+  updatedBy: string | null
+  /** Columna `original_items` (T-12): ítems al pedir, fijados en la primera sustitución/retiro. */
+  originalItems: StoredOrderItem[] | null
+  cancellationReason: string | null
+  cancelledAt: string | null
 }
 
 const LEGACY_SUBSTITUTION: Record<string, SubstitutionPref> = {
@@ -67,6 +73,8 @@ const LEGACY_SUBSTITUTION: Record<string, SubstitutionPref> = {
 }
 
 const isLegacyItem = (item: StoredOrderItem): item is LegacyOrderItem => 'productId' in item
+
+const itemFromStored = (item: StoredOrderItem): OrderItemDto => (isLegacyItem(item) ? fromLegacyItem(item) : item)
 
 export const fromLegacyItem = (item: LegacyOrderItem): OrderItemDto => {
   const base = { id: item.productId, name: item.name, priceAtMoment: item.priceAtMoment }
@@ -122,7 +130,7 @@ export const orderFromRecord = (record: StoredOrderRecord): Order => {
     customerId: record.customerId,
     customerName: record.customerName,
     ...(customerPhone !== null ? { customerPhone } : {}),
-    items: record.items.map((item) => (isLegacyItem(item) ? fromLegacyItem(item) : item)),
+    items: record.items.map(itemFromStored),
     status: record.status,
     deliveryType,
     deliveryData: deliveryDataFromRecord(record, deliveryType),
@@ -132,6 +140,11 @@ export const orderFromRecord = (record: StoredOrderRecord): Order => {
     ...(record.finalTotal !== null ? { finalTotal: record.finalTotal } : {}),
     createdAt: normalizeIsoUtc(record.createdAt),
     updatedAt: normalizeIsoUtc(record.updatedAt),
+    version: record.version,
+    ...(record.updatedBy !== null ? { updatedBy: record.updatedBy } : {}),
+    ...(record.originalItems !== null ? { originalItems: record.originalItems.map(itemFromStored) } : {}),
+    ...(record.cancellationReason !== null ? { cancellationReason: record.cancellationReason } : {}),
+    ...(record.cancelledAt !== null ? { cancelledAt: normalizeIsoUtc(record.cancelledAt) } : {}),
   }
 }
 
@@ -154,4 +167,9 @@ export const orderToRecord = (order: Order): StoredOrderRecord => ({
   finalTotal: order.finalTotal ?? null,
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
+  version: order.version,
+  updatedBy: order.updatedBy ?? null,
+  originalItems: order.originalItems ?? null,
+  cancellationReason: order.cancellationReason ?? null,
+  cancelledAt: order.cancelledAt ?? null,
 })

@@ -1,32 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { issuesFromZodError, updateOrderStatusRequestSchema } from '../../../shared/contracts/index.js'
 import { toOrderDto } from '../../../maui-back/src/domain/orders/orderMappers.js'
-import { getAuthRuntime } from '../../../maui-back/src/infra/auth/factory.js'
-import type { AuthConfig } from '../../../maui-back/src/infra/auth/config.js'
+import { getAuthRuntime, type AuthRuntime } from '../../../maui-back/src/infra/auth/factory.js'
 import { getRepositories } from '../../../maui-back/src/infra/factory.js'
-import { ValidationError } from '../../../maui-back/src/shared/errors.js'
 import { updateOrderStatus } from '../../../maui-back/src/usecases/orders/updateOrderStatus.js'
-import { allowMethods, failAuth, prepareAuthResponse, readJsonBody } from '../../_lib/auth.js'
-import { authorizeOrderRequest, orderIdFrom } from '../../_lib/orders.js'
+import { allowMethods, prepareAuthResponse, readJsonBody } from '../../_lib/auth.js'
+import { authorizeOrderRequest, failOrderRequest, orderIdFrom } from '../../_lib/orders.js'
 import { ok } from '../../_lib/response.js'
 
-/** PATCH /api/orders/:id/status — owner/operator de la tienda del pedido. */
+/**
+ * PATCH /api/orders/:id/status — transición con `expectedVersion` (cancelar exige `reason`);
+ * owner/operator de la tienda del pedido.
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['PATCH'])) return
 
-  let config: AuthConfig | undefined
+  let runtime: AuthRuntime | undefined
   try {
-    const runtime = await getAuthRuntime()
-    config = runtime.config
+    runtime = await getAuthRuntime()
     const actor = await authorizeOrderRequest(req, runtime, { mutation: true })
     const id = orderIdFrom(req)
-    const parsed = updateOrderStatusRequestSchema.safeParse(readJsonBody(req))
-    if (!parsed.success) throw new ValidationError('Invalid body', issuesFromZodError(parsed.error))
+    const body = readJsonBody(req)
     const { orders } = await getRepositories()
-    const updated = await updateOrderStatus({ orders, clock: runtime.deps.clock }, actor, id, parsed.data.status)
-    ok(res, toOrderDto(updated))
+    ok(res, toOrderDto(await updateOrderStatus({ orders, clock: runtime.deps.clock }, actor, id, body)))
   } catch (err) {
-    failAuth(res, err, config)
+    failOrderRequest(res, err, runtime?.config)
   }
 }

@@ -60,7 +60,7 @@ export const isTimeSlot = (value: string): value is TimeSlot =>
  * Solo en `delivery`, desde `ready` se puede pasar por `in_delivery` (paso opcional;
  * en `pickup` no existe). Cancelar es posible hasta `ready`; `delivered`,
  * `cancelled` e `in_delivery`→cancelled no se permiten.
- * La atomicidad de la transición (UPDATE condicional) es T-12.
+ * El servidor aplica cada transición con un UPDATE condicional por versión y estado (T-12).
  */
 const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   received: ['confirmed', 'cancelled'],
@@ -85,3 +85,13 @@ export const canTransition = (
   next: OrderStatus,
   deliveryType: DeliveryType,
 ): boolean => allowedNextStatuses(current, deliveryType).includes(next)
+
+/** Entregado y cancelado: inmutables (sin transiciones ni cambios de ítems). */
+export const isTerminalOrderStatus = (status: OrderStatus): boolean =>
+  TRANSITIONS[status].length === 0
+
+/**
+ * Pesos reales, sustituciones y retiro de ítems solo durante la preparación: antes no se ha
+ * alistado nada y desde `ready` el total final queda cerrado.
+ */
+export const ITEMS_EDITABLE_STATUS: OrderStatus = 'preparing'

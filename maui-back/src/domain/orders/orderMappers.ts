@@ -19,6 +19,7 @@ const toItemDto = (item: OrderItemDto): OrderItemDto => ({
   ...(item.is_variable_weight !== undefined ? { is_variable_weight: item.is_variable_weight } : {}),
   ...(item.kilosRequested !== undefined ? { kilosRequested: item.kilosRequested } : {}),
   ...(item.kilosReal !== undefined ? { kilosReal: item.kilosReal } : {}),
+  ...(item.substitutedFor !== undefined ? { substitutedFor: item.substitutedFor } : {}),
 })
 
 const toDeliveryDataDto = (data: DeliveryDataDto): DeliveryDataDto => ({
@@ -30,7 +31,7 @@ const toDeliveryDataDto = (data: DeliveryDataDto): DeliveryDataDto => ({
 
 /**
  * Proyección explícita (lista blanca) del modelo interno al DTO público, validada con el
- * esquema compartido antes de salir: no filtra `storeId` ni props extra de ítems/entrega.
+ * esquema compartido antes de salir: no filtra `storeId`, `updatedBy` ni props extra de ítems/entrega.
  * Lanza `ZodError` si un pedido persistido no cumple el contrato (la API responde 500, no
  * datos inválidos).
  */
@@ -50,6 +51,10 @@ export const toOrderDto = (order: Order): OrderDto =>
     ...(order.finalTotal !== undefined ? { finalTotal: order.finalTotal } : {}),
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
+    version: order.version,
+    ...(order.originalItems !== undefined ? { originalItems: order.originalItems.map(toItemDto) } : {}),
+    ...(order.cancellationReason !== undefined ? { cancellationReason: order.cancellationReason } : {}),
+    ...(order.cancelledAt !== undefined ? { cancelledAt: order.cancelledAt } : {}),
   })
 
 /** Página del listado: cada pedido sale por el mismo DTO canónico que el detalle. */

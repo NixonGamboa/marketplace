@@ -76,12 +76,12 @@ describe('autorización de pedidos sobre filas persistidas en PostgreSQL embebid
   it('personal de otra tienda no cambia el estado; el de la tienda sí', async () => {
     const id = '01HJ0000000000000000000002'
     await expect(
-      updateOrderStatus({ orders, clock }, await actorOf('operator'), id, 'confirmed'),
+      updateOrderStatus({ orders, clock }, await actorOf('operator'), id, { status: 'confirmed', expectedVersion: 1 }),
     ).rejects.toBeInstanceOf(NotFoundError)
     expect((await orders.findById(id))?.status).toBe('received')
 
-    const updated = await updateOrderStatus({ orders, clock }, await actorOf('foreign'), id, 'confirmed')
-    expect(updated.status).toBe('confirmed')
+    const updated = await updateOrderStatus({ orders, clock }, await actorOf('foreign'), id, { status: 'confirmed', expectedVersion: 1 })
+    expect(updated).toMatchObject({ status: 'confirmed', version: 2, updatedBy: accounts.foreign.id })
   })
 
   it('cambiar la tienda persistida del operador le retira el acceso en la siguiente request', async () => {

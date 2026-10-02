@@ -7,6 +7,7 @@ import { OrdersRepositoryMemory } from '../../../src/infra/memory/OrdersReposito
 import { ValidationError } from '../../../src/shared/errors.js'
 import { listOrdersForActor } from '../../../src/usecases/orders/listOrders.js'
 import { internalOrder } from '../../contratos/fixtures.js'
+import { forceStatus } from '../../orders/forceStatus.js'
 
 const customerA: OrderActor = { id: 'acc_a', role: 'customer', storeId: null }
 const customerB: OrderActor = { id: 'acc_b', role: 'customer', storeId: null }
@@ -122,8 +123,8 @@ describe('listOrdersForActor', () => {
 
   describe('filtros', () => {
     beforeEach(async () => {
-      await orders.updateStatus(idOf(2), 'ready', at(30))
-      await orders.updateStatus(idOf(1), 'ready', at(31))
+      await forceStatus(orders, idOf(2), 'ready', at(30))
+      await forceStatus(orders, idOf(1), 'ready', at(31))
     })
 
     it('status', async () => {

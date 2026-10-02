@@ -43,6 +43,13 @@
       "when": 1790956211029,
       "tag": "0005_orders_listing_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790969604654,
+      "tag": "0006_orders_state_cycle",
+      "breakpoints": true
     }
   ]
 }

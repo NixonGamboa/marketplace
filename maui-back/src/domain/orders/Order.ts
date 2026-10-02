@@ -32,11 +32,20 @@ export interface Order {
   shippingCost?: number
   /** Estimación original (ítems con peso solicitado + envío). */
   estimatedTotal: number
-  /** Total con pesos reales; se fija al registrarlos (T-12). */
+  /** Total con pesos reales e ítems vigentes; se recalcula en cada cambio de ítems (T-12). */
   finalTotal?: number
   /** ISO UTC. */
   createdAt: string
   updatedAt: string
+  /** Concurrencia optimista: 1 al crear (también en filas legacy) y +1 por cada cambio. */
+  version: number
+  /** Cuenta del personal que hizo el último cambio; ausente si nunca cambió. No sale en el DTO. */
+  updatedBy?: string
+  /** Ítems tal como se pidieron, fijados en la primera sustitución o retiro. */
+  originalItems?: OrderItemDto[]
+  /** Motivo y fecha de cancelación; solo en `cancelled` (ausentes en cancelaciones legacy). */
+  cancellationReason?: string
+  cancelledAt?: string
 }
 
 /**

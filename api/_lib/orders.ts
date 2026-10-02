@@ -6,6 +6,7 @@ import {
   listOrdersQuerySchema,
   type ListOrdersQuery,
 } from '../../shared/contracts/index.js'
+import { CatalogPersistenceError } from '../../maui-back/src/domain/catalog/errors.js'
 import type { OrderActor } from '../../maui-back/src/domain/orders/orderAccess.js'
 import { OrderPersistenceError } from '../../maui-back/src/domain/orders/orderCreation.js'
 import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
@@ -39,9 +40,12 @@ export const listQueryFrom = (req: VercelRequest): ListOrdersQuery => {
   return parsed.data
 }
 
-/** Errores de pedidos: fallo de persistencia → 503 sin detalles; el resto sigue la política de auth/API. */
+/**
+ * Errores de pedidos: fallo de persistencia de pedidos o del catálogo leído para sustituir → 503
+ * sin detalles; el resto sigue la política de auth/API (conflicto de versión → 409).
+ */
 export const failOrderRequest = (res: VercelResponse, err: unknown, config?: AuthConfig): void => {
-  if (err instanceof OrderPersistenceError) {
+  if (err instanceof OrderPersistenceError || err instanceof CatalogPersistenceError) {
     jsonResponse(res, buildApiError('SERVICE_UNAVAILABLE', 'Servicio no disponible'), 503)
     return
   }

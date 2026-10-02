@@ -47,5 +47,6 @@ export const internalOrder = (overrides: Partial<Order> = {}): Order => ({
   estimatedTotal: 45000,
   createdAt: NOW_ISO,
   updatedAt: NOW_ISO,
+  version: 1,
   ...overrides,
 })

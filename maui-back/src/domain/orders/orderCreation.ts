@@ -56,6 +56,8 @@ export function decodeCreationOrder(value: unknown): Order {
     deliveryType: dto.deliveryType, deliveryData: dto.deliveryData,
     substitutionPreference: dto.substitutionPreference, estimatedTotal: dto.estimatedTotal,
     createdAt: dto.createdAt,
+    // Snapshots anteriores a T-12 no guardaban versión: todo pedido nace en la 1.
+    version: dto.version ?? 1,
     ...(dto.customerPhone !== undefined ? { customerPhone: dto.customerPhone } : {}),
     ...(dto.shippingCost !== undefined ? { shippingCost: dto.shippingCost } : {}),
     ...(dto.finalTotal !== undefined ? { finalTotal: dto.finalTotal } : {}),

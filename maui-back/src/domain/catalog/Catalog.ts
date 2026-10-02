@@ -53,3 +53,7 @@ export interface CatalogProduct {
 
 export const isPubliclyVisible = (product: Pick<CatalogProduct, 'active' | 'archivedAt'>): boolean =>
   product.active && product.archivedAt === null
+
+/** Producto que puede entrar en un pedido (creación o sustitución): visible y con stock. */
+export const isOrderable = (product: Pick<CatalogProduct, 'active' | 'archivedAt' | 'inStock'>): boolean =>
+  isPubliclyVisible(product) && product.inStock

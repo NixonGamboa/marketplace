@@ -7,6 +7,18 @@ export interface ListOrdersOptions {
   limit?: number
 }
 
+/**
+ * Cambio de ciclo de vida (T-12) listo para guardar: `next` lo calculó `orderLifecycle` a partir
+ * de la fila leída `expected`.
+ */
+export interface OrderChange {
+  /** La escritura solo procede si la fila sigue en esta tienda, versión y estado. */
+  expected: Pick<Order, 'id' | 'storeId' | 'version' | 'status'>
+  next: Order
+  /** Productos usados como sustitutos: deben seguir pedibles en la tienda con esta versión. */
+  products: { id: string; version: number }[]
+}
+
 export interface OrdersRepository {
   findCreation(identity: OrderCreationIdentity): Promise<StoredOrderCreation | null>
   /** Claim, cuota y pedido atómicos. Nunca deja claims/cuota si falla la persistencia. */
@@ -20,5 +32,10 @@ export interface OrdersRepository {
   listPage(request: OrderPageRequest): Promise<OrderPage>
   /** Pedidos de una tienda, más recientes primero (50 por defecto). Sin paginación: usa `listPage`. */
   listByStore(storeId: string, opts?: ListOrdersOptions): Promise<Order[]>
-  updateStatus(id: string, status: OrderStatus, updatedAt: string): Promise<Order>
+  /**
+   * Escritura condicional atómica (una sentencia): persiste solo los campos mutables de `next`
+   * (estado, ítems, `originalItems`, total final, versión, fecha, actor y cancelación). Devuelve
+   * `null` si otra escritura cambió la fila o el catálogo después de leerlos; nunca pisa datos.
+   */
+  saveChange(change: OrderChange): Promise<Order | null>
 }

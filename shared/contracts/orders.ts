@@ -113,9 +113,17 @@ export const orderItemInputSchema = z
   .strict()
   // La forma de peso se contrasta con el catálogo, nunca con el flag legacy del cliente.
 
-/** Ítem persistido/expuesto: snapshot + peso real pesado por el aliado (`kilosReal`). */
+/**
+ * Ítem persistido/expuesto: snapshot + peso real pesado por el aliado (`kilosReal`).
+ * `substitutedFor`: ID del producto pedido originalmente cuando esta línea lo sustituye (T-12).
+ */
 export const orderItemSchema = z
-  .object({ ...itemShape, unit: unitSnapshotSchema.optional(), kilosReal: kilosSchema.optional() })
+  .object({
+    ...itemShape,
+    unit: unitSnapshotSchema.optional(),
+    kilosReal: kilosSchema.optional(),
+    substitutedFor: entityIdSchema.optional(),
+  })
   .strict()
   .superRefine(refineWeightRules)
 
@@ -202,9 +210,101 @@ export const createOrderRequestSchema = z
   .strict()
   .superRefine((order, ctx) => refineDeliveryRules({ ...order, shippingCost: 0 }, ctx))
 
-/** PATCH /api/orders/:id/status */
+/**
+ * Versión de concurrencia optimista (T-12): nace en 1 y sube con cada cambio. Las mutaciones
+ * envían la versión leída (`expectedVersion`); si otro cambio ganó, responden 409.
+ */
+export const orderVersionSchema = z.number().int().min(1).max(2_147_483_647)
+
+export const ORDER_CANCELLATION_LIMITS = { minReasonLength: 5, maxReasonLength: 500 } as const
+
+// eslint-disable-next-line no-control-regex
+const REASON_FORBIDDEN_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/
+
+/** Motivo de cancelación: texto libre recortado; admite saltos de línea, no otros controles. */
+export const cancellationReasonSchema = z
+  .string()
+  .trim()
+  .min(ORDER_CANCELLATION_LIMITS.minReasonLength, `Mínimo ${ORDER_CANCELLATION_LIMITS.minReasonLength} caracteres`)
+  .max(ORDER_CANCELLATION_LIMITS.maxReasonLength, `Máximo ${ORDER_CANCELLATION_LIMITS.maxReasonLength} caracteres`)
+  .refine((value) => !REASON_FORBIDDEN_CHARACTERS.test(value), 'Texto inválido')
+
+/**
+ * PATCH /api/orders/:id/status — transición de la máquina común (`orderEnums`). Cancelar exige
+ * `reason`; cualquier otro destino la rechaza. Actor y tienda salen de la sesión.
+ */
 export const updateOrderStatusRequestSchema = z
-  .object({ status: z.enum(ORDER_STATUS_VALUES) })
+  .object({
+    status: z.enum(ORDER_STATUS_VALUES),
+    expectedVersion: orderVersionSchema,
+    reason: cancellationReasonSchema.optional(),
+  })
+  .strict()
+  .superRefine((request, ctx) => {
+    if (request.status === 'cancelled' && request.reason === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['reason'], message: 'Cancelar requiere un motivo' })
+    }
+    if (request.status !== 'cancelled' && request.reason !== undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['reason'], message: 'El motivo solo aplica al cancelar' })
+    }
+  })
+
+const weightChangeSchema = z
+  .object({ type: z.literal('weight'), itemId: entityIdSchema, kilosReal: kilosSchema })
+  .strict()
+
+const removeChangeSchema = z.object({ type: z.literal('remove'), itemId: entityIdSchema }).strict()
+
+/**
+ * Sustituye la línea `itemId` por `productId` del catálogo de la misma tienda. Nombre, unidad,
+ * precio y peso variable salen del catálogo; `qty`/`kilosRequested` siguen las reglas de creación
+ * y `kilosReal` permite pesar el sustituto en el mismo cambio.
+ */
+const substituteChangeSchema = z
+  .object({
+    type: z.literal('substitute'),
+    itemId: entityIdSchema,
+    productId: entityIdSchema,
+    qty: z.number().int().min(1).max(ORDER_LIMITS.maxQtyPerItem),
+    kilosRequested: kilosSchema.optional(),
+    kilosReal: kilosSchema.optional(),
+  })
+  .strict()
+
+export const orderItemChangeSchema = z.discriminatedUnion('type', [
+  weightChangeSchema,
+  removeChangeSchema,
+  substituteChangeSchema,
+])
+
+/**
+ * PATCH /api/orders/:id — cambios de ítems durante la preparación, aplicados en bloque y de forma
+ * atómica. Todos se validan contra el pedido leído: cada `itemId` aparece una sola vez y un
+ * producto no puede ser sustituto de dos líneas.
+ */
+export const updateOrderItemsRequestSchema = z
+  .object({
+    expectedVersion: orderVersionSchema,
+    changes: z
+      .array(orderItemChangeSchema)
+      .min(1)
+      .max(ORDER_LIMITS.maxItems)
+      .superRefine((changes, ctx) => {
+        const items = new Set<string>()
+        const substitutes = new Set<string>()
+        changes.forEach((change, index) => {
+          if (items.has(change.itemId)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'itemId'], message: 'Ítem repetido en los cambios' })
+          }
+          items.add(change.itemId)
+          if (change.type !== 'substitute') return
+          if (substitutes.has(change.productId)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'productId'], message: 'Producto sustituto repetido' })
+          }
+          substitutes.add(change.productId)
+        })
+      }),
+  })
   .strict()
 
 /** Respuesta de POST /api/orders. */
@@ -236,13 +336,33 @@ export const orderDtoSchema = z
     shippingCost: copAmountSchema.optional(),
     /** Estimación original (ítems con peso solicitado + envío). Nunca se sobrescribe. */
     estimatedTotal: copAmountSchema,
-    /** Total cobrado con pesos reales; ausente mientras falten pesos. */
+    /**
+     * Total cobrado con pesos reales y los ítems vigentes (sin quitados, con sustitutos) + envío
+     * cotizado. Se recalcula en cada cambio de ítems; ausente mientras falten pesos y siempre
+     * presente desde `ready`.
+     */
     finalTotal: copAmountSchema.optional(),
     createdAt: isoUtcSchema,
     updatedAt: isoUtcSchema.optional(),
+    /** Versión para `expectedVersion`. El servidor siempre la envía; opcional solo por datos demo. */
+    version: orderVersionSchema.optional(),
+    /** Ítems tal como se pidieron; presente desde la primera sustitución o retiro de un ítem. */
+    originalItems: z.array(orderItemSchema).min(1).max(ORDER_LIMITS.maxItems).optional(),
+    cancellationReason: cancellationReasonSchema.optional(),
+    cancelledAt: isoUtcSchema.optional(),
   })
   .strict()
   .superRefine(refineDeliveryRules)
+  .superRefine((order, ctx) => {
+    const hasReason = order.cancellationReason !== undefined
+    if (hasReason !== (order.cancelledAt !== undefined) || (hasReason && order.status !== 'cancelled')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cancellationReason'],
+        message: 'Motivo y fecha de cancelación van juntos y solo en pedidos cancelados',
+      })
+    }
+  })
   .superRefine((order, ctx) => {
     const missingRealWeight = order.items.some(
       (item) => item.is_variable_weight && item.kilosReal === undefined,
@@ -261,5 +381,7 @@ export type OrderItemDto = z.infer<typeof orderItemSchema>
 export type DeliveryDataDto = z.infer<typeof deliveryDataSchema>
 export type CreateOrderRequest = z.infer<typeof createOrderRequestSchema>
 export type UpdateOrderStatusRequest = z.infer<typeof updateOrderStatusRequestSchema>
+export type OrderItemChange = z.infer<typeof orderItemChangeSchema>
+export type UpdateOrderItemsRequest = z.infer<typeof updateOrderItemsRequestSchema>
 export type OrderConfirmationDto = z.infer<typeof orderConfirmationSchema>
 export type OrderDto = z.infer<typeof orderDtoSchema>

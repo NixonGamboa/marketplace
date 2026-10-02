@@ -15,6 +15,7 @@ import { orderDtoSchema } from '../../../../shared/contracts/index.js'
 import { validDeliveryRequest, validPickupRequest, variableWeightItem } from '../../contratos/fixtures.js'
 import { initializeOrderCatalog } from '../../orders/creationFixture.js'
 import { updateStoreSettings } from '../../../src/usecases/store/updateStoreSettings.js'
+import { forceStatus } from '../../orders/forceStatus.js'
 
 const customer = { id: 'cust_01', role: 'customer' as const, storeId: null }
 const context = { storeId: 'leche-y-miel' }
@@ -79,7 +80,7 @@ describe('creación autoritativa e idempotente', () => {
     const key = randomUUID(), original = await create(validPickupRequest(), key)
     await alter('prod_leche', { inStock: false, name: 'Nombre posterior', price: 9900 })
     await updateStoreSettings(deps(), { id: 'owner', role: 'owner', storeId: context.storeId }, { scheduleOverride: 'closed' })
-    await orders.updateStatus(original.id, 'confirmed', clock.nowIso())
+    await forceStatus(orders, original.id, 'confirmed', clock.nowIso())
     const retry = await create({ ...validPickupRequest(), shippingCost: 1, items: [{ id: 'prod_leche', qty: 2, priceAtMoment: 1 }] }, key)
     expect(retry).toEqual(original)
     expect(await orders.listByStore(context.storeId)).toHaveLength(1)

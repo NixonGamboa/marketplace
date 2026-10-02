@@ -63,7 +63,7 @@ const createReq = ({ cookie, body = orderBody(), headers }: OrderRequestOptions 
 const detailReq = ({ cookie, id, headers }: OrderRequestOptions = {}) =>
   withQuery(authRequest({ method: 'GET', headers: { cookie, 'content-type': undefined, ...headers } }), id)
 
-const statusReq = ({ cookie, id, body = { status: 'confirmed' }, headers }: OrderRequestOptions = {}) =>
+const statusReq = ({ cookie, id, body = { status: 'confirmed', expectedVersion: 1 }, headers }: OrderRequestOptions = {}) =>
   withQuery(authRequest({ method: 'PATCH', body, headers: { cookie, ...headers } }), id)
 
 const UNKNOWN_ID = '01HJ0000000000000000000000'
@@ -405,11 +405,11 @@ describe('lectura: propiedad del cliente y aislamiento por tienda', () => {
 describe('cambio de estado: personal de la tienda del pedido', () => {
   it('owner y operator de la tienda avanzan el estado', async () => {
     const id = await placeOrder(world.customerB)
-    const confirmed = await call('status', statusReq({ cookie: world.owner.cookie, id, body: { status: 'confirmed' } }))
+    const confirmed = await call('status', statusReq({ cookie: world.owner.cookie, id, body: { status: 'confirmed', expectedVersion: 1 } }))
     expect(statusOf(confirmed)).toBe(200)
     expect(headerOf(confirmed, 'Cache-Control')).toContain('no-store')
 
-    const preparing = await call('status', statusReq({ cookie: world.operator.cookie, id, body: { status: 'preparing' } }))
+    const preparing = await call('status', statusReq({ cookie: world.operator.cookie, id, body: { status: 'preparing', expectedVersion: 2 } }))
     expect(statusOf(preparing)).toBe(200)
     expect((await storedOrder(id))?.status).toBe('preparing')
   })
@@ -417,7 +417,7 @@ describe('cambio de estado: personal de la tienda del pedido', () => {
   it('el cliente, incluso dueño, recibe 403 y el estado no cambia', async () => {
     const id = await placeOrder(world.customerB)
     for (const actor of [world.customerA, world.customerB]) {
-      const res = await call('status', statusReq({ cookie: actor.cookie, id, body: { status: 'cancelled' } }))
+      const res = await call('status', statusReq({ cookie: actor.cookie, id, body: { status: 'cancelled', expectedVersion: 1, reason: 'Ya no lo necesito' } }))
       expect(statusOf(res)).toBe(403)
       expect(bodyOf(res)).toEqual(forbidden)
     }
@@ -434,7 +434,7 @@ describe('cambio de estado: personal de la tienda del pedido', () => {
 
   it('transición ilegal sigue respondiendo 400 para personal autorizado', async () => {
     const id = await placeOrder(world.customerB)
-    const res = await call('status', statusReq({ cookie: world.owner.cookie, id, body: { status: 'delivered' } }))
+    const res = await call('status', statusReq({ cookie: world.owner.cookie, id, body: { status: 'delivered', expectedVersion: 1 } }))
     expect(statusOf(res)).toBe(400)
   })
 })
@@ -461,7 +461,7 @@ describe('origen, método y cuerpo', () => {
   it('métodos no admitidos: 405 con Allow y sin caché', async () => {
     const cases: [HandlerName, string, string][] = [
       ['create', 'DELETE', 'GET, POST'],
-      ['detail', 'DELETE', 'GET'],
+      ['detail', 'DELETE', 'GET, PATCH'],
       ['status', 'POST', 'PATCH'],
     ]
     for (const [name, method, allow] of cases) {

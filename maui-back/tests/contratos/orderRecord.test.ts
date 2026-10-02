@@ -32,6 +32,12 @@ const legacyRecord = (overrides: Partial<StoredOrderRecord> = {}): StoredOrderRe
   finalTotal: null,
   createdAt: '2026-09-03 10:00:00.123456+00',
   updatedAt: '2026-09-03 10:05:00+00',
+  // Columnas de 0006 tal como quedan en filas previas: versión por defecto y sin cambios.
+  version: 1,
+  updatedBy: null,
+  originalItems: null,
+  cancellationReason: null,
+  cancelledAt: null,
   ...overrides,
 })
 
@@ -90,6 +96,15 @@ describe('mapeo legacy → modelo interno', () => {
     expect(order.deliveryData).toEqual({})
   })
 
+  it('fila previa a 0006: versión 1, sin actor, snapshot original ni cancelación', () => {
+    const order = orderFromRecord(legacyRecord({ status: 'cancelled' }))
+    expect(order.version).toBe(1)
+    for (const field of ['updatedBy', 'originalItems', 'cancellationReason', 'cancelledAt']) {
+      expect(order).not.toHaveProperty(field)
+    }
+    expect(orderDtoSchema.safeParse(toOrderDto(order)).success).toBe(true)
+  })
+
   it('un item legacy variable no se convierte en peso real al leer', () => {
     const order = orderFromRecord(legacyRecord({ status: 'delivered' }))
     expect(order.items.every((item) => item.kilosReal === undefined)).toBe(true)
@@ -122,8 +137,8 @@ describe('persistencia del modelo canónico', () => {
 })
 
 describe('DTO público vs modelo interno (privacidad)', () => {
-  it('proyecta con lista blanca: sin storeId ni nombres internos', () => {
-    const dto = toOrderDto(internalOrder())
+  it('proyecta con lista blanca: sin storeId, actor ni nombres internos', () => {
+    const dto = toOrderDto(internalOrder({ updatedBy: 'acc_operador_interno' }))
 
     expect(Object.keys(dto).sort()).toEqual(
       [
@@ -140,9 +155,11 @@ describe('DTO público vs modelo interno (privacidad)', () => {
         'estimatedTotal',
         'createdAt',
         'updatedAt',
+        'version',
       ].sort(),
     )
     expect(JSON.stringify(dto)).not.toContain('leche-y-miel')
+    expect(JSON.stringify(dto)).not.toContain('acc_operador_interno')
     expect(dto.orderId).toBe('01HJ0000000000000000000001')
     expect(dto.userId).toBe('cust_01')
     expect(orderDtoSchema.safeParse(dto).success).toBe(true)

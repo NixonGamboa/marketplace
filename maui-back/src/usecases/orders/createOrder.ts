@@ -6,6 +6,7 @@ import {
 import { AuthorizationError, RateLimitedError } from '../../domain/auth/errors.js'
 import type { BucketKeyer } from '../../domain/auth/ports.js'
 import type { CatalogRepository } from '../../domain/catalog/CatalogRepository.js'
+import { isOrderable } from '../../domain/catalog/Catalog.js'
 import type { Order, OrderContext } from '../../domain/orders/Order.js'
 import { ORDER_CREATE_BUCKET_SCOPE, ORDER_CREATE_POLICY, assertCanCreateOrder, type OrderActor } from '../../domain/orders/orderAccess.js'
 import { IdempotencyConflictError, type StoredOrderCreation } from '../../domain/orders/orderCreation.js'
@@ -62,7 +63,7 @@ export const createOrder = async (
     const products = await Promise.all(data.items.map(item => deps.catalog.findProduct(context.storeId, item.id)))
     const items = data.items.map((item, index) => {
       const product = products[index]
-      if (!product || !product.active || product.archivedAt !== null || !product.inStock) {
+      if (!product || !isOrderable(product)) {
         throw new ValidationError('Producto no disponible', [{ path: `items.${index}.id`, message: 'Producto no disponible' }])
       }
       const snapshot = orderItemSchema.safeParse({
@@ -84,7 +85,7 @@ export const createOrder = async (
       customerName: data.customerName, customerPhone: data.customerPhone, items,
       status: OrderStatus.RECEIVED, deliveryType: data.deliveryType, deliveryData: data.deliveryData,
       substitutionPreference: data.substitutionPreference, shippingCost, estimatedTotal,
-      createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now, version: 1,
     }
     const result = await deps.orders.createIdempotently({
       ...identity, order, fingerprint, storeVersion: settings.version,

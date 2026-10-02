@@ -1,9 +1,10 @@
 import { and, eq, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import type { Order, OrderStatus } from '../../domain/orders/Order.js'
+import type { Order } from '../../domain/orders/Order.js'
 import { orderFromRecord, orderToRecord } from '../../domain/orders/orderRecord.js'
 import type {
   ListOrdersOptions,
+  OrderChange,
   OrdersRepository,
 } from '../../domain/orders/OrdersRepository.js'
 import {
@@ -13,13 +14,12 @@ import {
   type OrderPage,
   type OrderPageRequest,
 } from '../../domain/orders/orderListing.js'
-import { NotFoundError } from '../../shared/errors.js'
 import type { Db } from './client.js'
-import { ordersTable, orderCreationsTable } from './schema.js'
+import { catalogProductsTable, ordersTable, orderCreationsTable } from './schema.js'
 import type { CommitOrderCreation, CommitOrderResult, OrderCreationIdentity, StoredOrderCreation } from '../../domain/orders/orderCreation.js'
 import { OrderPersistenceError, decodeCreationOrder } from '../../domain/orders/orderCreation.js'
 
-/** Fallo del driver/SQL o snapshot inválido → `OrderPersistenceError` (503), sin propagar detalles (creación y listado). */
+/** Fallo del driver/SQL o snapshot inválido → `OrderPersistenceError` (503), sin propagar detalles (creación, listado y cambios). */
 const guardPersistence = async <T>(operation: () => Promise<T>): Promise<T> => {
   try {
     return await operation()
@@ -161,13 +161,41 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
     return page.entries.map(({ order }) => order)
   }
 
-  async updateStatus(id: string, status: OrderStatus, updatedAt: string): Promise<Order> {
-    const [row] = await this.db
-      .update(ordersTable)
-      .set({ status, updatedAt })
-      .where(eq(ordersTable.id, id))
-      .returning()
-    if (!row) throw new NotFoundError('Order', id)
-    return orderFromRecord(row)
+  /**
+   * UPDATE condicional en una sola sentencia (compatible con Neon HTTP y varias instancias): la
+   * fila debe seguir en la tienda, versión y estado leídos y cada sustituto seguir pedible con la
+   * versión leída. Dos cambios concurrentes sobre la misma versión: uno escribe y el otro recibe
+   * `null`. Solo se escriben columnas mutables; estimación, envío, cliente y entrega no se tocan.
+   */
+  saveChange({ expected, next, products }: OrderChange): Promise<Order | null> {
+    const productsUnchanged = products.map(product => sql`exists (
+      select 1 from ${catalogProductsTable}
+      where ${catalogProductsTable.id} = ${product.id} and ${catalogProductsTable.storeId} = ${expected.storeId}
+        and ${catalogProductsTable.version} = ${product.version} and ${catalogProductsTable.active}
+        and ${catalogProductsTable.archivedAt} is null and ${catalogProductsTable.inStock})`)
+    return guardPersistence(async () => {
+      const [row] = await this.db
+        .update(ordersTable)
+        .set({
+          status: next.status,
+          items: next.items,
+          originalItems: next.originalItems ?? null,
+          finalTotal: next.finalTotal ?? null,
+          version: next.version,
+          updatedAt: next.updatedAt,
+          updatedBy: next.updatedBy ?? null,
+          cancellationReason: next.cancellationReason ?? null,
+          cancelledAt: next.cancelledAt ?? null,
+        })
+        .where(and(
+          eq(ordersTable.id, expected.id),
+          eq(ordersTable.storeId, expected.storeId),
+          eq(ordersTable.version, expected.version),
+          eq(ordersTable.status, expected.status),
+          ...productsUnchanged,
+        ))
+        .returning()
+      return row ? orderFromRecord(row) : null
+    })
   }
 }
