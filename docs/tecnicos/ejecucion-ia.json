@@ -1,7 +1,7 @@
 {
   "version": 4,
   "actualizado": "2026-10-02",
-  "ejecuciones": [
+  "sesiones": [
     {"incremento":"c1-base-test-contratos","rama":"feature/base-test-contratos","bloque":"T-01","proveedor":"Codex","rol":"ejecutor","modelo":"gpt-6.1-sol","esfuerzoSolicitado":"high","esfuerzoEfectivo":null,"sessionId":null,"identificadorEjecucion":"/root/api_entorno","estado":"finalizado; incorporado a develop"},
     {"incremento":"c1-base-test-contratos","rama":"feature/base-test-contratos","bloque":"T-02","proveedor":"Codex","rol":"ejecutor","modelo":"gpt-6.1-sol","esfuerzoSolicitado":"high","esfuerzoEfectivo":null,"sessionId":null,"identificadorEjecucion":"/root/api_entorno","estado":"finalizado; incorporado a develop"},
     {"incremento":"c1-base-test-contratos","rama":"feature/base-test-contratos","bloque":"T-04","proveedor":"Claude Code","rol":"ejecutor","modelo":"claude-sonnet-5-5","esfuerzoSolicitado":"high","esfuerzoEfectivo":"high","sessionId":"73cc8488-e79d-41b8-9c45-e5ab020395e0","identificadorEjecucion":null,"estado":"finalizado; incorporado a develop"},
