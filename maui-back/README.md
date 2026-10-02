@@ -263,3 +263,35 @@ T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones ató
 (catálogo y tienda llegan en T-07/T-08; su uso en pedidos es T-10).
 Nombre/precio y envío del request aún no son autoridad confiable; T-10/T-12
 completan esas reglas. La autorización por cliente/tienda corresponde a T-06.
+
+## Imágenes de catálogo (T-09)
+
+`POST /api/catalog/products/:id/image?version=N` recibe JSON `{ imageBase64 }`.
+Requiere sesión `owner` de la tienda del producto y `Origin` de la aplicación. La
+versión debe coincidir con el catálogo staff; esa respuesta ahora incluye `version`.
+El catálogo público conserva su contrato.
+
+Se admiten JPEG, PNG y WebP estáticos de hasta 3 MiB, comprobados por firma y
+decodificación real. Sharp limita píxeles/dimensiones, aplica orientación y retira
+metadatos, incluido EXIF/GPS. La salida es WebP de hasta 1600 px y 1 MiB. SVG,
+animaciones, archivos corruptos y cuerpos fuera del límite se rechazan. El JSON
+base64 permanece bajo el máximo de 4.5 MB de Vercel Functions.
+
+Los puertos `ProductImageStorage` y `ProductImageProcessor` separan el caso de uso
+del proveedor. Vercel Blob guarda imágenes comerciales públicas en rutas nuevas
+generadas por el servidor. El token nunca llega al navegador. Las cuatro variables
+`BLOB_STORE_ID`, `TEST_BLOB_STORE_ID`, `TEST_BLOB_PUBLIC_HOST` y
+`BLOB_READ_WRITE_TOKEN` pertenecen exclusivamente a Preview/develop; los guards
+rechazan Production y ramas productivas. Esta configuración es solo de test.
+
+La asociación a Postgres usa la versión esperada (CAS). Un rechazo definitivo
+retira únicamente el blob recién creado por esa petición. Un fallo SQL de resultado
+incierto conserva el blob para reconciliación, evitando borrar una referencia que
+podría confirmar después del timeout. Reemplazar una foto conserva las anteriores;
+la retención/recolección de huérfanos necesita una política posterior.
+
+Las reservas persistentes limitan a 30 intentos por cuenta/hora y 100 por tienda/día;
+las entradas inválidas que requieren procesamiento consumen cupo. Se deniegan rol,
+tienda y versión antes de leer la imagen. El admin incorpora selector de archivo y
+cámara y servicio HTTP real; su activación con sesión/catálogo reales corresponde a
+T-17. Elegir o cancelar una foto no la sube: se envía al guardar.
