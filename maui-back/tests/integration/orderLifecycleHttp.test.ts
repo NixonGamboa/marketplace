@@ -184,8 +184,8 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     // Queso 9000 + round(22000 × 1,237) = 27214 → 36214; la estimación original se conserva.
     expect(edited).toMatchObject({ version: 4, estimatedTotal: 42000, finalTotal: 36214 })
     expect(edited.items).toEqual([
-      { id: 'prod_queso', name: 'Queso campesino', priceAtMoment: 9000, is_variable_weight: false, qty: 1, substitutedFor: 'prod_leche' },
-      { id: 'prod_carne', name: 'Carne molida', priceAtMoment: 22000, is_variable_weight: true, qty: 1, kilosRequested: 1.5, kilosReal: 1.237 },
+      { id: 'prod_queso', name: 'Queso campesino', unit: '500 g', priceAtMoment: 9000, is_variable_weight: false, qty: 1, substitutedFor: 'prod_leche' },
+      { id: 'prod_carne', name: 'Carne molida', unit: 'Por Kilogramo', priceAtMoment: 22000, is_variable_weight: true, qty: 1, kilosRequested: 1.5, kilosReal: 1.237 },
     ])
     expect(edited.originalItems?.map(({ id: item, qty }) => [item, qty])).toEqual([['prod_leche', 2], ['prod_carne', 1]])
 

@@ -114,6 +114,18 @@ describe('mapeo legacy → modelo interno', () => {
 })
 
 describe('persistencia del modelo canónico', () => {
+  it('expone la unidad persistida de ítems vigentes y originales sin inventarla en legacy', () => {
+    const base = internalOrder()
+    const items = base.items.map((item, index) => ({ ...item, unit: index === 0 ? 'paquete' : 'Por Kilogramo' }))
+    const order = internalOrder({ items, originalItems: items })
+    const dto = toOrderDto(orderFromRecord(orderToRecord(order)))
+
+    expect(dto.items.map((item) => item.unit)).toEqual(['paquete', 'Por Kilogramo'])
+    expect(dto.originalItems?.map((item) => item.unit)).toEqual(['paquete', 'Por Kilogramo'])
+    const legacy = toOrderDto(orderFromRecord(legacyRecord()))
+    expect(legacy.items.every((item) => !Object.hasOwn(item, 'unit'))).toBe(true)
+  })
+
   it('ida y vuelta conserva GPS, franja, envío, estimación y snapshot', () => {
     const order = internalOrder({ finalTotal: 47640 })
     const record = orderToRecord(order)
