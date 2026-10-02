@@ -7,6 +7,9 @@ import {
 } from '../maui-back/src/domain/catalog/catalogMappers.js'
 import { DEFAULT_STORE_ID } from '../maui-back/src/domain/orders/Order.js'
 import { getRepositories } from '../maui-back/src/infra/factory.js'
+import { getAuthRuntime } from '../maui-back/src/infra/auth/factory.js'
+import { ownedStoreOf } from '../maui-back/src/domain/store/storeAccess.js'
+import { uploadProductImage } from '../maui-back/src/usecases/catalog/uploadProductImage.js'
 import { systemClock } from '../maui-back/src/shared/clock.js'
 import { createCategory, deleteCategory, updateCategory } from '../maui-back/src/usecases/catalog/manageCategories.js'
 import { createProduct, updateProduct } from '../maui-back/src/usecases/catalog/manageProducts.js'
@@ -14,6 +17,7 @@ import { getPublicCatalog, getPublicProduct, getStaffCatalog } from '../maui-bac
 import { readJsonBody } from './_lib/auth.js'
 import { MAX_CATALOG_BODY_BYTES, createOperationHandler, routeIdFrom } from './_lib/operations.js'
 import { jsonResponse, ok } from './_lib/response.js'
+import { imageVersionFrom, readProductImage } from './_lib/productImage.js'
 
 /**
  * Catálogo por tienda (T-07), una sola Function:
@@ -32,6 +36,25 @@ import { jsonResponse, ok } from './_lib/response.js'
  */
 export default createOperationHandler(
   {
+    image: {
+      POST: async ({ req, res, sessionActor }) => {
+        const actor = await sessionActor({ mutation: true })
+        ownedStoreOf(actor)
+        const id = routeIdFrom(req)
+        const version = imageVersionFrom(req)
+        // Un fallo del decoder nativo queda limitado a upload, sin afectar lecturas de catálogo.
+        const { SharpProductImageProcessor } = await import('../maui-back/src/infra/storage/SharpProductImageProcessor.js')
+        const { loadProductImageStorageConfig, VercelProductImageStorage } = await import('../maui-back/src/infra/storage/VercelProductImageStorage.js')
+        const { catalog } = await getRepositories()
+        const { deps } = await getAuthRuntime()
+        const storage = new VercelProductImageStorage(loadProductImageStorageConfig(process.env))
+        const product = await uploadProductImage({
+          catalog, attempts: deps.repository, keys: deps.keys, clock: systemClock,
+          processor: new SharpProductImageProcessor(), storage,
+        }, actor, id, version, () => readProductImage(req))
+        ok(res, toStaffProductDto(product))
+      },
+    },
     catalog: {
       GET: async ({ res }) => {
         const { catalog } = await getRepositories()

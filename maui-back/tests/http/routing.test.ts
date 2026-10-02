@@ -22,6 +22,7 @@ describe('fallbacks de routing después del filesystem de Vercel', () => {
   it.each([
     ['/api/catalog/staff', '/api/catalog?op=staff'],
     ['/api/catalog/products', '/api/catalog?op=products'],
+    ['/api/catalog/products/queso-campesino-250g/image', '/api/catalog?op=image&id=:id'],
     ['/api/catalog/products/queso-campesino-250g', '/api/catalog?op=product&id=:id'],
     ['/api/catalog/products/bad%20id', '/api/catalog?op=product&id=:id'],
     ['/api/catalog/categories', '/api/catalog?op=categories'],

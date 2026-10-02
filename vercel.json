@@ -9,6 +9,7 @@
     { "source": "/api/orders/:id", "destination": "/api/orders/[id]" },
     { "source": "/api/catalog/staff", "destination": "/api/catalog?op=staff" },
     { "source": "/api/catalog/products", "destination": "/api/catalog?op=products" },
+    { "source": "/api/catalog/products/:id/image", "destination": "/api/catalog?op=image&id=:id" },
     { "source": "/api/catalog/products/:id", "destination": "/api/catalog?op=product&id=:id" },
     { "source": "/api/catalog/categories", "destination": "/api/catalog?op=categories" },
     { "source": "/api/catalog/categories/:id", "destination": "/api/catalog?op=category&id=:id" },

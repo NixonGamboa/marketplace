@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "actualizado": "2026-10-01",
+  "actualizado": "2026-10-02",
   "sesiones": [
     {
       "incremento": "c1-base-test-contratos",
@@ -261,6 +261,45 @@
       "sessionId": null,
       "identificadorEjecucion": "chat existente",
       "estado": "finalizado; reporte combinado publicado y verificado"
+    },
+    {
+      "incremento": "t09-imagenes-catalogo",
+      "rama": "feature/imagenes-catalogo-blob",
+      "bloque": "T-09",
+      "proveedor": "Codex",
+      "rol": "orquestador",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": "high",
+      "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
+      "identificadorEjecucion": null,
+      "estado": "en curso"
+    },
+    {
+      "incremento": "t09-imagenes-catalogo",
+      "rama": "feature/imagenes-catalogo-blob",
+      "bloque": "T-09",
+      "proveedor": "Codex",
+      "rol": "ejecutor",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": null,
+      "identificadorEjecucion": "/root/t09_uploads",
+      "estado": "implementado; validado localmente"
+    },
+    {
+      "incremento": "t09-imagenes-catalogo",
+      "rama": "feature/imagenes-catalogo-blob",
+      "bloque": "T-09",
+      "proveedor": "Claude Code",
+      "rol": "revisor",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "be2de2fc-4628-4967-8971-6282fc74a989",
+      "identificadorEjecucion": null,
+      "estado": "revisión aprobada; observaciones menores"
     }
   ]
 }
