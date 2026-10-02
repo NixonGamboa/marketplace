@@ -6,7 +6,7 @@
 > **Supersede:** decisión de stack de Sprint 1 en `rfc-001-demo-validacion.md` §1.1
 > **Aplica a:** todo el backend real de MAUI hasta que el negocio justifique migrar
 
-> **Alcance vigente 2026-10-01:** implementación directa con Codex y Claude Code, sin workflow SDD. La entrega es un ambiente de test con seed reproducible, API/BD reales y flujo equivalente a producción; no incluye lanzamiento comercial ni actividades operativas. Se mantiene Vercel Functions + Neon Postgres + Drizzle, con AWS Lambda como destino de escala. Migrar el runtime no obliga a cambiar Postgres ni a adoptar DynamoDB/Cognito/S3. Estado y dependencias en el [plan maestro](estado-plan.md), T-02/T-23/T-24 y E-05. La condición de uso comercial de Vercel Hobby queda como restricción para una salida productiva posterior, no como tarea del entregable de test; no se aprueba upgrade ni cambio de proveedor. Las comparaciones de costos de septiembre son contexto histórico.
+> **Alcance vigente 2026-10-02:** implementación directa con Codex y Claude Code, sin workflow SDD. La entrega es un ambiente de test con seed reproducible, API/BD reales y flujo equivalente a producción; no incluye lanzamiento comercial ni actividades operativas. Se mantiene Vercel Functions + Neon Postgres + Drizzle, con AWS Lambda como destino de escala. Migrar el runtime no obliga a cambiar Postgres ni a adoptar DynamoDB/Cognito/S3. Estado y dependencias en el [plan maestro](estado-plan.md), T-02/T-23/T-24 y E-05/E-08. La condición de uso comercial de Vercel Hobby queda como restricción para una salida productiva posterior, no como tarea del entregable de test. Se aprueba la estrategia de imágenes de §2: Blob durante la validación del MVP y R2 para la primera versión estable; esto no habilita recursos R2 ahora ni autoriza upgrades o promoción a Production. Las comparaciones de costos de septiembre son contexto histórico.
 
 ---
 
@@ -41,10 +41,16 @@ Al pasar a la fase de scaffold del backend (septiembre 2026), se hizo un anális
 | BD | Neon Postgres (HTTP driver) | DynamoDB, Supabase, PlanetScale |
 | Query builder | Drizzle ORM | Prisma, Kysely, SQL crudo |
 | Auth | Vercel Functions + JWT propio o Clerk/Supabase Auth | AWS Cognito |
-| Storage de imágenes | Vercel Blob o Cloudinary free tier | S3 + CloudFront |
+| Storage de imágenes | Vercel Blob para validar el MVP; Cloudflare R2 en la primera versión estable | Cloudinary; S3 + CloudFront |
 | Deploy | Push a rama en GitHub → auto-deploy | AWS SAM + GitHub Actions |
 | Observabilidad | Vercel Analytics + Sentry free tier + logs Vercel | CloudWatch |
 | Contacto WhatsApp | Enlaces `wa.me` con texto preparado; seguimiento/comprobante en PWA/admin | Mensajería automática opcional en E-07; Evolution API es antecedente, sin VPS requerido ahora |
+
+### Imágenes por etapas — decisión confirmada el 2026-10-02
+
+- **Validación del MVP (T-09):** usar Vercel Blob con un catálogo reducido y fotografías comprimidas. Dimensionar la carga según las cuotas vigentes de almacenamiento, transferencia y operaciones; el catálogo de 10.000 productos no es el objetivo de esta primera fase. Consultar [condiciones y cuotas oficiales de Blob](https://vercel.com/docs/vercel-blob/usage-and-pricing) antes de ampliar la carga.
+- **Primera versión estable (E-08):** migrar el almacenamiento de imágenes a Cloudflare R2 mediante la misma interfaz de storage. La aplicación puede seguir en Vercel y la BD en Neon/Postgres; esta decisión no sustituye la evolución independiente del runtime a AWS Lambda.
+- **Corte posterior:** verificar condiciones, cuotas y costos vigentes de [R2](https://developers.cloudflare.com/r2/pricing/), copiar imágenes, actualizar sus referencias persistidas y comprobar acceso, integridad y rollback. Mantener los IDs de productos y los contratos de negocio. No crear infraestructura ni adapters R2 vacíos durante T-09.
 
 ---
 

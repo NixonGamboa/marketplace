@@ -1,6 +1,6 @@
 # MAUI — Plan de implementación directa y entrega en test
 
-> **Fuente única del estado global.** Actualización: **2026-10-01**.
+> **Fuente única del estado global.** Actualización: **2026-10-02**.
 > **Método:** implementaciones directas con Codex y Claude Code. SDD deja de ser requisito del proyecto.
 > **Entregable:** ambiente de test desplegado con seed reproducible y flujo funcional equivalente al de producción.
 > **Stack inicial:** Vercel Functions + Neon Postgres + Drizzle. Destino de escala: AWS Lambda.
@@ -14,6 +14,8 @@ La equivalencia con producción se refiere al flujo funcional y a los componente
 **Fuera de este plan:** acuerdos, reuniones, selección de clientes, pruebas humanas, carga de surtido comercial, validación comercial de precios, entrenamiento, domicilios físicos, preparación de números/SIM y lanzamiento comercial. No se exige procesar 50 pedidos reales ni esperar un piloto para completar el desarrollo. Los antecedentes de producto se conservan en sus documentos; no son dependencias de la entrega técnica.
 
 **Simplificación confirmada por el usuario:** seguimiento y comprobante dentro de PWA/admin; contacto WhatsApp mediante enlaces `wa.me` con texto preparado, reutilizando las capacidades existentes. Mensajería automática, Evolution API/VPS, outbox/jobs de envío y verificación WhatsApp quedan fuera de T-01 a T-24. Test y producción comparten este flujo sencillo; no se exige un gateway ni envío externo para cerrar la entrega.
+
+**Imágenes por etapas, confirmado el 2026-10-02:** validar el MVP con menos productos, imágenes comprimidas y Vercel Blob dentro de sus cuotas gratuitas (T-09). Migrar las imágenes a Cloudflare R2 para la primera versión estable (E-08), conservando la interfaz portable de storage; la aplicación puede seguir en Vercel y la BD en Neon/Postgres. Decisión y condiciones en [ADR-001, imágenes por etapas](adr-001-stack-backend.md#imágenes-por-etapas--decisión-confirmada-el-2026-10-02).
 
 **Forma de ejecución:** tomar un bloque, revisar dependencias y código existente, implementar directamente, validar y actualizar aquí la evidencia. No crear features SDD, specs por fases ni `tasks.json` como trámite. `tech/features/` y el backlog antiguo son referencias históricas. Codex y Claude Code comparten el plan y deben coordinar archivos para evitar sobrescribir cambios.
 
@@ -97,7 +99,7 @@ El Preview [marketplace-4l6m0bchh-infogamboatech-2785.vercel.app](https://market
 | T-06 / P0 | Auth HTTP, autorización y aislamiento por tienda — hecho (PR #3, `b251c50`, 55 checks HTTP reales) | T-01, T-02, T-04, T-05 | Login/logout/sesión efectivos; denegar operaciones sin rol válido. Actor y tienda derivados de credenciales, no del body; endpoints existentes autorizados; listado T-11 debe aplicar esta política. Controles de origen/CSRF según sesión elegida y rate limits adecuados al runtime stateless; `userId`, teléfono o ULID no autorizan por sí solos |
 | T-07 / P0 | Catálogo: productos/categorías/disponibilidad — hecho en servidor (PR #5, `3acda0d`, Neon/Preview real); consumo en pedidos T-10, seed T-16 y UI T-17/T-18 | T-04, T-06 | Schema/migraciones/repositories y API; lecturas públicas y CRUD protegido, agotado/activo, archivado sin perder histórico. Impedir borrar categoría con productos; unidades, moneda y precio/kg coherentes. Reutilizar baseline como datos, sin convertirlo en fuente permanente de la UI |
 | T-08 / P0 | Configuración del aliado/tienda y reglas de entrega — hecho en servidor (PR #5, `3acda0d`, Neon/Preview real); totales en pedidos T-10, seed T-16 y UI T-17/T-18 | T-04, T-06 | Nombre/contacto/dirección, horario/override, franjas/cobertura, envío/umbral gratis persistidos y consumibles por ambas apps. Valores iniciales provienen de seed configurable. `America/Bogota` explícita; servidor valida cierre/corte y disponibilidad de entrega. Cobertura: nota pequeña «Solo hay cobertura en el casco urbano de Dolores», GPS opcional por decisión del usuario; sin geocerca ni selector adicional; recogida sin costo de domicilio |
-| T-09 / P0 | Storage y upload de imágenes de catálogo — pendiente | T-02, T-06, T-07 | Elegir una opción inicial del ADR con adapter portable; upload real de archivo/cámara a storage de test, formato/peso/permiso validados, compresión y referencia persistida. Seed puede usar imágenes actuales; upload se prueba con fixture estable, sin esperar fotografías comerciales |
+| T-09 / P0 | Storage y upload de imágenes de catálogo — pendiente | T-02, T-06, T-07 | Vercel Blob con adapter portable para validar el MVP con un catálogo reducido dentro de las cuotas gratuitas; upload real de archivo/cámara a storage de test, formato/peso/permiso validados, compresión y referencia persistida. Seed puede usar imágenes actuales; upload se prueba con fixture estable, sin esperar fotografías comerciales. Migración posterior a R2 en E-08 |
 | T-10 / P0 | Creación de pedido confiable e idempotencia — parcial | T-04, T-06, T-07, T-08 | Consultar catálogo servidor para precio/nombre/unidad/stock/peso variable; snapshots históricos; validar cantidad, teléfono y entrega. Calcular subtotal/envío/estimación en backend. Idempotencia persistente ante doble clic/timeout/reintento; no confiar en precio del cliente |
 | T-11 / P0 | Listado, detalle e histórico real — parcial | T-06, T-10 | Endpoints tienda/cliente, búsqueda/filtros de fecha/estado y paginación estable con desempate por ID. Detalle autorizado; timestamps ISO normalizados; pruebas con varias filas de igual fecha. Reutilizar `listByStore`, completando endpoint y reglas de acceso |
 | T-12 / P0 | Ciclo completo, pesos y sustituciones — parcial (`e567067`: estimación/final separados y pesos validados en mock) | T-10, T-11 | Máquina de estados única: preparación, pesos reales, total final, sustitución/quitar ítems, listo, entrega/recogida, entregado y cancelado con motivo. Conservar estimación inicial; validar pesos/transiciones en servidor; cambios atómicos por versión/estado esperado; pedidos terminales inmutables. **Cierre solo con pruebas contra API y Postgres reales en test** (transiciones, pesos, concurrencia y permisos por HTTP); mocks, memory o demo no cierran el bloque |
@@ -141,6 +143,7 @@ Estos bloques conservan la visión del resto del sistema. Se ejecutan después d
 | E-05 / P2 | Migración de runtime a AWS Lambda — condicionado | T-24 | Adapter HTTP/API Gateway, composición/env/IaC, permisos/observabilidad, prueba de equivalencia, corte y rollback. Mantener Postgres si conviene; cambios de BD/storage/auth son decisiones independientes. No crear adapters vacíos ni infraestructura AWS ahora |
 | E-06 / P2 | Plataforma multi-aliado y módulos adicionales — condicionado | T-06, T-13, T-24 | Aislamiento probado, administración de tenants/cuentas/catálogos, branding por tienda; módulos separados de comisiones/wallet, pedidos para terceros, asignación de entregas/cierre de efectivo y campañas si se solicitan. Solo desarrollo técnico; sin contratos, reuniones, onboarding humano ni SLAs operativos |
 | E-07 / P2 | Mensajería automática — condicionado | T-12, T-13, T-24 | Solo si se solicita después: elegir proveedor disponible, adapter portable, eventos/outbox persistente, deduplicación y reintentos compatibles con runtime; validar integración real en sandbox/test. Evolution API es antecedente, no obligación de contratar VPS ni herramienta necesaria ahora |
+| E-08 / P2 | Migración de imágenes a Cloudflare R2 — prevista para la primera versión estable | T-09, T-24 | Adapter sobre la interfaz de storage; verificar habilitación, cuotas y costos vigentes, copiar imágenes y actualizar referencias persistidas sin cambiar IDs ni contratos de negocio; validar acceso real, integridad y rollback. Aplicación en Vercel y BD en Neon/Postgres; no habilitar R2 ni crear adapters vacíos ahora |
 
 ## Orden de entrega y dependencias
 
@@ -153,7 +156,7 @@ flowchart TD
   C --> Q["C4: E2E y calidad"]
   B --> Q
   Q --> D["C5: deploy test y comprobación final"]
-  D --> E["E-01 a E-07: evolución posterior"]
+  D --> E["E-01 a E-08: evolución posterior"]
 ```
 
 | Corte | Bloques | Resultado demostrable |
@@ -193,7 +196,7 @@ La tabla conserva el diagnóstico previo al incremento `a577111`. DTOs, enums, p
 | Estado no actualizado condicionalmente y cursor solo por fecha | T-11/T-12/T-15 | Probar concurrencia y desempates reales |
 | Catálogo PWA estático, evento storage admin y build forzado demo | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
 | Seed solo de navegador, sin dataset servidor reproducible | T-16 | Transformar mocks a datos de test; no mantener su lógica simulada |
-| Storage pendiente; auth configurado solo Preview/develop | T-09 | JWT propio comprobado; Blob accesible como opción a verificar, sin exigir proveedores/cuentas adicionales por anticipación |
+| Storage pendiente; auth configurado solo Preview/develop | T-09, E-08 | JWT propio comprobado; Blob elegido para validar el MVP con catálogo reducido y cuotas gratuitas. Verificar habilitación y consumo real en T-09; R2 queda para la primera versión estable, sin exigir cuentas adicionales ahora |
 | Contacto actual debe usar datos persistentes y teléfonos correctos | T-08/T-14/T-17/T-18 | `wa.me` existente es suficiente; no depende de Evolution API ni envío automatizado |
 | Gates automatizados en CI; E2E de negocio pendiente | T-22/T-23 | T-03b hecho: Actions ejecuta tipos explícitos, lint, tests y drift antes del build; no acredita el ciclo de negocio |
 | Integración Postgres y E2E de negocio incompletos | T-15/T-22/T-24 | Migración/lectura legacy y smoke reales comprobados; no sustituyen fixtures, permisos, idempotencia/concurrencia ni ciclo completo |
