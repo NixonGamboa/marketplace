@@ -1,3 +1,5 @@
+import type { AuditWrite } from '../../domain/audit/AuditRepository.js'
+import { auditedWrite } from './auditedWrite.js'
 import { and, asc, eq, isNull, sql, type SQL } from 'drizzle-orm'
 import { CATALOG_CURRENCY, normalizeIsoUtc, nutritionalInfoSchema } from '../../../../shared/contracts/index.js'
 import type { CatalogCategory, CatalogProduct } from '../../domain/catalog/Catalog.js'
@@ -160,35 +162,35 @@ export class CatalogRepositoryPostgres implements CatalogRepository {
     })
   }
 
-  createCategory(category: CatalogCategory): Promise<CatalogCategory> {
+  createCategory(category: CatalogCategory, audit?: AuditWrite): Promise<CatalogCategory> {
     return guard(async () => {
-      const [row] = await this.db.insert(catalogCategoriesTable).values(categoryValues(category)).returning()
+      const [row] = await auditedWrite(this.db, catalogCategoriesTable, this.db.insert(catalogCategoriesTable).values(categoryValues(category)).returning(), 'category', 'created', category.storeId, audit)
       if (!row) throw new Error('Insert failed')
       return toCategory(row)
     }, categoryWriteErrors)
   }
 
-  updateCategory(category: CatalogCategory, expectedVersion: number): Promise<CatalogCategory | null> {
+  updateCategory(category: CatalogCategory, expectedVersion: number, audit?: AuditWrite): Promise<CatalogCategory | null> {
     return guard(async () => {
       const t = catalogCategoriesTable
       const { id: _id, storeId: _storeId, createdAt: _createdAt, ...changes } = categoryValues(category)
-      const [row] = await this.db
+      const [row] = await auditedWrite(this.db, t, this.db
         .update(t)
         .set(changes)
         .where(and(eq(t.id, category.id), eq(t.storeId, category.storeId), eq(t.version, expectedVersion)))
-        .returning()
+        .returning(), 'category', 'updated', category.storeId, audit)
       return row ? toCategory(row) : null
     }, categoryWriteErrors)
   }
 
-  deleteCategory(storeId: string, id: string): Promise<boolean> {
+  deleteCategory(storeId: string, id: string, audit?: AuditWrite): Promise<boolean> {
     return guard(
       async () => {
         const t = catalogCategoriesTable
-        const deleted = await this.db
+        const deleted = await auditedWrite(this.db, t, this.db
           .delete(t)
           .where(and(eq(t.storeId, storeId), eq(t.id, id)))
-          .returning({ id: t.id })
+          .returning(), 'category', 'deleted', storeId, audit)
         return deleted.length > 0
       },
       (state) =>
@@ -220,23 +222,23 @@ export class CatalogRepositoryPostgres implements CatalogRepository {
     })
   }
 
-  createProduct(product: CatalogProduct): Promise<CatalogProduct> {
+  createProduct(product: CatalogProduct, audit?: AuditWrite): Promise<CatalogProduct> {
     return guard(async () => {
-      const [row] = await this.db.insert(catalogProductsTable).values(productValues(product)).returning()
+      const [row] = await auditedWrite(this.db, catalogProductsTable, this.db.insert(catalogProductsTable).values(productValues(product)).returning(), 'product', 'created', product.storeId, audit)
       if (!row) throw new Error('Insert failed')
       return toProduct(row)
     }, productWriteErrors)
   }
 
-  updateProduct(product: CatalogProduct, expectedVersion: number): Promise<CatalogProduct | null> {
+  updateProduct(product: CatalogProduct, expectedVersion: number, audit?: AuditWrite): Promise<CatalogProduct | null> {
     return guard(async () => {
       const t = catalogProductsTable
       const { id: _id, storeId: _storeId, createdAt: _createdAt, ...changes } = productValues(product)
-      const [row] = await this.db
+      const [row] = await auditedWrite(this.db, t, this.db
         .update(t)
         .set(changes)
         .where(and(eq(t.id, product.id), eq(t.storeId, product.storeId), eq(t.version, expectedVersion)))
-        .returning()
+        .returning(), 'product', 'updated', product.storeId, audit)
       return row ? toProduct(row) : null
     }, productWriteErrors)
   }
@@ -244,22 +246,22 @@ export class CatalogRepositoryPostgres implements CatalogRepository {
   insertCategoryIfAbsent(category: CatalogCategory): Promise<boolean> {
     return guard(async () => {
       // Sin target: un ID o slug ya existentes dejan la fila previa intacta.
-      const inserted = await this.db
+      const inserted = await auditedWrite(this.db, catalogCategoriesTable, this.db
         .insert(catalogCategoriesTable)
         .values(categoryValues(category))
         .onConflictDoNothing()
-        .returning({ id: catalogCategoriesTable.id })
+        .returning(), 'category', 'created', category.storeId)
       return inserted.length > 0
     }, categoryWriteErrors)
   }
 
   insertProductIfAbsent(product: CatalogProduct): Promise<boolean> {
     return guard(async () => {
-      const inserted = await this.db
+      const inserted = await auditedWrite(this.db, catalogProductsTable, this.db
         .insert(catalogProductsTable)
         .values(productValues(product))
         .onConflictDoNothing({ target: catalogProductsTable.id })
-        .returning({ id: catalogProductsTable.id })
+        .returning(), 'product', 'created', product.storeId)
       return inserted.length > 0
     }, productWriteErrors)
   }

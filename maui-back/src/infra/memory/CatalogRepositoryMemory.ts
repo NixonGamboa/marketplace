@@ -1,3 +1,5 @@
+import { auditVersion, type AuditWrite } from '../../domain/audit/AuditRepository.js'
+import { AuditRepositoryMemory } from './AuditRepositoryMemory.js'
 import { isPubliclyVisible, type CatalogCategory, type CatalogProduct } from '../../domain/catalog/Catalog.js'
 import type { CatalogRepository, ProductVisibility } from '../../domain/catalog/CatalogRepository.js'
 import { CatalogConflictError, UnknownCategoryError } from '../../domain/catalog/errors.js'
@@ -22,7 +24,7 @@ export class CatalogRepositoryMemory implements CatalogRepository {
   private readonly categories = new Map<string, CatalogCategory>()
   private readonly products = new Map<string, CatalogProduct>()
 
-  constructor(private readonly storeExists: (storeId: string) => boolean) {}
+  constructor(private readonly storeExists: (storeId: string) => boolean, private readonly audit = new AuditRepositoryMemory()) {}
 
   async listCategories(storeId: string): Promise<CatalogCategory[]> {
     return [...this.categories.values()].filter((c) => c.storeId === storeId).sort(categoryOrder).map((c) => ({ ...c }))
@@ -33,27 +35,30 @@ export class CatalogRepositoryMemory implements CatalogRepository {
     return found && found.storeId === storeId ? { ...found } : null
   }
 
-  async createCategory(category: CatalogCategory): Promise<CatalogCategory> {
+  async createCategory(category: CatalogCategory, audit?: AuditWrite): Promise<CatalogCategory> {
     if (this.categories.has(category.id)) throw new CatalogConflictError('CATALOG_ID_TAKEN')
     this.assertCategoryWritable(category)
+    this.audit.append('category', 'created', category.storeId, category.id, auditVersion(audit, category.version, false))
     this.categories.set(category.id, { ...category })
     return { ...category }
   }
 
-  async updateCategory(category: CatalogCategory, expectedVersion: number): Promise<CatalogCategory | null> {
+  async updateCategory(category: CatalogCategory, expectedVersion: number, audit?: AuditWrite): Promise<CatalogCategory | null> {
     const current = this.categories.get(category.id)
     if (!current || current.storeId !== category.storeId || current.version !== expectedVersion) return null
     this.assertCategoryWritable(category)
+    this.audit.append('category', 'updated', category.storeId, category.id, auditVersion(audit, category.version, true))
     this.categories.set(category.id, { ...category })
     return { ...category }
   }
 
-  async deleteCategory(storeId: string, id: string): Promise<boolean> {
+  async deleteCategory(storeId: string, id: string, audit?: AuditWrite): Promise<boolean> {
     const current = this.categories.get(id)
     if (!current || current.storeId !== storeId) return false
     if ([...this.products.values()].some((p) => p.storeId === storeId && p.categoryId === id)) {
       throw new CatalogConflictError('CATEGORY_IN_USE')
     }
+    this.audit.append('category', 'deleted', current.storeId, current.id, auditVersion(audit, current.version, false))
     this.categories.delete(id)
     return true
   }
@@ -70,17 +75,19 @@ export class CatalogRepositoryMemory implements CatalogRepository {
     return found && found.storeId === storeId ? structuredClone(found) : null
   }
 
-  async createProduct(product: CatalogProduct): Promise<CatalogProduct> {
+  async createProduct(product: CatalogProduct, audit?: AuditWrite): Promise<CatalogProduct> {
     if (this.products.has(product.id)) throw new CatalogConflictError('CATALOG_ID_TAKEN')
     this.assertCategoryOfStore(product)
+    this.audit.append('product', 'created', product.storeId, product.id, auditVersion(audit, product.version, false))
     this.products.set(product.id, structuredClone(product))
     return structuredClone(product)
   }
 
-  async updateProduct(product: CatalogProduct, expectedVersion: number): Promise<CatalogProduct | null> {
+  async updateProduct(product: CatalogProduct, expectedVersion: number, audit?: AuditWrite): Promise<CatalogProduct | null> {
     const current = this.products.get(product.id)
     if (!current || current.storeId !== product.storeId || current.version !== expectedVersion) return null
     this.assertCategoryOfStore(product)
+    this.audit.append('product', 'updated', product.storeId, product.id, auditVersion(audit, product.version, true))
     this.products.set(product.id, structuredClone(product))
     return structuredClone(product)
   }
@@ -88,6 +95,7 @@ export class CatalogRepositoryMemory implements CatalogRepository {
   async insertCategoryIfAbsent(category: CatalogCategory): Promise<boolean> {
     if (this.categories.has(category.id) || this.slugTaken(category)) return false
     if (!this.storeExists(category.storeId)) throw new CatalogConflictError('STORE_NOT_CONFIGURED')
+    this.audit.append('category', 'created', category.storeId, category.id, auditVersion(undefined, category.version, false))
     this.categories.set(category.id, { ...category })
     return true
   }
@@ -95,6 +103,7 @@ export class CatalogRepositoryMemory implements CatalogRepository {
   async insertProductIfAbsent(product: CatalogProduct): Promise<boolean> {
     if (this.products.has(product.id)) return false
     this.assertCategoryOfStore(product)
+    this.audit.append('product', 'created', product.storeId, product.id, auditVersion(undefined, product.version, false))
     this.products.set(product.id, structuredClone(product))
     return true
   }

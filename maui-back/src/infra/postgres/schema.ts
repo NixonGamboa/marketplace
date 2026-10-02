@@ -251,3 +251,23 @@ export const catalogProductsTable = pgTable(
     versionValid: check('catalog_products_version_positive', sql`${t.version} >= 1`),
   }),
 )
+
+/** Historia independiente de entidades/cuentas: ningún borrado elimina la trazabilidad. */
+export const auditEventsTable = pgTable('audit_events', {
+  id: text('id').primaryKey(),
+  storeId: text('store_id').notNull(),
+  entity: text('entity').notNull(),
+  entityId: text('entity_id').notNull(),
+  action: text('action').notNull(),
+  actorKind: text('actor_kind').notNull(),
+  actorId: text('actor_id'),
+  metadata: jsonb('metadata').$type<import('../../../../shared/contracts/audit.js').AuditMetadata>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+}, t => ({
+  byStoreRecent: index('audit_by_store_recent').on(t.storeId, t.createdAt.desc(), t.id.desc()),
+  byEntityRecent: index('audit_by_entity_recent').on(t.storeId, t.entity, t.entityId, t.createdAt.desc(), t.id.desc()),
+  entityValid: check('audit_entity_valid', sql`${t.entity} in ('order', 'product', 'category', 'store')`),
+  actionValid: check('audit_action_valid', sql`${t.action} in ('created', 'updated', 'deleted', 'status_changed', 'items_changed')`),
+  actorShape: check('audit_actor_shape', sql`(${t.actorKind} = 'account' and ${t.actorId} is not null) or (${t.actorKind} = 'system' and ${t.actorId} is null)`),
+  metadataObject: check('audit_metadata_object', sql`jsonb_typeof(${t.metadata}) = 'object'`),
+}))

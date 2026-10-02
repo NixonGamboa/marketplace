@@ -1,3 +1,6 @@
+import { orderChangeAudit } from '../../domain/audit/orderAudit.js'
+import { auditVersion } from '../../domain/audit/AuditRepository.js'
+import { AuditRepositoryMemory } from './AuditRepositoryMemory.js'
 import type { Order } from '../../domain/orders/Order.js'
 import type {
   ListOrdersOptions,
@@ -35,6 +38,7 @@ const keepImmutable = (stored: Order, next: Order): Order => {
 }
 
 export class OrdersRepositoryMemory implements OrdersRepository {
+  constructor(private readonly audit = new AuditRepositoryMemory()) {}
   private readonly store = new Map<string, Order>()
   private readonly creations = new Map<string, StoredOrderCreation>()
   private readonly quotas = new Map<string, { start: number; count: number }>()
@@ -63,6 +67,7 @@ export class OrdersRepositoryMemory implements OrdersRepository {
       kind: 'limited', retryAfterSeconds: Math.max(1, Math.ceil((quota.start + input.quota.windowSeconds * 1000 - now) / 1000)),
     }
     const creation = { fingerprint: input.fingerprint, order: structuredClone(input.order) }
+    this.audit.append('order', 'created', input.storeId, input.order.id, { actor: { kind: 'account', id: input.customerId }, metadata: { version: 1, status: input.order.status, estimatedTotal: input.order.estimatedTotal } })
     this.store.set(input.order.id, structuredClone(input.order))
     this.creations.set(key, creation)
     this.quotas.set(input.quota.bucket, { ...quota, count: quota.count + 1 })
@@ -75,6 +80,7 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     if (this.store.has(order.id)) {
       throw new ConflictError(`Order ${order.id} already exists`)
     }
+    this.audit.append('order', 'created', order.storeId, order.id, auditVersion(undefined, order.version))
     this.store.set(order.id, order)
     return order
   }
@@ -105,11 +111,13 @@ export class OrdersRepositoryMemory implements OrdersRepository {
    * Compara y escribe sin `await` intermedio: indivisible en este adapter local. Igual que en la
    * creación, no conoce el catálogo: la vigencia de los sustitutos solo la garantiza PostgreSQL.
    */
-  async saveChange({ expected, next }: OrderChange): Promise<Order | null> {
+  async saveChange(change: OrderChange): Promise<Order | null> {
+    const { expected, next } = change
     const current = this.store.get(expected.id)
     if (!current || current.storeId !== expected.storeId || current.version !== expected.version ||
       current.status !== expected.status) return null
     const updated = structuredClone(keepImmutable(current, next))
+    this.audit.append('order', expected.status !== next.status ? 'status_changed' : 'items_changed', expected.storeId, expected.id, orderChangeAudit(change))
     this.store.set(expected.id, updated)
     return structuredClone(updated)
   }

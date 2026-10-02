@@ -1,3 +1,5 @@
+import { auditFor } from '../../domain/audit/AuditRepository.js'
+import type { AuditMetadata } from '../../../../shared/contracts/audit.js'
 import {
   issuesFromZodError,
   storeSettingsSchema,
@@ -47,6 +49,7 @@ export const updateStoreSettings = async (
   const updated = await deps.store.updateSettings(
     { ...current, ...merged.data, version: current.version + 1, updatedAt: deps.clock.nowIso() },
     current.version,
+    auditFor(actor, Object.keys(parsed.data) as AuditMetadata['fields']),
   )
   if (!updated) throw new StoreConflictError()
   return updated

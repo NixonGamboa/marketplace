@@ -1,3 +1,5 @@
+import { auditFor } from '../../domain/audit/AuditRepository.js'
+import type { AuditMetadata } from '../../../../shared/contracts/audit.js'
 import {
   CATALOG_CURRENCY,
   VARIABLE_WEIGHT_UNIT,
@@ -71,7 +73,7 @@ export const createProduct = async (
     version: 1,
     createdAt: now,
     updatedAt: now,
-  })
+  }, auditFor(actor))
 }
 
 /** `undefined` conserva el valor actual; `null` lo borra. */
@@ -133,6 +135,7 @@ export const updateProduct = async (
       updatedAt: now,
     },
     current.version,
+    auditFor(actor, Object.keys(patch) as AuditMetadata['fields']),
   )
   if (!updated) throw new CatalogConflictError('CATALOG_CONCURRENT_UPDATE')
   return updated

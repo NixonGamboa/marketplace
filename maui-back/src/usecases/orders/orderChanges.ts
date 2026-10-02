@@ -36,12 +36,14 @@ export const commitOrderChange = async (
   current: Order,
   next: Order,
   products: { id: string; version: number }[] = [],
+  audit?: import('../../domain/audit/orderAudit.js').OrderAuditChanges,
 ): Promise<Order> => {
   toOrderDto(next)
   const saved = await deps.orders.saveChange({
     expected: { id: current.id, storeId: current.storeId, version: current.version, status: current.status },
     next,
     products,
+    ...(audit ? { audit } : {}),
   })
   if (!saved) throw new OrderVersionConflictError()
   return saved

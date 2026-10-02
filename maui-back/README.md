@@ -2,6 +2,48 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
+## Auditoría comercial persistente (T-13)
+
+`GET /api/audit` exige sesión vigente **owner/operator** y lista únicamente eventos de
+su tienda leída de la cuenta en servidor. Customer recibe 403 y una sesión ausente,
+revocada o deshabilitada 401, antes de validar filtros. No admite `storeId` ni actor
+en query/body. Responde `{ items: AuditEvent[], nextCursor }`, `no-store` y `Vary: Cookie, Origin`.
+Un fallo de lectura/persistencia responde 503 saneado, sin SQL ni datos personales.
+
+Filtros opcionales: `entity` (`order/product/category/store`), `entityId`, `action`
+(`created/updated/deleted/status_changed/items_changed`), `from` inclusive y `to`
+exclusivo (ISO con zona, hasta milisegundos); `limit` decimal 1–100, 20 por defecto.
+Parámetros repetidos/desconocidos y fechas invertidas se rechazan con 400. Orden
+`createdAt DESC, id DESC`, keyset acotado en SQL; cursor canónico conserva microsegundos
+y se liga a cuenta, rol, tienda y filtros. Cambiar `limit` entre páginas es válido.
+
+Cada escritura comercial de pedidos, productos (incluido stock, archivo e imagen),
+categorías y configuración de tienda inserta su evento en la misma sentencia CTE.
+La creación idempotente usa `maui_commit_order_audited`: llama a la función T-10
+existente y audita solo `created`, en la misma transacción PostgreSQL. Fallar el INSERT
+de audit revierte cambio/claim/cuota; un CAS rechazado o replay no deja otro evento.
+Los locks de sustitutos y la máquina de estados T-12 permanecen vigentes. No utiliza
+transacciones interactivas, por lo que funciona con Neon HTTP.
+
+Actor opaco de la sesión, entidad/ID, tienda, acción y fecha de PostgreSQL se guardan
+en `audit_events`. Metadata tiene allowlist tipada: campos aplicados (solo nombres),
+versiones, estados, importes y cambios de ítems con IDs, cantidades/pesos y constancia
+de contacto. No copia nombres, teléfonos, direcciones, fotos/URLs, texto de cancelación,
+cookies, secretos ni snapshots. La cancelación conserva su motivo solo en el pedido.
+No hay FK a entidades/cuentas: borrar una categoría/cuenta no destruye su historia.
+
+Los métodos internos de seed/repositorio sin actor se identifican explícitamente como
+`actorKind: system`, `actorId: null`; no inventan una cuenta. La migración aditiva
+`0007_audit_persistence` añade tabla, índices/CHECK y wrapper SQL, sin backfill
+ni modificación de migraciones/función anteriores. Login/logout son seguridad de acceso,
+fuera de esta auditoría comercial. No se añade política de retención ni UI en T-13.
+
+Fixtures memory y PostgreSQL embebido prueban actor/tienda, replay, CAS concurrente,
+fallo inyectado de INSERT audit y rollback, PII, filtros/cursor de microsegundos y lectura
+HTTP con scrypt/JWT/sesiones reales. PGlite serializa conexiones: el smoke Neon/Preview
+es la evidencia adicional del despliegue y concurrencia real. Esta ruta completa
+**12 Vercel Functions**, sin añadir una por operación comercial.
+
 ## Creación de pedidos (T-10)
 
 `POST /api/orders` requiere sesión customer, Origin permitido e `Idempotency-Key` de
