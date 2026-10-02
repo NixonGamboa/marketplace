@@ -156,7 +156,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "43dd50df-f3b6-4d39-84f3-faac23916ac1",
       "identificadorEjecucion": null,
-      "estado": "implementación finalizada en feature local; sesión conservada; pendiente revisión Codex"
+      "estado": "finalizado; integrado en develop y comprobado en test real"
     },
     {
       "incremento": "t06-autorizacion-pedidos",
@@ -169,7 +169,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": null,
       "identificadorEjecucion": "chat existente",
-      "estado": "revisión local y 57 pruebas dirigidas aprobadas; PR y smoke pendientes"
+      "estado": "finalizado; integrado en develop y comprobado en test real"
     },
     {
       "incremento": "mantenimiento-documentacion",
