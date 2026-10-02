@@ -22,4 +22,3 @@ export async function auditedWrite<T extends Table>(db: Db, table: T, mutation: 
   return result.rows.map(row => Object.fromEntries(Object.entries(columns).map(([key, column]) =>
     [key, row[column.name] === null ? null : column.mapFromDriverValue(row[column.name])]))) as T['$inferSelect'][]
 }
-
