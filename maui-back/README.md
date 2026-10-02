@@ -24,6 +24,44 @@ No hay stock numérico ni descuento: se validan activo, no archivado y disponibl
 Las pruebas PGlite ejecutan SQL real en una conexión; concurrencia multiinstancia
 en Neon/Preview y revisión del otro proveedor son necesarias para cerrar T-10.
 
+## Listado histórico de pedidos (T-11)
+
+`GET /api/orders` lista pedidos con sesión vigente; es lectura, así que no exige `Origin`
+(sí lo exigen POST/PATCH). El alcance sale de la cuenta leída de BD en cada request, nunca
+de la query ni del body: **customer** ve solo sus pedidos (de cualquier tienda);
+**owner/operator** ven solo los de su tienda. Un rol/cuenta sin alcance responde 403, una
+sesión inválida o revocada 401 (antes de validar la query) y un fallo de persistencia 503
+genérico (sin SQL ni parámetros). Respuesta `no-store` con `Vary: Cookie, Origin`.
+
+Respuesta: `{ "items": OrderDto[], "nextCursor": string | null }`. Cada ítem sale por el
+mismo mapper (`toOrderDto`) que el detalle, sin `storeId`. Si una fila persistida no cumple
+el DTO, la página responde 500 (igual que el detalle), no datos malformados.
+
+| Parámetro | Regla |
+|---|---|
+| `q` | Texto literal 1–64 caracteres, sin control ni sustitutos sueltos. Coincide con el **inicio del ID**, un **fragmento del nombre** o, si parece teléfono (≥ 3 dígitos), un **fragmento de sus dígitos**. Sin distinguir mayúsculas (según la collation de la BD). `%`, `_` y `\` no son comodines: se evalúa con `strpos`, no con LIKE |
+| `status` | Uno de los estados de pedido |
+| `from` / `to` | ISO 8601 con zona (`Z` u offset `±HH:MM`; `+` va como `%2B`), hasta milisegundos, entre 2000-01-01Z y 3000-01-01Z. Filtran `createdAt`: `from` **inclusivo**, `to` **exclusivo**; `from` < `to` |
+| `limit` | Entero decimal 1–100 (20 por defecto); sin coerciones (`10abc`, `1e1`, `0x10` → 400) |
+| `cursor` | Opaco, el `nextCursor` anterior |
+
+Parámetros desconocidos o repetidos → 400 `VALIDATION_ERROR` con `issues` sin reflejar el valor.
+
+Orden `createdAt DESC, id DESC` con paginación **keyset** en SQL (`limit + 1`, sin COUNT ni
+carga de la tabla): alcance, filtros y búsqueda se aplican en la consulta. El cursor lleva la
+posición a **microsegundos** (la fecha se calcula en PostgreSQL con `to_char`, no se redondea a
+milisegundos, que perdería filas del mismo milisegundo) y un hash de actor, rol, alcance y
+filtros: reutilizarlo con otros filtros, cuenta, rol o tienda → 400 `cursor` inválido. Cambiar
+`limit` entre páginas sí es válido. La última página trae `nextCursor: null`.
+
+El cursor no es secreto ni autoriza: solo impide mezclar consultas. Migración aditiva
+`0005_orders_listing_indexes`: índices `(store_id, created_at DESC, id DESC)` y
+`(customer_id, …)` para el alcance y el orden sin ordenar aparte (el listado de cliente no tenía
+índice por `customer_id`); la consulta usa `DESC NULLS LAST` para coincidir con ellos.
+`listByStore` se conserva (solo tests lo consumen) como atajo de `listPage`; su antiguo
+`cursor` solo por fecha se eliminó por no tener consumidores. Las apps aún usan servicios mock:
+T-17/T-18 deben consumir este contrato y T-19 el polling.
+
 **Decisión de stack:** ver [`../docs/tecnicos/adr-001-stack-backend.md`](../docs/tecnicos/adr-001-stack-backend.md).
 
 ## Layout
@@ -37,7 +75,7 @@ en Neon/Preview y revisión del otro proveedor son necesarias para cerrar T-10.
 │   ├── catalog.ts             # → /api/catalog/* (una Function, dispatch por ?op=)
 │   ├── store.ts               # → /api/store, /api/store/staff
 │   └── orders/
-│       ├── index.ts           # → POST /api/orders
+│       ├── index.ts           # → GET (listado) y POST /api/orders
 │       ├── [id].ts            # → GET  /api/orders/:id
 │       └── [id]/status.ts     # → PATCH /api/orders/:id/status
 └── maui-back/
@@ -147,6 +185,7 @@ no sustituyen el smoke real Neon/Preview. El build unificado aún compila demo.
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET / HEAD | `/api/health` | SELECT 1 real; 200 conectado o 503 seguro |
+| GET | `/api/orders` | Listado paginado: cliente → sus pedidos; owner/operator → su tienda. Devuelve `{items, nextCursor}` |
 | POST | `/api/orders` | Solo customer; dueño = cuenta de la sesión, tienda fijada por servidor. Devuelve `OrderConfirmationDto` |
 | GET | `/api/orders/:id` | Cliente dueño u owner/operator de la tienda del pedido |
 | PATCH | `/api/orders/:id/status` | Owner/operator de la tienda del pedido (con validación de transición) |
@@ -156,8 +195,8 @@ cuenta está deshabilitada). Un pedido de otro cliente u otra tienda responde el
 404 que uno inexistente; un rol sin permiso, 403. `userId` del request debe coincidir
 con la sesión (si no, 403) y `storeId`/`customerId` se rechazan. POST/PATCH exigen
 `Origin` igual a `AUTH_ORIGIN` y JSON; las respuestas son `no-store`. Crear pedidos
-tiene límite persistente de 20 por cuenta y hora (429 con `Retry-After`). No hay
-endpoint de listado: T-11 lo añadirá reutilizando `domain/orders/orderAccess`.
+tiene límite persistente de 20 por cuenta y hora (429 con `Retry-After`). El listado
+(T-11) reutiliza `domain/orders/orderAccess`; ver su sección arriba.
 
 ### Catálogo y tienda (T-07/T-08)
 
@@ -199,7 +238,7 @@ previo conservado); el smoke real en Preview pasó. La BD de test sigue sin tien
 catálogo sembrados hasta T-16: `/api/store` responde 404 y `/api/catalog` vacío.
 Evidencia en el plan.
 
-GET/PATCH de pedidos devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
+GET/PATCH de pedidos devuelven `OrderDto` (el listado, `OrderDto[]` paginado); las rutas API inexistentes responden JSON 404,
 incluyendo `/api` y `/api/`. Métodos no admitidos responden 405 con `Allow`.
 El health ejecuta SELECT 1 con límite de cinco segundos y no publica URL/credenciales.
 El build unificado todavía usa demo: su eliminación corresponde a T-23.
@@ -283,8 +322,8 @@ verificar destino/ledger y su autorización propia antes de ejecutar.
 
 T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas
 (catálogo y tienda llegan en T-07/T-08; su uso en pedidos es T-10).
-Nombre/precio y envío del request aún no son autoridad confiable; T-10/T-12
-completan esas reglas. La autorización por cliente/tienda corresponde a T-06.
+T-10 toma catálogo y envío del servidor y garantiza la creación idempotente;
+T-12 completa estados y pesos. T-06 aplica autorización por cliente/tienda.
 
 La creación conserva un snapshot original con nombre, teléfono y domicilio. Borrar
 un pedido elimina su claim por cascada; una anonimización mediante UPDATE no cambia

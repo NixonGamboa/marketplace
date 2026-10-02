@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS "orders_by_store_recent" ON "orders" USING btree ("store_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_by_customer_recent" ON "orders" USING btree ("customer_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);

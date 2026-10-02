@@ -9,6 +9,7 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | `createOrderRequestSchema` | POST `/api/orders`, entrada estricta sin campos de resultado ni contexto interno |
 | `orderConfirmationSchema` | Respuesta de creación: ID, `received` y estimación |
 | `orderDtoSchema` | Lecturas cliente/admin, salida explícita sin `storeId` ni campos internos |
+| `listOrdersQuerySchema` / `orderListResponseSchema` | GET `/api/orders` (T-11): query estricta (`q`, `status`, `from` inclusivo, `to` exclusivo, `limit` 1–100, `cursor` opaco) y `{items: OrderDto[], nextCursor}`; el alcance lo fija la sesión |
 | `updateOrderStatusRequestSchema` | PATCH de estado, vocabulario común |
 | `apiErrorSchema` | `{error,message,issues?:[{path,message}]}` |
 | `productDtoSchema` / `categoryDtoSchema` | Catálogo público, mismo shape que `shared/catalog` (`Product`/`Category`) |

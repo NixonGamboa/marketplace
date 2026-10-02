@@ -60,6 +60,9 @@ export const ordersTable = pgTable(
   },
   (t) => ({
     byStoreStatus: index('orders_by_store_status').on(t.storeId, t.status, t.createdAt),
+    // Listado T-11: alcance + orden `created_at DESC, id DESC` sin ordenar en memoria.
+    byStoreRecent: index('orders_by_store_recent').on(t.storeId, t.createdAt.desc(), t.id.desc()),
+    byCustomerRecent: index('orders_by_customer_recent').on(t.customerId, t.createdAt.desc(), t.id.desc()),
   }),
 )
 
