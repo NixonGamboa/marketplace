@@ -150,29 +150,3 @@ export const mockCatalogRepository: CatalogRepository = {
   },
 }
 
-export const realCatalogRepository: CatalogRepository = {
-  listProducts() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  getProduct() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  upsertProduct() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  deleteProduct() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  toggleStock() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  listCategories() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  upsertCategory() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  deleteCategory() {
-    throw new Error('realCatalogRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}

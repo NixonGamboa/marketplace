@@ -135,14 +135,3 @@ export const mockAuthRepository: AuthRepository = {
   },
 }
 
-export const realAuthRepository: AuthRepository = {
-  login() {
-    throw new Error('realAuthRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  logout() {
-    throw new Error('realAuthRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-  getSession() {
-    throw new Error('realAuthRepository not implemented (swap from VITE_DEMO_MODE)')
-  },
-}
