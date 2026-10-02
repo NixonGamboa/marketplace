@@ -16,6 +16,7 @@ export interface OrderChange {
   expected: Pick<Order, 'id' | 'storeId' | 'version' | 'status'>
   next: Order
   /** Productos usados como sustitutos: deben seguir pedibles en la tienda con esta versión. */
+  audit?: import('../audit/orderAudit.js').OrderAuditChanges
   products: { id: string; version: number }[]
 }
 

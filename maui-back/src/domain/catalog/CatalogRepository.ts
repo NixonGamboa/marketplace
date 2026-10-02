@@ -1,3 +1,4 @@
+import type { AuditWrite } from '../audit/AuditRepository.js'
 import type { CatalogCategory, CatalogProduct } from './Catalog.js'
 
 /** `public`: solo activos y no archivados. `all`: vista de personal. */
@@ -14,19 +15,19 @@ export interface CatalogRepository {
   listCategories(storeId: string): Promise<CatalogCategory[]>
   findCategory(storeId: string, id: string): Promise<CatalogCategory | null>
   /** `STORE_NOT_CONFIGURED` si la tienda no existe; `CATEGORY_SLUG_TAKEN` si el slug se repite. */
-  createCategory(category: CatalogCategory): Promise<CatalogCategory>
+  createCategory(category: CatalogCategory, audit?: AuditWrite): Promise<CatalogCategory>
   /** Escribe solo si la versión persistida es `expectedVersion`; `null` si cambió o no existe. */
-  updateCategory(category: CatalogCategory, expectedVersion: number): Promise<CatalogCategory | null>
+  updateCategory(category: CatalogCategory, expectedVersion: number, audit?: AuditWrite): Promise<CatalogCategory | null>
   /** `false` si no existe en la tienda; `CATEGORY_IN_USE` si un producto (incluso archivado) la usa. */
-  deleteCategory(storeId: string, id: string): Promise<boolean>
+  deleteCategory(storeId: string, id: string, audit?: AuditWrite): Promise<boolean>
 
   /** Orden: creación e ID (el seed conserva el orden del baseline). */
   listProducts(storeId: string, visibility: ProductVisibility): Promise<CatalogProduct[]>
   findProduct(storeId: string, id: string): Promise<CatalogProduct | null>
   /** `UnknownCategoryError` si la categoría no existe en la tienda del producto. */
-  createProduct(product: CatalogProduct): Promise<CatalogProduct>
+  createProduct(product: CatalogProduct, audit?: AuditWrite): Promise<CatalogProduct>
   /** Igual que `updateCategory`; también valida la categoría de la misma tienda. */
-  updateProduct(product: CatalogProduct, expectedVersion: number): Promise<CatalogProduct | null>
+  updateProduct(product: CatalogProduct, expectedVersion: number, audit?: AuditWrite): Promise<CatalogProduct | null>
 
   /** Seed idempotente: inserta solo si el ID (o el slug) no existe y nunca sobrescribe. */
   insertCategoryIfAbsent(category: CatalogCategory): Promise<boolean>

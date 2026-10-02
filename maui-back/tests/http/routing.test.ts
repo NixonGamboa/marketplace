@@ -45,16 +45,18 @@ describe('fallbacks de routing después del filesystem de Vercel', () => {
     expect(fallback(path)).toBe('/api/not-found')
   })
 
-  it('catálogo y tienda suman solo dos Functions (11 en total), sin una por operación', () => {
+  it('auditoría usa la Function número 12; catálogo y tienda conservan una por módulo', () => {
     const apiRoot = new URL('../../../api/', import.meta.url)
     const functions = (readdirSync(apiRoot, { recursive: true }) as string[])
       .map(file => file.replaceAll('\\', '/'))
       .filter(file => file.endsWith('.ts') && !file.startsWith('_lib/'))
       .sort()
     expect(functions).toEqual([
+      'audit.ts',
       'auth/login.ts', 'auth/logout.ts', 'auth/register.ts', 'auth/session.ts', 'catalog.ts', 'health.ts',
       'not-found.ts', 'orders/[id].ts', 'orders/[id]/status.ts', 'orders/index.ts', 'store.ts',
     ])
+    expect(functions.length).toBeLessThanOrEqual(12)
   })
 
   it.each(['/api', '/api/', '/api/no-existe', '/api/no-existe/', '/api/orders/desconocido/ruta'])('%s usa handler JSON 404', path => {

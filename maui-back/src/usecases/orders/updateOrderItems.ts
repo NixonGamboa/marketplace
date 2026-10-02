@@ -33,5 +33,11 @@ export const updateOrderItems = async (
 
   const next = applyItemChanges(current, changes, catalog, context)
   const used = products.flatMap((product) => (product ? [{ id: product.id, version: product.version }] : []))
-  return commitOrderChange(deps, current, next, used)
+  return commitOrderChange(deps, current, next, used, changes.map(change => ({
+    type: change.type, itemId: change.itemId,
+    ...(change.type === 'substitute' ? { productId: change.productId, qty: change.qty,
+      ...(change.kilosRequested !== undefined ? { kilosRequested: change.kilosRequested } : {}) } : {}),
+    ...('kilosReal' in change && change.kilosReal !== undefined ? { kilosReal: change.kilosReal } : {}),
+    ...('customerContacted' in change ? { customerContacted: change.customerContacted ?? false } : {}),
+  })))
 }

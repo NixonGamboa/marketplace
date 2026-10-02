@@ -1,3 +1,5 @@
+import type { AuditWrite } from '../../domain/audit/AuditRepository.js'
+import { auditedWrite } from './auditedWrite.js'
 import { and, eq } from 'drizzle-orm'
 import { normalizeIsoUtc, storeSettingsSchema } from '../../../../shared/contracts/index.js'
 import { StorePersistenceError } from '../../domain/store/errors.js'
@@ -80,23 +82,23 @@ export class StoreRepositoryPostgres implements StoreRepository {
 
   insertSettingsIfAbsent(settings: StoreSettings): Promise<boolean> {
     return guard(async () => {
-      const inserted = await this.db
+      const inserted = await auditedWrite(this.db, storesTable, this.db
         .insert(storesTable)
         .values(toRow(settings))
         .onConflictDoNothing({ target: storesTable.id })
-        .returning({ id: storesTable.id })
+        .returning(), 'store', 'created', settings.id)
       return inserted.length > 0
     })
   }
 
-  updateSettings(settings: StoreSettings, expectedVersion: number): Promise<StoreSettings | null> {
+  updateSettings(settings: StoreSettings, expectedVersion: number, audit?: AuditWrite): Promise<StoreSettings | null> {
     return guard(async () => {
       const { id: _id, createdAt: _createdAt, ...changes } = toRow(settings)
-      const [row] = await this.db
+      const [row] = await auditedWrite(this.db, storesTable, this.db
         .update(storesTable)
         .set(changes)
         .where(and(eq(storesTable.id, settings.id), eq(storesTable.version, expectedVersion)))
-        .returning()
+        .returning(), 'store', 'updated', settings.id, audit)
       return row ? toSettings(row) : null
     })
   }

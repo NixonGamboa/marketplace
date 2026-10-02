@@ -1,3 +1,5 @@
+import { auditFor } from '../../domain/audit/AuditRepository.js'
+import type { AuditMetadata } from '../../../../shared/contracts/audit.js'
 import {
   createCategoryRequestSchema,
   issuesFromZodError,
@@ -39,7 +41,7 @@ export const createCategory = async (
     version: 1,
     createdAt: now,
     updatedAt: now,
-  })
+  }, auditFor(actor))
 }
 
 const patched = <T>(next: T | null | undefined, current: T | null): T | null => (next === undefined ? current : next)
@@ -71,6 +73,7 @@ export const updateCategory = async (
       updatedAt: deps.clock.nowIso(),
     },
     current.version,
+    auditFor(actor, Object.keys(patch) as AuditMetadata['fields']),
   )
   if (!updated) throw new CatalogConflictError('CATALOG_CONCURRENT_UPDATE')
   return updated
@@ -83,5 +86,5 @@ export const updateCategory = async (
  */
 export const deleteCategory = async (deps: ManageCategoriesDeps, actor: StoreActor, id: string): Promise<void> => {
   const storeId = ownedStoreOf(actor)
-  if (!(await deps.catalog.deleteCategory(storeId, id))) throw new NotFoundError('Category', id)
+  if (!(await deps.catalog.deleteCategory(storeId, id, auditFor(actor)))) throw new NotFoundError('Category', id)
 }

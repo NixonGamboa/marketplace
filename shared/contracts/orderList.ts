@@ -42,7 +42,7 @@ const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[
 const MILLISECOND_PRECISION = /^[^.]*(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/
 
 /** Fecha con zona explícita; normaliza a ISO UTC con milisegundos. */
-const listTimestampSchema = z
+export const listTimestampSchema = z
   .string()
   .datetime({ offset: true, message: 'Use ISO 8601 con zona (Z u offset ±HH:MM)' })
   .refine((value) => MILLISECOND_PRECISION.test(value), 'La precisión máxima es de milisegundos')
@@ -56,13 +56,13 @@ const searchSchema = z
   .max(ORDER_LIST_LIMITS.maxSearchLength, `Máximo ${ORDER_LIST_LIMITS.maxSearchLength} caracteres`)
   .refine((value) => !CONTROL_CHARACTERS.test(value) && !LONE_SURROGATE.test(value), 'Texto inválido')
 
-const limitSchema = z
+export const listLimitSchema = z
   .string()
   .regex(/^[1-9]\d{0,2}$/, 'Entero decimal entre 1 y 100')
   .transform(Number)
   .refine((value) => value <= ORDER_LIST_LIMITS.maxLimit, `Máximo ${ORDER_LIST_LIMITS.maxLimit}`)
 
-const cursorSchema = z
+export const listCursorSchema = z
   .string()
   .max(ORDER_LIST_LIMITS.maxCursorLength)
   .regex(/^[A-Za-z0-9_-]+$/, 'Cursor inválido')
@@ -77,8 +77,8 @@ export const listOrdersQuerySchema = z
     status: z.enum(ORDER_STATUS_VALUES).optional(),
     from: listTimestampSchema.optional(),
     to: listTimestampSchema.optional(),
-    limit: limitSchema.optional(),
-    cursor: cursorSchema.optional(),
+    limit: listLimitSchema.optional(),
+    cursor: listCursorSchema.optional(),
   })
   .strict()
   .superRefine((query, ctx) => {

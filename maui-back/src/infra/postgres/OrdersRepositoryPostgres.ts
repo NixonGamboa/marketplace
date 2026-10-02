@@ -1,3 +1,6 @@
+import { newId } from '../../shared/ids.js'
+import { orderChangeAudit } from '../../domain/audit/orderAudit.js'
+import { auditedWrite } from './auditedWrite.js'
 import { and, eq, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Order } from '../../domain/orders/Order.js'
@@ -105,11 +108,12 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
   private async commitCreation(input: CommitOrderCreation): Promise<CommitOrderResult> {
     // Una llamada/una transacción SQL, compatible con Neon HTTP y varias instancias.
     const result = await this.db.execute<{ result: unknown }>(sql`
-      SELECT maui_commit_order(
+      SELECT maui_commit_order_audited(
         ${input.customerId}::text, ${input.storeId}::text, ${input.keyHash}::text,
         ${input.fingerprint}::text, ${JSON.stringify(input.order)}::jsonb,
         ${input.storeVersion}::integer, ${JSON.stringify(input.products)}::jsonb,
-        ${input.quota.bucket}::text, ${input.quota.limit}::integer, ${input.quota.windowSeconds}::integer
+        ${input.quota.bucket}::text, ${input.quota.limit}::integer, ${input.quota.windowSeconds}::integer,
+        ${newId()}::text
       ) AS result
     `)
     const value = result.rows[0]?.result
@@ -129,7 +133,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
   }
 
   async create(order: Order): Promise<Order> {
-    const [row] = await this.db.insert(ordersTable).values(orderToRecord(order)).returning()
+    const [row] = await auditedWrite(this.db, ordersTable, this.db.insert(ordersTable).values(orderToRecord(order)).returning(), 'order', 'created', order.storeId)
     if (!row) throw new Error('Insert failed')
     return orderFromRecord(row)
   }
@@ -187,9 +191,10 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
    * envío, cliente y entrega no se tocan. Con sustitutos, la misma sentencia los bloquea (ver
    * `substitutesLocked`), así el pedido nunca confirma un snapshot de catálogo obsoleto.
    */
-  saveChange({ expected, next, products }: OrderChange): Promise<Order | null> {
+  saveChange(change: OrderChange): Promise<Order | null> {
+    const { expected, next, products } = change
     return guardPersistence(async () => {
-      const [row] = await this.db
+      const [row] = await auditedWrite(this.db, ordersTable, this.db
         .update(ordersTable)
         .set({
           status: next.status,
@@ -210,7 +215,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
           eq(ordersTable.status, expected.status),
           ...(products.length > 0 ? [substitutesLocked(expected.storeId, products)] : []),
         ))
-        .returning()
+        .returning(), 'order', expected.status !== next.status ? 'status_changed' : 'items_changed', expected.storeId, orderChangeAudit(change))
       return row ? orderFromRecord(row) : null
     })
   }

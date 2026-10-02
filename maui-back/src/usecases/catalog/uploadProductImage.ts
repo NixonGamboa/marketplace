@@ -1,3 +1,4 @@
+import { auditFor } from '../../domain/audit/AuditRepository.js'
 import type { AuthRepository } from '../../domain/auth/AuthRepository.js'
 import type { BucketKeyer } from '../../domain/auth/ports.js'
 import type { CatalogProduct } from '../../domain/catalog/Catalog.js'
@@ -44,7 +45,7 @@ export const uploadProductImage = async (
   const image = await deps.storage.put(storeId, webp)
   const updated = await deps.catalog.updateProduct({
     ...current, imageUrl: image.url, version: current.version + 1, updatedAt: deps.clock.nowIso(),
-  }, expectedVersion)
+  }, expectedVersion, auditFor(actor, ['imageUrl']))
   // Si SQL lanza, el resultado es incierto y se conserva el blob para reconciliación:
   // nunca borrar una imagen cuyo UPDATE podría confirmar después de un timeout.
   if (!updated) {
