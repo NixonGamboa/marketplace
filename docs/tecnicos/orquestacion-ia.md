@@ -51,8 +51,8 @@ No fijar un reparto 50/50 ni duplicar implementación para comparar asistentes. 
 |---|---|---|---|
 | Edición mecánica, documentación o corrección localizada con causa conocida | `gpt-6.1-sol`, `low` | Sonnet, `low` | Cambios pequeños dentro de un bloque; subir a `medium` si cambia comportamiento |
 | Implementación habitual con contratos estables | `gpt-6.1-sol`, `medium` | Sonnet, `medium` | CRUD T-07/T-08; comprobante/enlaces T-14; adapters/UI T-17/T-18; polling T-19; parte habitual de seed/storage/observabilidad |
-| Integración y reglas con riesgo de seguridad o pérdida de datos | `gpt-6.1-sol`, `high` | Sonnet, `high`; Opus, `medium` para análisis más complejo | Entornos y CI T-01–T-03; contratos/auth T-04–T-06; permisos/paginación T-11; audit T-13; pruebas T-15/T-22; caché privada T-20; despliegue/cierre T-23/T-24 |
-| Precios/pesos, idempotencia, estados y concurrencia | `gpt-6.1-sol`, `xhigh` para diseñar y resolver; `high` con decisión estable | Opus, `high`; Sonnet, `high` para implementación ya delimitada | T-10/T-12; revisión de reset seguro T-16, uploads T-09 y restauración T-21 según riesgo |
+| Integración y reglas con riesgo de seguridad o pérdida de datos | `gpt-6.1-sol`, `high` | Sonnet, `high` | Entornos y CI T-01–T-03; contratos/auth T-04–T-06; permisos/paginación T-11; audit T-13; pruebas T-15/T-22; caché privada T-20; despliegue/cierre T-23/T-24; reset seguro T-16, uploads T-09 y restauración T-21 |
+| Precios/pesos, idempotencia, estados y concurrencia | `gpt-6.1-sol`, `xhigh` para diseñar y resolver; `high` con decisión estable | Opus, `high`; Sonnet, `high` para implementación ya delimitada | T-10/T-12 |
 | Diagnóstico difícil o decisión transversal aún no resuelta con evidencia | `gpt-6-astra`, `high`; `xhigh` si persiste dificultad justificada | Opus, `high`; `xhigh` si el modelo lo admite y aporta valor | Escalación acotada de cualquier T-*; volver al modelo base al cerrar la decisión |
 
 Modelo base Codex: **GPT-6.1 Sol** (`gpt-6.1-sol`), ya presente en la configuración local. Alternativa si no está disponible: GPT-6 Sol (`gpt-6-sol`) con esfuerzo adecuado; no migrar por defecto a modelos anteriores. **Astra** (`gpt-6-astra`) queda reservado a problemas que justifican su mayor consumo. [Selección y esfuerzo de Codex](https://learn.chatgpt.com/docs/models).
@@ -112,9 +112,13 @@ El consumo depende de solicitudes y actividad efectivas además del contexto pro
 
 **Cerrar procesos, borrar chats, iniciar sesión nueva o compactar no recupera capacidad consumida ni reinicia cuotas.** El ahorro se busca en ejecuciones acotadas, contexto relevante y cierre de ejecutores sin tarea. Al finalizar un encargo, comprobar y detener únicamente la actividad que le pertenece (incluidas automatizaciones independientes). No borrar historial ni finalizar sesiones ajenas como medida de ahorro. Una estimación monetaria de tokens no es un cobro adicional.
 
+Opus queda reservado a T-10/T-12 y a escalaciones con diagnóstico y alcance registrados; el CRUD habitual vuelve a Sonnet. Antes de T-10 se informa el margen de Claude realmente disponible: porcentaje del usuario con fecha, estado de uso verificable o límite del CLI. Si solo existe un dato anterior, se identifica como tal, sin afirmar una cuota actual.
+
 ## Registro de sesiones
 
 [`ejecucion-ia.json`](ejecucion-ia.json) contiene **solo sesiones**, una entrada por ejecutor y bloque: incremento, rama, bloque, proveedor, rol, modelo, esfuerzo solicitado y efectivo, session ID, identificador de ejecución y estado. Un ejecutor que cubre varios bloques tiene una entrada por bloque con el mismo ID, sin contarse como sesión nueva. Datos no expuestos por la herramienta (modelo/ID del chat orquestador, esfuerzo efectivo) se registran `null`; no se inventan. Evidencia técnica, diffs, validaciones, cloud y correcciones viven únicamente en el plan.
+
+Desde T-10 se registra también el modelo y esfuerzo efectivos del orquestador/revisor: usar metadatos `turn_context` de su sesión local cuando estén disponibles. Configuración preferida y flags solicitados no prueban por sí solos el modelo/esfuerzo efectivos. En Claude, registrar el modelo canónico de `system/init`; si solo se expone esfuerzo activado, conservar el nivel efectivo como `null` y registrar el solicitado por separado. No completar retrospectivamente datos no comprobados.
 
 Tokens/duración y cuotas se anotan solo si el CLI o una fuente verificable los expone. No guardar credenciales, transcripts ni errores con secretos. Los checkpoints son comunicación entre agentes, no specs ni aprobaciones SDD.
 

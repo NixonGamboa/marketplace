@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "actualizado": "2026-10-01",
+  "actualizado": "2026-10-02",
   "sesiones": [
     {
       "incremento": "c1-base-test-contratos",
@@ -261,6 +261,32 @@
       "sessionId": null,
       "identificadorEjecucion": "chat existente",
       "estado": "finalizado; reporte combinado publicado y verificado"
+    },
+    {
+      "incremento": "t10-pedidos-autoritativos",
+      "rama": "feature/pedidos-autoritativos-idempotentes",
+      "bloque": "T-10",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor principal",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "457c6999-b04d-4a3c-9c43-bfc00e23c526",
+      "identificadorEjecucion": null,
+      "estado": "finalizado por límite de cuota"
+    },
+    {
+      "incremento": "t10-pedidos-autoritativos",
+      "rama": "feature/pedidos-autoritativos-idempotentes",
+      "bloque": "T-10",
+      "proveedor": "Codex",
+      "rol": "orquestador y ejecutor de continuidad",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": "high",
+      "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
+      "identificadorEjecucion": "turn_context 2026-10-02T05:04:27.06Z",
+      "estado": "validación local; revisión cruzada pendiente"
     }
   ]
 }
