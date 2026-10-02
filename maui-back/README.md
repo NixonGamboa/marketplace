@@ -285,3 +285,7 @@ T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones ató
 (catálogo y tienda llegan en T-07/T-08; su uso en pedidos es T-10).
 Nombre/precio y envío del request aún no son autoridad confiable; T-10/T-12
 completan esas reglas. La autorización por cliente/tienda corresponde a T-06.
+
+La creación conserva un snapshot original con nombre, teléfono y domicilio. Borrar
+un pedido elimina su claim por cascada; una anonimización mediante UPDATE no cambia
+el snapshot. Una política posterior de privacidad/retención debe abarcar ambas tablas.
