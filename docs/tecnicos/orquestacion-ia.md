@@ -40,7 +40,7 @@ Usar autenticación por suscripción. Antes de lanzar procesos, comprobar auth y
 | Lint/typecheck/tests/build | Herramientas locales, coordinadas por Codex | Comandos y resultado; sin un segundo modelo leyendo logs completos |
 | Integración, comprobación de alcance y actualización de estado | Codex orquestador | Diff y evidencia de pruebas; leer código afectado según riesgo |
 
-No fijar un reparto 50/50 ni duplicar implementación para comparar asistentes. La asignación inicial favorece que Claude resuelva implementación acotada mientras Codex conserva margen para coordinación y validación; cambiarlo según límites/resultado real. Elegir modelo y esfuerzo por bloque mediante la matriz siguiente, sin cambiar preferencias globales ni intentar saltarse límites con otro modelo.
+No fijar un reparto 50/50 ni duplicar implementación para comparar asistentes. La asignación inicial favorece que Claude resuelva implementación acotada mientras Codex conserva margen para coordinación y validación; cambiarlo según límites/resultado real. **Preferencia vigente (T-07/T-08):** cargar en Claude más implementación, ejecución de gates locales y actualización documental del bloque; Codex se concentra en revisar fronteras/permisos/contratos y en Git/PR/cloud. Elegir modelo y esfuerzo por bloque mediante la matriz siguiente, sin cambiar preferencias globales ni intentar saltarse límites con otro modelo.
 
 ## Modelos y esfuerzo por complejidad
 

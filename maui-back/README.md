@@ -12,6 +12,8 @@ Backend real de MAUI. Vercel Functions + Neon Postgres.
 │   ├── health.ts              # → GET  /api/health
 │   ├── _lib/                  # helpers HTTP compartidos
 │   ├── auth/                  # registro cliente, login, sesión y logout
+│   ├── catalog.ts             # → /api/catalog/* (una Function, dispatch por ?op=)
+│   ├── store.ts               # → /api/store, /api/store/staff
 │   └── orders/
 │       ├── index.ts           # → POST /api/orders
 │       ├── [id].ts            # → GET  /api/orders/:id
@@ -135,7 +137,44 @@ con la sesión (si no, 403) y `storeId`/`customerId` se rechazan. POST/PATCH exi
 tiene límite persistente de 20 por cuenta y hora (429 con `Retry-After`). No hay
 endpoint de listado: T-11 lo añadirá reutilizando `domain/orders/orderAccess`.
 
-GET/PATCH devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
+### Catálogo y tienda (T-07/T-08)
+
+| Método | Ruta | Acceso |
+|---|---|---|
+| GET | `/api/catalog` | Público: categorías y productos activos no archivados de la tienda fijada por el servidor |
+| GET | `/api/catalog/products/:id` | Público; oculto, archivado o inexistente responden el mismo 404 |
+| GET | `/api/catalog/staff` | Owner/operator: todo el catálogo de su tienda, con `active`/`archived` |
+| POST | `/api/catalog/products` | Owner; ID asignado por el servidor (201 `StaffProductDto`) |
+| PATCH | `/api/catalog/products/:id` | Owner; incluye agotado, publicación y archivo/restauración |
+| POST | `/api/catalog/categories` | Owner; slug único por tienda |
+| PATCH / DELETE | `/api/catalog/categories/:id` | Owner; DELETE con productos (incluso archivados) → 409 `CATEGORY_IN_USE` |
+| GET | `/api/store` | Público: configuración y `availability` calculada en America/Bogota |
+| GET / PATCH | `/api/store/staff` | GET owner/operator de su tienda; PATCH solo owner |
+
+Solo dos Functions nuevas (11 en total): `vercel.json` reescribe cada ruta a
+`/api/catalog?op=…&id=…` o `/api/store?op=staff` antes del catch-all; una operación
+desconocida o repetida responde el 404 JSON común. Permisos según el admin vigente:
+catálogo, categorías, tienda y configuración son pantallas `owner`; el operador solo
+lee. Tienda y actor salen de la cuenta de la sesión; el body los rechaza (strict) y
+otra tienda responde 404. Mutaciones exigen `Origin` exacto y JSON ≤ 16 KiB.
+
+Productos: `active`, `inStock` y archivo son independientes; no hay borrado, el archivo
+conserva ID y pedidos históricos. FK compuesta `(store_id, category_id)` con RESTRICT
+impide usar categorías de otra tienda y borrar una categoría usada en la misma
+sentencia (PostgreSQL reporta `23001`/`23503`); CHECK repiten COP, precio/kg y unidad.
+Ediciones condicionadas por `version` (409 ante concurrencia). Tienda: horario semanal,
+override, corte de domicilio, franjas, envío/umbral y nota de cobertura; sin geocerca
+ni geocodificación. `usecases/store/evaluateOrderFulfillment` deja listas las reglas de
+cierre/corte/franja/envío para T-10, que debe pasarle el subtotal calculado con el
+catálogo del servidor. Sin tienda inicializada, `/api/store` responde 404 y el
+catálogo público queda vacío: `initializeStore` y `seedCatalogBaseline` son el seed
+idempotente de servidor para T-16 (no sobrescriben ediciones).
+
+La migración aditiva `0003_catalog_store_settings.sql` crea `stores`,
+`catalog_categories` y `catalog_products` sin tocar tablas previas. Se generó offline
+y se probó en PostgreSQL embebido; **no se aplicó a Neon**.
+
+GET/PATCH de pedidos devuelven `OrderDto`; las rutas API inexistentes responden JSON 404,
 incluyendo `/api` y `/api/`. Métodos no admitidos responden 405 con `Allow`.
 El health ejecuta SELECT 1 con límite de cinco segundos y no publica URL/credenciales.
 El build unificado todavía usa demo: su eliminación corresponde a T-23.
@@ -217,6 +256,7 @@ aplicada y comprobada en Neon dev/maui durante C1 el 2026-10-01, conservando el
 pedido previo; la evidencia está en el plan. Las migraciones nuevas requieren
 verificar destino/ledger y su autorización propia antes de ejecutar.
 
-T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas.
+T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas
+(catálogo y tienda llegan en T-07/T-08; su uso en pedidos es T-10).
 Nombre/precio y envío del request aún no son autoridad confiable; T-10/T-12
 completan esas reglas. La autorización por cliente/tienda corresponde a T-06.

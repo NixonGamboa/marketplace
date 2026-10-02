@@ -183,6 +183,32 @@
       "sessionId": "8af877cf-e1c7-43db-96d5-eaacecdaed3e",
       "identificadorEjecucion": null,
       "estado": "finalizado"
+    },
+    {
+      "incremento": "t07-t08-catalogo-tienda",
+      "rama": "feature/catalogo-tienda-real",
+      "bloque": "T-07",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor principal",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "272057cb-2dfd-4bb9-bb1b-dbab527bd26d",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; validado en feature local, pendiente revisión, PR y smoke"
+    },
+    {
+      "incremento": "t07-t08-catalogo-tienda",
+      "rama": "feature/catalogo-tienda-real",
+      "bloque": "T-08",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor principal",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "272057cb-2dfd-4bb9-bb1b-dbab527bd26d",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; validado en feature local, pendiente revisión, PR y smoke"
     }
   ]
 }

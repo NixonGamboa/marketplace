@@ -15,6 +15,12 @@ import { useCheckoutStore } from './checkoutStore'
 import type { DeliveryMode, TimeSlot } from './checkoutStore'
 import { TIME_SLOT_OPTIONS, PICKUP_SUBTEXT } from '@/config/app'
 
+/**
+ * Nota informativa: no hay verificación geográfica automática (GPS opcional, sin geocerca).
+ * El servidor la publica en `delivery.coverageNote` de GET /api/store; T-18 la tomará de ahí.
+ */
+const COVERAGE_NOTE = 'Solo hay cobertura en el casco urbano de Dolores'
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DeliverySelector() {
@@ -218,6 +224,12 @@ export default function DeliverySelector() {
             className="flex-shrink-0 text-brand-muted"
           />
         </button>
+
+        {isDelivery && (
+          <p className="bg-white pb-2 pl-24 pr-4 text-[11px] leading-snug text-brand-muted">
+            {COVERAGE_NOTE}
+          </p>
+        )}
 
         {/* Editor de dirección — inline, integrado dentro de la fila delivery */}
         {isDelivery && addressEditorOpen && (
