@@ -27,6 +27,7 @@ import {
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
 import { orderService } from '@/services'
+import { checkoutErrorMessage } from '@/services/checkoutErrorMessage'
 import type { OrderPayload } from '@/types/orderService'
 
 import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
@@ -620,8 +621,8 @@ export default function CheckoutPage() {
       navigate(`/pedidos/${confirmation.orderId}`, { replace: true })
       clearCart()          // SOLO tras éxito
       checkout.reset()
-    } catch {
-      setSubmitError('No pudimos procesar tu pedido. Inténtalo de nuevo.')
+    } catch (error) {
+      setSubmitError(checkoutErrorMessage(error))
       checkout.setSubmitting(false)
       // El carrito NO se destruye — el usuario puede reintentar
     }
