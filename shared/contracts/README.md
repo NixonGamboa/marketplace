@@ -35,8 +35,9 @@ a `id/qty/kilosRequested`, y `ask/allow/none` a `call_me/similar/remove`. Envío
 total final desconocidos se omiten; no se inventan pesos reales. Filas que no
 cumplen el DTO de salida producen un error seguro, no datos malformados.
 
-La API aún carece de auth/autorización (T-05/T-06), catálogo servidor e idempotencia
-(T-10), y actualizaciones atómicas de estados/pesos (T-12). El request actual
-todavía acepta datos del cliente que esos bloques reemplazarán por autoridad del
-servidor. Este contrato no acredita que los servicios reales de ambas apps estén
+Los endpoints de pedidos exigen sesión (T-06): el dueño y la tienda los fija el
+servidor y `userId` del request solo se admite si coincide con la cuenta autenticada
+(si no, 403). Faltan catálogo servidor e idempotencia (T-10) y actualizaciones
+atómicas de estados/pesos (T-12): precio y nombre del request siguen siendo datos
+del cliente que esos bloques reemplazarán por autoridad del servidor. Este contrato no acredita que los servicios reales de ambas apps estén
 conectados: T-17/T-18 y el build real T-23 siguen pendientes.

@@ -4,3 +4,6 @@
 MAUI-PWA-customers/new-design/
 
 /node_modules/
+
+# ─── Bitácora local (no es documentación del proyecto) ──────────
+/docs/bitacora/

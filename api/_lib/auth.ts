@@ -10,7 +10,7 @@ import {
 } from '../../maui-back/src/domain/auth/errors.js'
 import { SESSION_TTL_SECONDS } from '../../maui-back/src/domain/auth/policy.js'
 import { AuthConfigurationError, type AuthConfig } from '../../maui-back/src/infra/auth/config.js'
-import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
+import type { AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import {
   isTrustedOrigin,
   readSessionToken,
@@ -84,11 +84,11 @@ const declaredLength = (req: VercelRequest): number => {
  * El body ya llega parseado por el runtime de Vercel; Content-Length acota lo declarado y el
  * tamaño re-serializado cubre bodies sin Content-Length (chunked).
  */
-export const readJsonBody = (req: VercelRequest): Record<string, unknown> => {
+export const readJsonBody = (req: VercelRequest, maxBytes = MAX_AUTH_BODY_BYTES): Record<string, unknown> => {
   if (!isJsonContentType(req.headers['content-type'])) {
     throw new AuthRequestError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Se requiere Content-Type application/json')
   }
-  if (declaredLength(req) > MAX_AUTH_BODY_BYTES) {
+  if (declaredLength(req) > maxBytes) {
     throw new AuthRequestError(413, 'PAYLOAD_TOO_LARGE', 'Cuerpo demasiado grande')
   }
 
@@ -101,7 +101,7 @@ export const readJsonBody = (req: VercelRequest): Record<string, unknown> => {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new AuthRequestError(400, 'INVALID_JSON', 'Se esperaba un objeto JSON')
   }
-  if (Buffer.byteLength(JSON.stringify(body)) > MAX_AUTH_BODY_BYTES) {
+  if (Buffer.byteLength(JSON.stringify(body)) > maxBytes) {
     throw new AuthRequestError(413, 'PAYLOAD_TOO_LARGE', 'Cuerpo demasiado grande')
   }
   return body as Record<string, unknown>
@@ -165,11 +165,6 @@ export const failAuth = (res: VercelResponse, err: unknown, config?: AuthConfig)
   }
 }
 
-/**
- * Autenticación de una request para handlers protegidos. Disponible para T-06, que la
- * conectará a los endpoints de pedidos; en T-05 ningún endpoint de pedidos la usa todavía.
- */
-export const authenticateRequest = async (req: VercelRequest): Promise<AuthContext> => {
-  const { config, deps } = await getAuthRuntime()
-  return authenticateSession(deps, sessionTokenFrom(req, config))
-}
+/** Autenticación de una request protegida con el runtime ya compuesto por el handler. */
+export const authenticateRequest = (req: VercelRequest, runtime: AuthRuntime): Promise<AuthContext> =>
+  authenticateSession(runtime.deps, sessionTokenFrom(req, runtime.config))

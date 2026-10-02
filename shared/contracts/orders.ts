@@ -21,9 +21,12 @@ import { isGramPrecision } from './orderPricing.js'
  * resultado o de contexto (`status`, `orderId`, `storeId`, `customerId`, `estimatedTotal`,
  * `finalTotal`, `kilosReal`, fechas). El servidor los asigna; el cliente no los decide.
  *
- * LÍMITE VIGENTE (se cierra en T-10/T-06): el request todavía acepta `userId`,
- * `priceAtMoment` y `name` enviados por el cliente. Son datos NO confiables: ni `userId` ni
- * el teléfono otorgan acceso, y el precio/nombre pasarán a derivarse del catálogo servidor.
+ * Dueño y tienda salen de la sesión (T-06). `userId` no aporta identidad: debe coincidir con
+ * la cuenta autenticada o el servidor deniega (403). El teléfono es contacto no verificado y
+ * tampoco otorga acceso.
+ *
+ * LÍMITE VIGENTE (T-10): `priceAtMoment` y `name` siguen llegando del cliente como datos NO
+ * confiables; pasarán a derivarse del catálogo servidor.
  */
 
 export const ORDER_LIMITS = {
@@ -143,6 +146,7 @@ const customerNameSchema = z.string().trim().min(1).max(ORDER_LIMITS.maxNameLeng
 /** POST /api/orders — lo único que el cliente puede decidir. */
 export const createOrderRequestSchema = z
   .object({
+    /** Debe ser la cuenta de la sesión; el servidor lo comprueba y nunca lo usa como identidad. */
     userId: entityIdSchema,
     items: z
       .array(orderItemInputSchema)

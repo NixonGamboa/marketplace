@@ -1,34 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { buildApiError, entityIdSchema, issuesFromZodError } from '../../shared/contracts/index.js'
 import { toOrderDto } from '../../maui-back/src/domain/orders/orderMappers.js'
+import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
+import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import { getRepositories } from '../../maui-back/src/infra/factory.js'
-import { NotFoundError, ValidationError } from '../../maui-back/src/shared/errors.js'
-import { fail, ok } from '../_lib/response.js'
+import { getOrderForActor } from '../../maui-back/src/usecases/orders/getOrder.js'
+import { allowMethods, failAuth, prepareAuthResponse } from '../_lib/auth.js'
+import { authorizeOrderRequest, orderIdFrom } from '../_lib/orders.js'
+import { ok } from '../_lib/response.js'
 
+/** GET /api/orders/:id — cliente dueño o personal de la tienda; lo ajeno responde 404. */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    res.status(405).json(buildApiError('METHOD_NOT_ALLOWED', 'Method not allowed'))
-    return
-  }
+  prepareAuthResponse(res)
+  if (!allowMethods(req, res, ['GET'])) return
 
-  const id = typeof req.query.id === 'string' ? req.query.id : req.query.id?.[0]
-  if (!id) {
-    res.status(400).json(buildApiError('MISSING_ID', 'Missing order id'))
-    return
-  }
-
+  let config: AuthConfig | undefined
   try {
-    const parsedId = entityIdSchema.safeParse(id)
-    if (!parsedId.success) {
-      throw new ValidationError('Invalid order id', issuesFromZodError(parsedId.error))
-    }
-    // Sin auth (T-06): conocer el ID aún basta para leer el pedido. No cerrado en T-04.
+    const runtime = await getAuthRuntime()
+    config = runtime.config
+    const actor = await authorizeOrderRequest(req, runtime, { mutation: false })
+    const id = orderIdFrom(req)
     const { orders } = await getRepositories()
-    const order = await orders.findById(parsedId.data)
-    if (!order) throw new NotFoundError('Order', parsedId.data)
-    ok(res, toOrderDto(order))
+    ok(res, toOrderDto(await getOrderForActor({ orders }, actor, id)))
   } catch (err) {
-    fail(res, err)
+    failAuth(res, err, config)
   }
 }

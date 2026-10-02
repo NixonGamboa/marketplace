@@ -1,17 +1,9 @@
-import { readFileSync } from 'node:fs'
-import { PGlite } from '@electric-sql/pglite'
-import { neon, neonConfig } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { z } from 'zod'
 import type { StoredAccount } from '../../src/domain/auth/Account.js'
 import { AccountConflictError, AuthPersistenceError } from '../../src/domain/auth/errors.js'
 import { AuthRepositoryPostgres } from '../../src/infra/postgres/AuthRepositoryPostgres.js'
-import * as schema from '../../src/infra/postgres/schema.js'
+import { startEmbeddedPostgres, type EmbeddedPostgres } from './pgliteNeon.js'
 
-const querySchema = z.object({ query: z.string(), params: z.array(z.unknown()) })
-const requestSchema = z.union([querySchema, z.object({ queries: z.array(querySchema) })])
-const journalSchema = z.object({ entries: z.array(z.object({ tag: z.string() })) })
 const now = '2026-10-01T12:00:00.000Z'
 const customer: StoredAccount = {
   id: 'customer-fixture', role: 'customer', name: 'Cliente de prueba',
@@ -20,46 +12,14 @@ const customer: StoredAccount = {
 }
 
 describe('AuthRepositoryPostgres y migraciones sobre PostgreSQL embebido', () => {
-  let pg: PGlite
+  let embedded: EmbeddedPostgres
+  let pg: EmbeddedPostgres['pg']
   let repo: AuthRepositoryPostgres
-  const originalFetch = neonConfig.fetchFunction
 
   beforeAll(async () => {
-    pg = await PGlite.create()
-    const migrations = new URL('../../src/infra/postgres/migrations/', import.meta.url)
-    const journal = journalSchema.parse(JSON.parse(readFileSync(new URL('meta/_journal.json', migrations), 'utf8')))
-    for (const entry of journal.entries) {
-      await pg.exec(readFileSync(new URL(`${entry.tag}.sql`, migrations), 'utf8'))
-    }
-
-    // Solo se sustituye el transporte de pruebas. Drizzle y el adapter de
-    // producción generan SQL; PostgreSQL ejecuta restricciones, joins y upserts.
-    // No contacta Neon ni usa credenciales; no acredita el smoke cloud.
-    neonConfig.fetchFunction = async (_url: unknown, init: RequestInit): Promise<Response> => {
-      if (typeof init.body !== 'string') throw new Error('Body SQL inesperado')
-      const request = requestSchema.parse(JSON.parse(init.body))
-      const execute = async (query: z.infer<typeof querySchema>) => {
-        const result = await pg.query<unknown[]>(query.query, query.params, { rowMode: 'array' })
-        const rows = result.rows.map(row => row.map(value => {
-          if (value === null) return null
-          if (value instanceof Date) return value.toISOString()
-          if (typeof value === 'boolean') return value ? 't' : 'f'
-          if (typeof value === 'object') return JSON.stringify(value)
-          return String(value)
-        }))
-        return { rows, fields: result.fields, rowCount: result.affectedRows ?? rows.length }
-      }
-      try {
-        const body = 'queries' in request
-          ? { results: await Promise.all(request.queries.map(execute)) }
-          : await execute(request)
-        return new Response(JSON.stringify(body), { status: 200 })
-      } catch (error) {
-        const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
-        return new Response(JSON.stringify({ message: 'SQL fixture rechazado', code }), { status: 400 })
-      }
-    }
-    repo = new AuthRepositoryPostgres(drizzle(neon('postgresql://fixture:fixture@localhost/fixture'), { schema }))
+    embedded = await startEmbeddedPostgres()
+    pg = embedded.pg
+    repo = new AuthRepositoryPostgres(embedded.db)
   }, 30_000)
 
   beforeEach(async () => {
@@ -67,8 +27,7 @@ describe('AuthRepositoryPostgres y migraciones sobre PostgreSQL embebido', () =>
   })
 
   afterAll(async () => {
-    neonConfig.fetchFunction = originalFetch
-    if (pg) await pg.close()
+    if (embedded) await embedded.close()
   })
 
   it('persiste cuenta y timestamps; unique impide duplicar teléfono incluso concurrentemente', async () => {

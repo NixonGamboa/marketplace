@@ -20,6 +20,6 @@ Los intentos se reservan en Postgres de forma atómica antes de derivar contrase
 
 ## Consecuencias y validación pendiente
 
-La base anterior usa perfiles locales y auth demo; esos consumidores se reemplazan en T-17/T-18. Los endpoints existentes de pedidos necesitan los controles de T-06 antes de afirmar acceso privado. Crear sesiones reales no vuelve privado un endpoint que aún no las exige.
+La base anterior usa perfiles locales y auth demo; esos consumidores se reemplazan en T-17/T-18. T-06 conecta esta sesión a los endpoints de pedidos: cliente solo los suyos, owner/operator solo su tienda según la cuenta vigente, ajenos como inexistentes, mutaciones con origen exacto y límite persistente de creación por cuenta. Las cotas globales de login/registro se conservan: no se adoptó un límite por IP porque depende de qué cabecera de proxy es confiable en cada runtime. Esa validación local no acredita el comportamiento en Preview hasta su smoke real.
 
 La migración de auth es aditiva y se genera offline; no modifica pedidos ni crea cuentas por defecto. Se valida con pruebas aisladas y SQL local; tras la aprobación explícita de C2 se aplicó 0002 solo a Neon dev/maui y se verificaron 19 checks HTTP reales de registro, login, sesión, logout/replay y cuenta deshabilitada en Preview develop. Tres cuentas temporales fueron retiradas con sus sesiones; el pedido previo se conservó. Evidencia en el [plan](estado-plan.md). Ningún test memory o build demo acredita el cierre cloud.
