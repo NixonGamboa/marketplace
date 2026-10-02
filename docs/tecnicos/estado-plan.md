@@ -19,7 +19,7 @@ La equivalencia con producción se refiere al flujo funcional y a los componente
 
 **Forma de ejecución:** tomar un bloque, revisar dependencias y código existente, implementar directamente, validar y actualizar aquí la evidencia. No crear features SDD, specs por fases ni `tasks.json` como trámite. `tech/features/` y el backlog antiguo son referencias históricas. Codex y Claude Code comparten el plan y deben coordinar archivos para evitar sobrescribir cambios.
 
-**Orquestación IA:** Codex administra los bloques, sesiones y validación de ambos asistentes siguiendo [la estrategia de sesiones y consumo](orquestacion-ia.md). Un ejecutor por defecto; contexto mínimo, IDs explícitos al reanudar, checkpoints breves y reparto según cuota disponible. Implementar con suscripciones Codex Plus/Claude Pro; no activar cobro API ni créditos adicionales.
+**Orquestación IA:** Codex administra los bloques, sesiones y validación de ambos asistentes siguiendo [la estrategia de sesiones y consumo](orquestacion-ia.md); sin capacidad de Codex rige el [modo contingencia](orquestacion-ia.md#modo-contingencia). Un ejecutor por defecto; contexto mínimo, IDs explícitos al reanudar, checkpoints breves y reparto según cuota disponible. Implementar con suscripciones Codex Plus/Claude Pro; no activar cobro API ni créditos adicionales.
 
 **Calidad y bloqueos:** clean code es criterio de cierre de todos los bloques: responsabilidades claras, contratos tipados, validación de entradas, errores explícitos y lógica portable. Modelo/esfuerzo explícitos por complejidad; ninguna variante Luna ni Haiku, incluidos fallbacks. Si hace falta aclaración, conexión o autenticación del usuario, interrumpir el trabajo dependiente y avisar con evidencia y acción mínima; sin ciclos de reintento ni mocks para ocultar bloqueos. Capacidades y accesos comprobados en la [auditoría de herramientas](auditoria-herramientas.md).
 
@@ -222,6 +222,8 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 
 ## Seguimiento vigente
 
-Siguiente bloque: T-12 (estados, pesos y sustituciones), con Opus según la matriz y revisión independiente Codex. Reevaluar margen de ambos proveedores antes de asignarlo; conservar capacidad suficiente para corrección, integración y smoke. Las dependencias T-06/T-10/T-11 están cerradas en servidor. Activación del upload, reducción de cámara >3 MiB y cancelación al desmontar corresponden a T-17.
+Siguiente bloque: T-12 (estados, pesos y sustituciones), con Opus según la matriz y revisión independiente Codex; en [modo contingencia](orquestacion-ia.md#modo-contingencia), revisión de otra sesión Claude en solo lectura y marca `revisión cruzada pendiente`. Reevaluar margen de ambos proveedores antes de asignarlo; conservar capacidad suficiente para corrección, integración y smoke. Las dependencias T-06/T-10/T-11 están cerradas en servidor. Activación del upload, reducción de cámara >3 MiB y cancelación al desmontar corresponden a T-17.
+
+T-17/T-18: sus adapters pueden avanzar contra APIs ya cerradas (auth, catálogo, tienda, creación y listado de pedidos), sin transiciones de pedido, auditoría, seed ni cambios en `shared/`. El cierre de ambos bloques sigue dependiendo de T-12 y T-16.
 
 Los snapshots de creación contienen los datos personales del pedido; una anonimización por UPDATE y la retención futura deben abarcar también `order_creations`. Borrar un pedido elimina su claim por cascada. No se añade una política de retención en T-10.

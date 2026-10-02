@@ -1,7 +1,7 @@
 # MAUI — Orquestación de Codex y Claude Code
 
-> **Fecha:** 2026-10-01. **Alcance:** estrategia de ejecución técnica del [plan global](estado-plan.md), T-01 a T-24 y evolución posterior cuando se solicite.
-> **Responsable de orquestación:** Codex en este chat. Implementación mediante asistentes locales autenticados por suscripción; sin workflow SDD.
+> **Fecha:** 2026-10-02. **Alcance:** estrategia de ejecución técnica del [plan global](estado-plan.md), T-01 a T-24 y evolución posterior cuando se solicite.
+> **Responsable de orquestación:** Codex en este chat; si Codex no tiene capacidad, aplica el [modo contingencia](#modo-contingencia). Implementación mediante asistentes locales autenticados por suscripción; sin workflow SDD.
 
 ## Capacidad comprobada y límites
 
@@ -17,7 +17,7 @@ Usar autenticación por suscripción. Antes de lanzar procesos, comprobar auth y
 
 1. **Base:** revisar rama, commit y cambios pendientes antes de asignar un bloque. Una feature por capacidad o grupo coherente de T-*, siempre desde develop. Un Preview listo no demuestra que su código pertenezca a develop.
 2. **Ownership:** contratos/config/migraciones tienen un escritor único. Asignar archivos; no mover ni incluir cambios ajenos con un `add` global o stash indiscriminado. No mezclar entregas distintas en un commit.
-3. **Autonomía:** revisión, fixes locales, push de la feature, PR a develop y merge a develop se ejecutan **sin pedir permiso** cuando los gates del alcance están aprobados y el CI del PR está verde. Se revisa el diff contra develop y se ejecutan las verificaciones del alcance antes del PR; los auth/importes/concurrencia reciben revisión de otro proveedor. Resolver conflictos con el estado vigente y actualizar H-*/T-* tras incorporar lo verificado.
+3. **Autonomía:** revisión, fixes locales, push de la feature, PR a develop y merge a develop se ejecutan **sin pedir permiso** cuando los gates del alcance están aprobados y el CI del PR está verde. Se revisa el diff contra develop y se ejecutan las verificaciones del alcance antes del PR; los auth/importes/concurrencia reciben revisión de otro proveedor, salvo la revisión cruzada pendiente del [modo contingencia](#modo-contingencia). Resolver conflictos con el estado vigente y actualizar H-*/T-* tras incorporar lo verificado.
 4. **CI obligatorio:** no se fusiona con CI rojo, pendiente ni omitido; no saltar checks, usar bypass de administrador ni forzar pushes sobre ramas compartidas. Un fallo de CI se diagnostica y corrige en la feature.
 5. **Requieren aprobación del usuario únicamente:** (a) promoción a master/Production; (b) operaciones cloud destructivas (borrado, reset, seed sobre datos existentes, migraciones destructivas); (c) bloqueos que exigen al usuario: decisión de alcance/negocio, conexión, autenticación o habilitación de acceso. La aprobación de una de estas acciones no se extiende a otra.
 6. **Sin cambios productivos implícitos:** un push o merge a develop puede generar un Preview, pero no toca Production, su BD, variables ni secretos. Las acciones cloud no destructivas sobre test (Preview/develop, Neon dev) siguen esta política solo después de comprobar el aislamiento del destino.
@@ -138,7 +138,16 @@ Ante 401/403 confirmado de la única vía, login requerido, cuota agotada sin al
 
 Antes de cada lote consultar cuota Codex desde la app; para Claude usar `rate_limit_event.rate_limit_info.unifiedWindows` cuando la salida estructurada del CLI lo exponga (utilization por ventana y resetsAt), o el estado verificable/aviso de límite disponible. Calcular restante como 100 × (1 − utilization); guardar fuente y hora, sin tratar un dato anterior como actual. Reservar orientativamente 20–25% de la capacidad disponible de Codex para integración, reparación y reporte; es una política de gestión, no una cuota exacta. Reducir paralelismo y encargos al acercarse a los límites. Reconsultar antes de ampliar un bloque, tras una tanda de correcciones y antes de asignar el siguiente; aprovechar eventos de la sesión activa sin abrir prompts solo para medir. Comparar ventanas y margen compartido, cargar implementación/gates/preparación de smoke en el proveedor con más margen y reservar Codex para revisión cruzada, integración y reparación. Adaptar contexto y tamaño del encargo con consumo observado; no declarar ahorros sin medición.
 
-Si Claude agota capacidad, continuar trabajo acotado con Codex mientras exista margen. Si Codex se acerca al límite, priorizar checkpoint/integración y dejar a Claude únicamente el encargo autosuficiente ya asignado. Si ambos se agotan, guardar estado y reportar la limitación y el reset conocido. No consumir resets de cuenta ni comprar créditos automáticamente.
+Si Claude agota capacidad, continuar trabajo acotado con Codex mientras exista margen. Si Codex se acerca al límite, priorizar checkpoint/integración y aplicar el [modo contingencia](#modo-contingencia). Si ambos se agotan, guardar estado y reportar la limitación y el reset conocido. No consumir resets de cuenta ni comprar créditos automáticamente.
+
+## Modo contingencia
+
+Se activa cuando Codex no tiene capacidad. Una sesión Claude separada de la interventoría asume la orquestación con esta misma política; la interventoría no orquesta ni ejecuta. Durante la contingencia, esa sesión es el único escritor de este documento y del [plan](estado-plan.md).
+
+1. **Reparto de roles:** Claude ejecuta, integra (PR, CI y merge a develop) y hace el smoke en Preview de los bloques no críticos. Codex se reserva las decisiones transversales y la revisión cruzada de los bloques críticos: estados, concurrencia, importes, auditoría y reset.
+2. **Un PR por bloque:** la evidencia de cierre va en el mismo PR. Si llega después del merge, se registra en el PR del siguiente bloque, no en un PR propio.
+3. **Revisión cruzada pendiente:** un bloque crítico sin revisión del otro proveedor puede fusionarse a develop con CI en verde y una revisión independiente de otra sesión Claude en solo lectura. Queda marcado como `revisión cruzada pendiente` en el plan y en [`ejecucion-ia.json`](ejecucion-ia.json). Mientras haya marcas abiertas no se promueve nada a master, no se ejecuta T-16 (seed) en cloud y no se aplican migraciones no aditivas.
+4. **Cuota y devolución:** antes de cada asignación se recalcula el margen de Claude. La orquestación vuelve a Codex cuando recupere capacidad o cuando Claude baje del 15 % de margen. El orquestador deja en `ejecucion-ia.json` un checkpoint con PRs fusionados con revisión cruzada pendiente, ramas y PRs abiertos, sesiones con su ID, bloqueos y siguiente paso, y cierra los ejecutores. Codex completa las revisiones pendientes antes de T-16.
 
 ## Fuentes verificadas el 2026-10-01
 
