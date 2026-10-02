@@ -40,15 +40,11 @@ export interface Order {
 }
 
 /**
- * Contexto confiable para operar un pedido. Debe derivarse de la sesión/credenciales
- * (T-05/T-06), nunca del body.
- *
- * LÍMITE VIGENTE: sin auth, el handler solo conoce la tienda por defecto y
- * `customerId` cae al `userId` del payload (no verificado, no otorga permisos).
+ * Tienda destino decidida por el servidor, nunca por el body. El cliente sale del actor
+ * autenticado (`OrderActor`), no de este contexto.
  */
 export interface OrderContext {
   storeId: string
-  customerId?: string
 }
 
 /** Tienda única hasta que T-08 persista la configuración del aliado. */

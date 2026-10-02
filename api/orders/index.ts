@@ -1,29 +1,34 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { buildApiError } from '../../shared/contracts/index.js'
 import { DEFAULT_STORE_ID } from '../../maui-back/src/domain/orders/Order.js'
 import { toOrderConfirmation } from '../../maui-back/src/domain/orders/orderMappers.js'
-import { createOrder } from '../../maui-back/src/usecases/orders/createOrder.js'
+import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
+import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import { getRepositories } from '../../maui-back/src/infra/factory.js'
-import { systemClock } from '../../maui-back/src/shared/clock.js'
-import { fail, ok } from '../_lib/response.js'
+import { createOrder } from '../../maui-back/src/usecases/orders/createOrder.js'
+import { allowMethods, failAuth, prepareAuthResponse, readJsonBody } from '../_lib/auth.js'
+import { MAX_ORDER_BODY_BYTES, authorizeOrderRequest } from '../_lib/orders.js'
+import { ok } from '../_lib/response.js'
 
+/** POST /api/orders — solo cliente autenticado; dueño y tienda los fija el servidor. */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    res.status(405).json(buildApiError('METHOD_NOT_ALLOWED', 'Method not allowed'))
-    return
-  }
+  prepareAuthResponse(res)
+  if (!allowMethods(req, res, ['POST'])) return
 
+  let config: AuthConfig | undefined
   try {
+    const runtime = await getAuthRuntime()
+    config = runtime.config
+    const actor = await authorizeOrderRequest(req, runtime, { mutation: true })
+    const body = readJsonBody(req, MAX_ORDER_BODY_BYTES)
     const { orders } = await getRepositories()
-    // Sin auth (T-05/T-06): contexto mínimo; el cliente no puede elegir tienda.
     const created = await createOrder(
-      { orders, clock: systemClock },
-      req.body,
+      { orders, clock: runtime.deps.clock, attempts: runtime.deps.repository, keys: runtime.deps.keys },
+      actor,
+      body,
       { storeId: DEFAULT_STORE_ID },
     )
     ok(res, toOrderConfirmation(created), 201)
   } catch (err) {
-    fail(res, err)
+    failAuth(res, err, config)
   }
 }
