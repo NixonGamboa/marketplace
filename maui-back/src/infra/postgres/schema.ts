@@ -19,7 +19,7 @@ import type {
   WeeklyScheduleDto,
 } from '../../../../shared/contracts/index.js'
 import type { StoredOrderItem } from '../../domain/orders/orderRecord.js'
-import type { Order } from '../../domain/orders/Order.js'
+import type { Order, OrderItemAdjustment } from '../../domain/orders/Order.js'
 
 /** Claim persistente y snapshot original para reintentos, aislado por cuenta y tienda. */
 export const orderCreationsTable = pgTable('order_creations', {
@@ -57,8 +57,21 @@ export const ordersTable = pgTable(
     deliveryLat: doublePrecision('delivery_lat'),
     deliveryLng: doublePrecision('delivery_lng'),
     deliveryTimeSlot: text('delivery_time_slot'),
+    // Añadidas en 0006 (T-12). Filas previas: versión 1 y sin cambios registrados.
+    version: integer('version').notNull().default(1),
+    updatedBy: text('updated_by'),
+    originalItems: jsonb('original_items').$type<StoredOrderItem[]>(),
+    itemAdjustments: jsonb('item_adjustments').$type<OrderItemAdjustment[]>(),
+    cancellationReason: text('cancellation_reason'),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'string' }),
   },
   (t) => ({
+    versionValid: check('orders_version_positive', sql`${t.version} >= 1`),
+    // Cancelaciones legacy no tienen motivo; uno nuevo siempre va con fecha y estado cancelado.
+    cancellationShape: check(
+      'orders_cancellation_shape',
+      sql`(${t.cancellationReason} is null and ${t.cancelledAt} is null) or (${t.cancellationReason} is not null and ${t.cancelledAt} is not null and ${t.status} = 'cancelled')`,
+    ),
     byStoreStatus: index('orders_by_store_status').on(t.storeId, t.status, t.createdAt),
     // Listado T-11: alcance + orden `created_at DESC, id DESC` sin ordenar en memoria.
     byStoreRecent: index('orders_by_store_recent').on(t.storeId, t.createdAt.desc(), t.id.desc()),

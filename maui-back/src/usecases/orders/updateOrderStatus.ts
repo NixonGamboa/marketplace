@@ -1,37 +1,28 @@
-import { canTransition } from '../../../../shared/contracts/index.js'
-import type { Order, OrderStatus } from '../../domain/orders/Order.js'
-import { assertCanUpdateOrderStatus, type OrderActor } from '../../domain/orders/orderAccess.js'
-import type { OrdersRepository } from '../../domain/orders/OrdersRepository.js'
-import type { Clock } from '../../shared/clock.js'
+import { issuesFromZodError, updateOrderStatusRequestSchema } from '../../../../shared/contracts/index.js'
+import type { Order } from '../../domain/orders/Order.js'
+import { assertCanManageOrder, type OrderActor } from '../../domain/orders/orderAccess.js'
+import { applyStatusChange } from '../../domain/orders/orderLifecycle.js'
 import { ValidationError } from '../../shared/errors.js'
-import { getOrderForActor } from './getOrder.js'
+import { commitOrderChange, readOrderForChange, type OrderChangeDeps } from './orderChanges.js'
 
-export interface UpdateOrderStatusDeps {
-  orders: OrdersRepository
-  clock: Clock
-}
+export type UpdateOrderStatusDeps = OrderChangeDeps
 
 /**
- * Cambia el estado según la máquina común (`shared/contracts/orderEnums`), que depende de la
- * modalidad. Solo personal de la tienda del pedido; el rol se exige antes de leer, así un
- * cliente no distingue pedidos existentes. Otra tienda responde como inexistente.
- *
- * Lectura + escritura no atómicas: la condición en UPDATE es T-12.
+ * Transición de estado de la máquina común según la modalidad (`orderLifecycle`). Solo personal de
+ * la tienda del pedido; el rol se exige antes de validar o leer. Atómica por versión y estado: dos
+ * transiciones concurrentes sobre la misma versión no se aplican ambas (la segunda recibe 409).
  */
 export const updateOrderStatus = async (
   deps: UpdateOrderStatusDeps,
   actor: OrderActor,
   id: string,
-  nextStatus: OrderStatus,
+  input: unknown,
 ): Promise<Order> => {
-  assertCanUpdateOrderStatus(actor)
-  const current = await getOrderForActor(deps, actor, id)
+  assertCanManageOrder(actor)
+  const parsed = updateOrderStatusRequestSchema.safeParse(input)
+  if (!parsed.success) throw new ValidationError('Invalid body', issuesFromZodError(parsed.error))
+  const { status, expectedVersion, reason } = parsed.data
 
-  if (!canTransition(current.status, nextStatus, current.deliveryType)) {
-    throw new ValidationError(
-      `Invalid transition from ${current.status} to ${nextStatus} (${current.deliveryType})`,
-    )
-  }
-
-  return deps.orders.updateStatus(id, nextStatus, deps.clock.nowIso())
+  const { current, context } = await readOrderForChange(deps, actor, id, expectedVersion)
+  return commitOrderChange(deps, current, applyStatusChange(current, { status, reason }, context))
 }

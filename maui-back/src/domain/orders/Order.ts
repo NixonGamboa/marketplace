@@ -32,11 +32,40 @@ export interface Order {
   shippingCost?: number
   /** Estimación original (ítems con peso solicitado + envío). */
   estimatedTotal: number
-  /** Total con pesos reales; se fija al registrarlos (T-12). */
+  /** Total con pesos reales e ítems vigentes; se recalcula en cada cambio de ítems (T-12). */
   finalTotal?: number
   /** ISO UTC. */
   createdAt: string
   updatedAt: string
+  /** Concurrencia optimista: 1 al crear (también en filas legacy) y +1 por cada cambio. */
+  version: number
+  /** Cuenta del personal que hizo el último cambio; ausente si nunca cambió. No sale en el DTO. */
+  updatedBy?: string
+  /** Ítems tal como se pidieron, fijados en la primera sustitución o retiro. */
+  originalItems?: OrderItemDto[]
+  /** Motivo y fecha de cancelación; solo en `cancelled` (ausentes en cancelaciones legacy). */
+  cancellationReason?: string
+  cancelledAt?: string
+  /** Sustituciones y retiros aplicados, en orden. Constancia interna para T-13; no sale en el DTO. */
+  itemAdjustments?: OrderItemAdjustment[]
+}
+
+/**
+ * Registro de un retiro o sustitución de ítem: quién, cuándo y si el personal declaró haber
+ * contactado al cliente antes (obligatorio con preferencia `call_me`). Es una declaración del
+ * operador autenticado, no una confirmación del cliente ni una verificación externa.
+ */
+export interface OrderItemAdjustment {
+  type: 'remove' | 'substitute'
+  /** Línea afectada (producto de `items` antes del cambio). */
+  itemId: string
+  /** Producto sustituto; solo en `substitute`. */
+  productId?: string
+  customerContacted: boolean
+  /** Cuenta del personal que hizo el cambio. */
+  by: string
+  /** ISO UTC (igual a `updatedAt` del cambio). */
+  at: string
 }
 
 /**
