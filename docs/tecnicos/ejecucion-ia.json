@@ -377,7 +377,7 @@
       "esfuerzoEfectivo": null,
       "sessionId": "8a4e7e35-8a0b-484a-88cc-0070a713329f",
       "identificadorEjecucion": null,
-      "estado": "en curso; PRs abiertos sin merge por decisión del usuario"
+      "estado": "finalizado; contingencia automática no funcional; pasos 3 a 6 del encargo no completados"
     }
   ]
 }
