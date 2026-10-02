@@ -2,6 +2,28 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
+## Creación de pedidos (T-10)
+
+`POST /api/orders` requiere sesión customer, Origin permitido e `Idempotency-Key` de
+16–128 caracteres (`A-Z`, `a-z`, dígitos y `._:-`). Conservar la clave y la intención
+del pedido ante timeout/reintento. Misma cuenta/tienda/clave e intención normalizada:
+misma confirmación original (201), sin otro pedido ni cupo; intención distinta: 409
+`IDEMPOTENCY_KEY_REUSED`. La sesión sigue validándose en cada petición.
+
+Los ítems solicitan producto, cantidad y kilos. Nombre, precio, unidad y peso variable
+son snapshots del catálogo; envío y gratuidad se calculan con la tienda. Campos legacy
+`priceAtMoment`, `name`, `is_variable_weight` y `shippingCost` son opcionales, ignorados
+y excluidos de la huella. Su forma sigue validada. `userId` sigue requerido y debe
+coincidir con la sesión; no autoriza. La PWA real añadirá la clave en T-18.
+
+Migración aditiva `0004_order_creation_idempotency`: claim/snapshot persistente y
+función SQL con privilegios del llamador; un lock transaccional por identidad y
+locks de lectura/versiones garantizan coherencia del catálogo/tienda al confirmar.
+Claim, pedido y reserva de 20/hora se confirman juntos, con rollback ante fallo.
+No hay stock numérico ni descuento: se validan activo, no archivado y disponible.
+Las pruebas PGlite ejecutan SQL real en una conexión; concurrencia multiinstancia
+en Neon/Preview y revisión del otro proveedor son necesarias para cerrar T-10.
+
 **Decisión de stack:** ver [`../docs/tecnicos/adr-001-stack-backend.md`](../docs/tecnicos/adr-001-stack-backend.md).
 
 ## Layout

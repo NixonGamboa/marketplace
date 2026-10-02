@@ -1,0 +1,50 @@
+import type { RateLimitRule } from '../auth/AuthRepository.js'
+import type { Order } from './Order.js'
+import { z } from 'zod'
+import { entityIdSchema, orderDtoSchema } from '../../../../shared/contracts/index.js'
+import { DomainError } from '../../shared/errors.js'
+
+export interface OrderCreationIdentity {
+  customerId: string
+  storeId: string
+  keyHash: string
+}
+
+export interface StoredOrderCreation {
+  fingerprint: string
+  /** Snapshot inmutable de creación; los cambios posteriores de estado no alteran el retry. */
+  order: Order
+}
+
+export interface CommitOrderCreation extends OrderCreationIdentity, StoredOrderCreation {
+  storeVersion: number
+  products: { id: string; version: number }[]
+  quota: RateLimitRule
+}
+
+export type CommitOrderResult =
+  | { kind: 'created' | 'replayed'; creation: StoredOrderCreation }
+  | { kind: 'conflict' }
+  | { kind: 'changed' }
+  | { kind: 'limited'; retryAfterSeconds: number }
+
+export class IdempotencyConflictError extends DomainError {
+  constructor() { super('La clave de idempotencia ya corresponde a otra petición', 'IDEMPOTENCY_KEY_REUSED') }
+}
+
+/** Validación runtime del snapshot interno usando el mismo DTO de pedidos. */
+export function decodeCreationOrder(value: unknown): Order {
+  const internal = z.object({ id: entityIdSchema, storeId: entityIdSchema,
+    customerId: entityIdSchema, updatedAt: z.string() }).passthrough().parse(value)
+  const { id, storeId, customerId, ...fields } = internal
+  const dto = orderDtoSchema.parse({ ...fields, orderId: id, userId: customerId })
+  return { id, storeId, customerId, updatedAt: internal.updatedAt,
+    customerName: dto.customerName, items: dto.items, status: dto.status,
+    deliveryType: dto.deliveryType, deliveryData: dto.deliveryData,
+    substitutionPreference: dto.substitutionPreference, estimatedTotal: dto.estimatedTotal,
+    createdAt: dto.createdAt,
+    ...(dto.customerPhone !== undefined ? { customerPhone: dto.customerPhone } : {}),
+    ...(dto.shippingCost !== undefined ? { shippingCost: dto.shippingCost } : {}),
+    ...(dto.finalTotal !== undefined ? { finalTotal: dto.finalTotal } : {}),
+  }
+}

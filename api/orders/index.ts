@@ -20,12 +20,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     config = runtime.config
     const actor = await authorizeOrderRequest(req, runtime, { mutation: true })
     const body = readJsonBody(req, MAX_ORDER_BODY_BYTES)
-    const { orders } = await getRepositories()
+    const { orders, catalog, store } = await getRepositories()
     const created = await createOrder(
-      { orders, clock: runtime.deps.clock, attempts: runtime.deps.repository, keys: runtime.deps.keys },
+      { orders, catalog, store, clock: runtime.deps.clock, keys: runtime.deps.keys },
       actor,
       body,
       { storeId: DEFAULT_STORE_ID },
+      req.headers['idempotency-key'],
     )
     ok(res, toOrderConfirmation(created), 201)
   } catch (err) {

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+import { initializeOrderCatalog } from './creationFixture.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { orderDtoSchema } from '../../../shared/contracts/index.js'
@@ -56,7 +58,7 @@ const orderBody = (actor?: Actor): Record<string, unknown> => ({
 })
 
 const createReq = ({ cookie, body = orderBody(), headers }: OrderRequestOptions = {}) =>
-  withQuery(authRequest({ body, headers: { cookie, ...headers } }))
+  withQuery(authRequest({ body, headers: { cookie, 'idempotency-key': randomUUID(), ...headers } }))
 
 const detailReq = ({ cookie, id, headers }: OrderRequestOptions = {}) =>
   withQuery(authRequest({ method: 'GET', headers: { cookie, 'content-type': undefined, ...headers } }), id)
@@ -132,6 +134,10 @@ beforeAll(async () => {
   vi.stubEnv('AUTH_JWT_SECRET', HTTP_SECRET)
   vi.stubEnv('AUTH_ORIGIN', HTTP_ORIGIN)
 
+  const { getRepositories } = await import('../../src/infra/factory.js')
+  const { getAuthRuntime: getFixtureRuntime } = await import('../../src/infra/auth/factory.js')
+  await initializeOrderCatalog({ ...(await getRepositories()), clock: (await getFixtureRuntime()).deps.clock })
+
   world.customerA = await registerCustomer('Ana Pérez', '300 123 4567')
   world.customerB = await registerCustomer('Beto Ruiz', '300 765 4321')
   world.owner = await staff('owner', 'duena@maui.test', 'leche-y-miel')
@@ -141,7 +147,10 @@ beforeAll(async () => {
   world.repository = (await getAuthRuntime()).deps.repository as AuthRepositoryMemory
 })
 
-afterEach(() => {
+afterEach(async () => {
+  const { getRepositories } = await import('../../src/infra/factory.js')
+  const { orders } = await getRepositories()
+  ;(orders as import('../../src/infra/memory/OrdersRepositoryMemory.js').OrdersRepositoryMemory).resetCreationQuotas()
   vi.useRealTimers()
 })
 
@@ -211,6 +220,45 @@ describe('sesión requerida en pedidos', () => {
       world.repository.patchAccount(world.customerB.id, { status: 'active' })
       world.repository.patchAccount(world.operator.id, { status: 'active' })
     }
+  })
+})
+
+describe('T-10: idempotencia y precios por HTTP con sesión real', () => {
+  it('clave obligatoria y acotada: 400 sin guardar pedidos', async () => {
+    const actor = await registerCustomer('Clave HTTP', '3009800001')
+    const before = await storedOrderCount()
+    for (const key of [undefined, 'short', 'bad key', 'x'.repeat(129)]) {
+      const res = await call('create', createReq({ cookie: actor.cookie, body: orderBody(actor), headers: { 'idempotency-key': key } }))
+      expect(statusOf(res)).toBe(400)
+    }
+    expect(await storedOrderCount()).toBe(before)
+  })
+
+  it('precios/nombre/envío falsos no alteran importe; replay devuelve el original y conflicto es 409', async () => {
+    const actor = await registerCustomer('Retry HTTP', '3009800002'), key = randomUUID()
+    const body = { ...orderBody(actor), shippingCost: 99, items: [{ id: 'prod_leche', qty: 2, name: 'Fraude', priceAtMoment: 1 }] }
+    const req = (input: unknown = body) => createReq({ cookie: actor.cookie, body: input, headers: { 'idempotency-key': key } })
+    const first = await call('create', req())
+    expect(statusOf(first)).toBe(201)
+    expect(bodyOf(first)).toMatchObject({ estimatedTotal: 9000, status: 'received' })
+    const order = await storedOrder((bodyOf(first) as { orderId: string }).orderId)
+    expect(order?.items[0]).toMatchObject({ name: 'Leche entera 1L', priceAtMoment: 4500, unit: '1 L' })
+    const retry = await call('create', req({ ...body, shippingCost: 0 }))
+    expect(statusOf(retry)).toBe(201)
+    expect(bodyOf(retry)).toEqual(bodyOf(first))
+    const conflict = await call('create', req({ ...body, customerName: 'Distinto' }))
+    expect(statusOf(conflict)).toBe(409)
+    expect(bodyOf(conflict)).toMatchObject({ error: 'IDEMPOTENCY_KEY_REUSED' })
+  })
+
+  it('dos POST concurrentes de la misma intención devuelven un pedido', async () => {
+    const actor = await registerCustomer('Doble clic HTTP', '3009800003'), key = randomUUID()
+    const before = await storedOrderCount()
+    const request = () => createReq({ cookie: actor.cookie, body: orderBody(actor), headers: { 'idempotency-key': key } })
+    const [a, b] = await Promise.all([call('create', request()), call('create', request())])
+    expect(statusOf(a)).toBe(201); expect(statusOf(b)).toBe(201)
+    expect(bodyOf(a)).toEqual(bodyOf(b))
+    expect(await storedOrderCount()).toBe(before + 1)
   })
 })
 

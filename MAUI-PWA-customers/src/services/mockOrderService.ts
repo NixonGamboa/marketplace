@@ -1,5 +1,6 @@
 import type { OrderService, OrderPayload, Order } from '@/types/orderService'
 import { DEMO_USER } from '../config/app'
+import { orderItemSchema } from '../../../shared/contracts/orders'
 
 const STORAGE_KEY = 'maui-orders'
 const SEED_MARKER_KEY = 'maui-orders-seeded-v1'
@@ -30,7 +31,7 @@ function calculateTotal(items: OrderPayload['items']): number {
   return items.reduce((sum, item) => {
     const amount = item.is_variable_weight ? item.kilosRequested : item.qty
     if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 ||
-        !Number.isFinite(item.priceAtMoment) || item.priceAtMoment < 0) {
+        typeof item.priceAtMoment !== 'number' || !Number.isFinite(item.priceAtMoment) || item.priceAtMoment < 0) {
       throw new Error(`Cantidad o precio inválido para ${item.id}`)
     }
     return sum + amount * item.priceAtMoment
@@ -158,10 +159,12 @@ seedDemoOrdersIfNeeded()
 export const mockOrderService: OrderService = {
   async submit(payload) {
     const customerPhone = normalizeCustomerPhone(payload.customerPhone)
-    if (!Number.isFinite(payload.shippingCost) || payload.shippingCost < 0) {
+    const shippingCost = payload.shippingCost ?? 0
+    if (!Number.isFinite(shippingCost) || shippingCost < 0) {
       throw new Error('El costo de envío debe ser un valor no negativo')
     }
-    const estimatedTotal = calculateTotal(payload.items) + payload.shippingCost
+    const estimatedTotal = calculateTotal(payload.items) + shippingCost
+    const items = payload.items.map(item => orderItemSchema.parse(item))
     await delay(1200)
 
     const orderId = `MAUI-${Date.now()}`
@@ -171,13 +174,13 @@ export const mockOrderService: OrderService = {
       orderId,
       userId:                 payload.userId,
       status:                 'received',
-      items:                  payload.items,
+      items,
       deliveryType:           payload.deliveryType,
       deliveryData:           payload.deliveryData,
       substitutionPreference: payload.substitutionPreference,
       customerName:           payload.customerName,
       customerPhone,
-      shippingCost:           payload.shippingCost,
+      shippingCost,
       estimatedTotal,
       createdAt:              now,
     }

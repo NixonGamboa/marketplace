@@ -1,200 +1,130 @@
-import { randomBytes } from 'node:crypto'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createOrder } from '../../../src/usecases/orders/createOrder.js'
 import { OrdersRepositoryMemory } from '../../../src/infra/memory/OrdersRepositoryMemory.js'
-import { AuthRepositoryMemory } from '../../../src/infra/memory/AuthRepositoryMemory.js'
+import { CatalogRepositoryMemory } from '../../../src/infra/memory/CatalogRepositoryMemory.js'
+import { StoreRepositoryMemory } from '../../../src/infra/memory/StoreRepositoryMemory.js'
 import { HmacBucketKeyer } from '../../../src/infra/auth/randomIds.js'
-import type { Clock } from '../../../src/shared/clock.js'
-import { OrderStatus, type OrderContext } from '../../../src/domain/orders/Order.js'
-import { ORDER_CREATE_POLICY, type OrderActor } from '../../../src/domain/orders/orderAccess.js'
+import { TestClock, TEST_SECRET } from '../../auth/fixtures.js'
 import { AuthorizationError, RateLimitedError } from '../../../src/domain/auth/errors.js'
 import { ValidationError } from '../../../src/shared/errors.js'
 import { toOrderDto } from '../../../src/domain/orders/orderMappers.js'
 import { orderDtoSchema } from '../../../../shared/contracts/index.js'
 import { validDeliveryRequest, validPickupRequest, variableWeightItem } from '../../contratos/fixtures.js'
+import { initializeOrderCatalog } from '../../orders/creationFixture.js'
+import { updateStoreSettings } from '../../../src/usecases/store/updateStoreSettings.js'
 
-const fixedClock: Clock = {
-  now: () => new Date('2026-09-03T10:00:00.000Z'),
-  nowIso: () => '2026-09-03T10:00:00.000Z',
-}
+const customer = { id: 'cust_01', role: 'customer' as const, storeId: null }
+const context = { storeId: 'leche-y-miel' }
+const keys = new HmacBucketKeyer(TEST_SECRET)
 
-const context: OrderContext = { storeId: 'leche-y-miel' }
-const customer: OrderActor = { id: 'cust_01', role: 'customer', storeId: null }
-const keys = new HmacBucketKeyer(randomBytes(32))
-
-describe('createOrder', () => {
-  let repo: OrdersRepositoryMemory
-  let attempts: AuthRepositoryMemory
-  const deps = () => ({ orders: repo, clock: fixedClock, attempts, keys })
-  const create = (body: unknown, actor: OrderActor = customer, ctx: OrderContext = context) =>
-    createOrder(deps(), actor, body, ctx)
-
-  beforeEach(() => {
-    repo = new OrdersRepositoryMemory()
-    attempts = new AuthRepositoryMemory()
+describe('creación autoritativa e idempotente', () => {
+  let orders: OrdersRepositoryMemory
+  let catalog: CatalogRepositoryMemory
+  let store: StoreRepositoryMemory
+  let clock = new TestClock(new Date('2026-10-05T15:00:00.000Z'))
+  const deps = () => ({ orders, catalog, store, clock, keys })
+  const create = (body: unknown = validPickupRequest(), key: unknown = randomUUID(), actor = customer) =>
+    createOrder(deps(), actor, body, context, key)
+  const alter = async (id: string, patch: Record<string, unknown>) => {
+    const product = await catalog.findProduct(context.storeId, id)
+    if (!product) throw Error('Missing fixture')
+    await catalog.updateProduct({ ...product, ...patch, version: product.version + 1 }, product.version)
+  }
+  beforeEach(async () => {
+    clock = new TestClock(new Date('2026-10-05T15:00:00.000Z'))
+    orders = new OrdersRepositoryMemory(); store = new StoreRepositoryMemory()
+    catalog = new CatalogRepositoryMemory(id => store.hasStore(id))
+    await initializeOrderCatalog(deps())
   })
-
-  it('crea un pedido y calcula estimado para items unitarios', async () => {
-    const order = await createOrder(deps(), customer, validPickupRequest(), context)
-
-    expect(order.id).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/)
-    expect(order.status).toBe(OrderStatus.RECEIVED)
-    expect(order.estimatedTotal).toBe(9000)
+  it('ignora precios, nombre, flag y envío legacy; conserva snapshot del catálogo', async () => {
+    const order = await create({ ...validDeliveryRequest(), shippingCost: 1,
+      items: [{ id: 'prod_leche', qty: 2, priceAtMoment: 1, name: 'Manipulado', is_variable_weight: true }] })
+    expect(order).toMatchObject({ estimatedTotal: 12000, shippingCost: 3000, customerPhone: '573001234567' })
+    expect(order.items[0]).toMatchObject({ name: 'Leche entera 1L', priceAtMoment: 4500, unit: '1 L', is_variable_weight: false })
     expect(order.finalTotal).toBeUndefined()
-    expect(order.shippingCost).toBe(0)
-    expect(order.customerPhone).toBe('573001234567')
-    expect(order.createdAt).toBe('2026-09-03T10:00:00.000Z')
-    expect(order.updatedAt).toBe('2026-09-03T10:00:00.000Z')
-    expect(await repo.findById(order.id)).toEqual(order)
+    expect(orderDtoSchema.safeParse(toOrderDto(order)).success).toBe(true)
   })
-
-  it('calcula estimado para items de peso variable preservando kilos solicitados', async () => {
-    const order = await createOrder(
-      deps(),
-      customer,
-      { ...validPickupRequest(), items: [variableWeightItem()] },
-      context,
-    )
-
-    expect(order.estimatedTotal).toBe(33000)
-    expect(order.items[0]).toMatchObject({ kilosRequested: 1.5, is_variable_weight: true })
+  it('acepta solo intención mínima sin campos legacy', async () => {
+    const { shippingCost: _omit, ...body } = validPickupRequest()
+    expect((await create({ ...body, items: [{ id: 'prod_leche', qty: 2 }] })).estimatedTotal).toBe(9000)
+  })
+  it('peso variable se deriva del catálogo incluso con flag false y redondea por línea', async () => {
+    await alter('prod_carne', { price: 4500 })
+    const order = await create({ ...validPickupRequest(), items: [{ id: 'prod_carne', qty: 1, kilosRequested: 0.333, is_variable_weight: false }] })
+    expect(order.estimatedTotal).toBe(1499)
+    expect(order.items[0]).toMatchObject({ is_variable_weight: true, kilosRequested: 0.333 })
     expect(order.items[0]).not.toHaveProperty('kilosReal')
   })
-
-  it('incluye el envío en el estimado y conserva GPS y dirección de entrega', async () => {
-    const order = await createOrder(deps(), customer, validDeliveryRequest(), context)
-
-    expect(order.estimatedTotal).toBe(9000 + 3000)
-    expect(order.shippingCost).toBe(3000)
-    expect(order.deliveryType).toBe('delivery')
-    expect(order.deliveryData).toEqual({
-      address: 'Calle 8 # 5-32, Dolores, Tolima',
-      lat: 3.5402,
-      lng: -74.8965,
-    })
+  it.each([{}, { inStock: false }, { active: false }, { archivedAt: '2026-10-05T14:00:00.000Z' }])('rechaza producto no disponible %j sin crear', async patch => {
+    const body = patch && Object.keys(patch).length ? validPickupRequest()
+      : { ...validPickupRequest(), items: [{ id: 'no-existe', qty: 1 }] }
+    if (Object.keys(patch).length) await alter('prod_leche', patch)
+    await expect(create(body)).rejects.toBeInstanceOf(ValidationError)
+    expect(await orders.listByStore(context.storeId)).toHaveLength(0)
   })
-
-  it('crea un domicilio solo con GPS (sin dirección) y lo conserva', async () => {
-    const order = await createOrder(
-      deps(),
-      customer,
-      { ...validDeliveryRequest(), deliveryData: { lat: 3.5402, lng: -74.8965 } },
-      context,
-    )
-
-    expect(order.deliveryData).toEqual({ lat: 3.5402, lng: -74.8965 })
-    expect(await repo.findById(order.id)).toEqual(order)
-    expect(toOrderDto(order).deliveryData).toEqual({ lat: 3.5402, lng: -74.8965 })
+  it.each([{ id: 'prod_carne', qty: 1 }, { id: 'prod_carne', qty: 2, kilosRequested: 1 },
+    { id: 'prod_leche', qty: 1, kilosRequested: 1 }, { id: 'prod_carne', qty: 1, kilosRequested: 1.2345 }])('valida peso/cantidad servidor %j', async item => {
+    await expect(create({ ...validPickupRequest(), items: [item] })).rejects.toBeInstanceOf(ValidationError)
   })
-
-  it('rechaza domicilio sin dirección ni GPS y retiro con envío o GPS', async () => {
-    for (const body of [
-      { ...validDeliveryRequest(), deliveryData: { timeSlot: 'asap' } },
-      { ...validPickupRequest(), shippingCost: 3000 },
-      { ...validPickupRequest(), deliveryData: { lat: 3.5, lng: -74.8 } },
-    ]) {
-      await expect(createOrder(deps(), customer, body, context)).rejects.toBeInstanceOf(ValidationError)
+  it('calcula gratuidad con subtotal servidor, retiro sin envío y domicilio con solo GPS', async () => {
+    expect((await create({ ...validDeliveryRequest(), items: [variableWeightItem()] })).shippingCost).toBe(0)
+    expect((await create({ ...validPickupRequest(), shippingCost: 9999 })).shippingCost).toBe(0)
+    const order = await create({ ...validDeliveryRequest(), deliveryData: { lat: 3.5, lng: -74.8 } })
+    expect(order.deliveryData).toEqual({ lat: 3.5, lng: -74.8 })
+  })
+  it('repite el original aun con catálogo agotado, tienda cerrada y estado posteriormente cambiado', async () => {
+    const key = randomUUID(), original = await create(validPickupRequest(), key)
+    await alter('prod_leche', { inStock: false, name: 'Nombre posterior', price: 9900 })
+    await updateStoreSettings(deps(), { id: 'owner', role: 'owner', storeId: context.storeId }, { scheduleOverride: 'closed' })
+    await orders.updateStatus(original.id, 'confirmed', clock.nowIso())
+    const retry = await create({ ...validPickupRequest(), shippingCost: 1, items: [{ id: 'prod_leche', qty: 2, priceAtMoment: 1 }] }, key)
+    expect(retry).toEqual(original)
+    expect(await orders.listByStore(context.storeId)).toHaveLength(1)
+  })
+  it('misma clave con intención distinta 409; cuenta distinta no colisiona', async () => {
+    const key = randomUUID(); await create(validPickupRequest(), key)
+    await expect(create({ ...validPickupRequest(), customerName: 'Otro' }, key)).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+    const other = { ...customer, id: 'otra-cuenta' }
+    expect((await create({ ...validPickupRequest(), userId: other.id }, key, other)).customerId).toBe(other.id)
+  })
+  it('recupera un commit concurrente si la lectura inicial no lo vio y el catálogo ya cambió', async () => {
+    const key = randomUUID(), original = await create(validPickupRequest(), key)
+    await alter('prod_leche', { inStock: false })
+    vi.spyOn(orders, 'findCreation').mockResolvedValueOnce(null)
+    expect(await create(validPickupRequest(), key)).toEqual(original)
+    expect(await orders.listByStore(context.storeId)).toHaveLength(1)
+  })
+  it('concurrencia devuelve un ID y un cupo; nuevos pedidos respetan veinte por hora', async () => {
+    const key = randomUUID()
+    const created = await Promise.all(Array.from({ length: 12 }, () => create(validPickupRequest(), key)))
+    expect(new Set(created.map(o => o.id)).size).toBe(1)
+    for (let i = 1; i < 20; i++) await create()
+    await expect(create()).rejects.toBeInstanceOf(RateLimitedError)
+    expect((await create(validPickupRequest(), key)).id).toBe(created[0]?.id)
+    clock.advanceSeconds(3600)
+    expect((await create()).status).toBe('received')
+  })
+  it('rechaza tienda cerrada sin consumir quota y aplica corte/franja', async () => {
+    const owner = { id: 'owner', role: 'owner' as const, storeId: context.storeId }
+    await updateStoreSettings(deps(), owner, { scheduleOverride: 'closed' })
+    await expect(create()).rejects.toMatchObject({ code: 'STORE_CLOSED' })
+    await updateStoreSettings(deps(), owner, { scheduleOverride: 'open', delivery: { cutoff: '10:00' } })
+    await expect(create(validDeliveryRequest())).rejects.toMatchObject({ code: 'DELIVERY_CUTOFF_PASSED' })
+    expect((await create()).shippingCost).toBe(0)
+  })
+  it.each([undefined, 'short', 'bad key with spaces', 'x'.repeat(129)])('rechaza clave inválida %j', async key => {
+    await expect(createOrder(deps(), customer, validPickupRequest(), context, key)).rejects.toBeInstanceOf(ValidationError)
+  })
+  it('no acepta identidad, contexto, resultados o peso real adulterados', async () => {
+    await expect(create({ ...validPickupRequest(), userId: 'otra' })).rejects.toBeInstanceOf(AuthorizationError)
+    for (const extra of [{ storeId: 'otra' }, { estimatedTotal: 1 }, { status: 'delivered' }, { customerPhone: '123' }]) {
+      await expect(create({ ...validPickupRequest(), ...extra })).rejects.toBeInstanceOf(ValidationError)
     }
+    await expect(create({ ...validPickupRequest(), items: [{ ...variableWeightItem(), kilosReal: 1 }] })).rejects.toBeInstanceOf(ValidationError)
   })
-
-  it('redondea por línea a pesos enteros', async () => {
-    const order = await createOrder(
-      deps(),
-      customer,
-      {
-        ...validPickupRequest(),
-        items: [{ ...variableWeightItem(), priceAtMoment: 4500, kilosRequested: 0.333 }],
-      },
-      context,
-    )
-    expect(order.estimatedTotal).toBe(1499)
-  })
-
-  it('el dueño es el actor autenticado y la tienda la fija el servidor', async () => {
-    const actor: OrderActor = { id: 'acc_sesion', role: 'customer', storeId: null }
-    const order = await create({ ...validPickupRequest(), userId: actor.id }, actor, { storeId: 'tienda-ctx' })
-
-    expect(order.customerId).toBe('acc_sesion')
-    expect(order.storeId).toBe('tienda-ctx')
-  })
-
-  it('userId debe coincidir con el actor; distinto es manipulación (403)', async () => {
-    const own = await create({ ...validPickupRequest(), userId: customer.id })
-    expect(own.customerId).toBe(customer.id)
-
-    await expect(create({ ...validPickupRequest(), userId: 'acc_otro' })).rejects.toBeInstanceOf(AuthorizationError)
-    expect(await repo.listByStore(context.storeId)).toHaveLength(1)
-  })
-
-  it('solo un cliente crea pedidos: owner/operator reciben 403 sin persistir', async () => {
-    for (const role of ['owner', 'operator'] as const) {
-      const staff: OrderActor = { id: 'acc_staff', role, storeId: 'leche-y-miel' }
-      await expect(create(validPickupRequest(), staff)).rejects.toBeInstanceOf(AuthorizationError)
-    }
-    expect(await repo.listByStore(context.storeId)).toHaveLength(0)
-  })
-
-  it('limita creaciones por cuenta; inválidos no consumen cupo y otra cuenta conserva el suyo', async () => {
-    await expect(create({ foo: 'bar' })).rejects.toBeInstanceOf(ValidationError)
-    for (let i = 0; i < ORDER_CREATE_POLICY.limit; i += 1) await create(validPickupRequest())
-
-    const denied = await create(validPickupRequest()).catch((e: unknown) => e)
-    expect(denied).toBeInstanceOf(RateLimitedError)
-    expect((denied as RateLimitedError).retryAfterSeconds).toBeGreaterThan(0)
-    expect(await repo.listByStore(context.storeId)).toHaveLength(ORDER_CREATE_POLICY.limit)
-
-    const otherActor: OrderActor = { id: 'acc_otra', role: 'customer', storeId: null }
-    const other = await create({ ...validPickupRequest(), userId: 'acc_otra' }, otherActor)
-    expect(other.customerId).toBe('acc_otra')
-  })
-
-  it('el DTO público no expone la tienda y valida contra el contrato', async () => {
-    const order = await createOrder(deps(), customer, validDeliveryRequest(), context)
-    const dto = toOrderDto(order)
-
-    expect(dto).not.toHaveProperty('storeId')
-    expect(dto.orderId).toBe(order.id)
-    expect(orderDtoSchema.safeParse(dto).success).toBe(true)
-  })
-
-  it('rechaza campos de contexto o resultado enviados por el cliente', async () => {
-    for (const extra of [{ storeId: 'otra' }, { status: 'delivered' }, { estimatedTotal: 1 }]) {
-      await expect(
-        createOrder(deps(), customer, { ...validPickupRequest(), ...extra }, context),
-      ).rejects.toBeInstanceOf(ValidationError)
-    }
-  })
-
-  it('rechaza delivery sin dirección', async () => {
-    await expect(
-      createOrder(deps(), customer, { ...validPickupRequest(), deliveryType: 'delivery', deliveryData: {}, shippingCost: 3000 }, context),
-    ).rejects.toBeInstanceOf(ValidationError)
-  })
-
-  it('rechaza item peso variable sin kilos', async () => {
-    const { kilosRequested: _omit, ...withoutKilos } = variableWeightItem()
-    await expect(
-      createOrder(deps(), customer, { ...validPickupRequest(), items: [withoutKilos] }, context),
-    ).rejects.toBeInstanceOf(ValidationError)
-  })
-
-  it('rechaza input inválido con zod y reporta issues con ruta', async () => {
-    const error = await createOrder(deps(), customer, { foo: 'bar' }, context).catch((e: unknown) => e)
-
-    expect(error).toBeInstanceOf(ValidationError)
-    const issues = (error as ValidationError).issues as { path: string; message: string }[]
-    expect(issues.length).toBeGreaterThan(0)
-    expect(issues[0]).toEqual({ path: expect.any(String), message: expect.any(String) })
-  })
-
-  it('rechaza un total estimado por encima del máximo COP', async () => {
-    const items = Array.from({ length: 3 }, (_, i) => ({
-      id: `caro-${i}`,
-      qty: 1,
-      priceAtMoment: 60_000_000,
-    }))
-    await expect(
-      createOrder(deps(), customer, { ...validPickupRequest(), items }, context),
-    ).rejects.toBeInstanceOf(ValidationError)
+  it('rechaza total COP sobre máximo desde precios reales', async () => {
+    await alter('prod_leche', { price: 60_000_000 })
+    await expect(create()).rejects.toBeInstanceOf(ValidationError)
   })
 })
