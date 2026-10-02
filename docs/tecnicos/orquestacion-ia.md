@@ -1,6 +1,6 @@
 # MAUI — Orquestación de Codex y Claude Code
 
-> **Fecha:** 2026-10-01. **Alcance:** estrategia de ejecución técnica del [plan global](estado-plan.md), T-01 a T-24 y evolución posterior cuando se solicite.
+> **Fecha:** 2026-10-02. **Alcance:** estrategia de ejecución técnica del [plan global](estado-plan.md), T-01 a T-24 y evolución posterior cuando se solicite.
 > **Responsable de orquestación:** Codex en este chat. Implementación mediante asistentes locales autenticados por suscripción; sin workflow SDD.
 
 ## Capacidad comprobada y límites
@@ -15,9 +15,9 @@ Usar autenticación por suscripción. Antes de lanzar procesos, comprobar auth y
 
 **Política única y vigente.** AGENTS.md, CLAUDE.md y README remiten aquí; no mantienen otro gitflow. `estado-plan.md` mantiene estados/dependencias, no una política de ramas paralela. Desarrollo directo en `feature/<nombre>`; nunca directamente en develop/master.
 
-1. **Base:** revisar rama, commit y cambios pendientes antes de asignar un bloque. Una feature por capacidad o grupo coherente de T-*, siempre desde develop. Un Preview listo no demuestra que su código pertenezca a develop.
+1. **Base:** revisar rama, commit y cambios pendientes antes de asignar un bloque. Una feature por bloque, siempre desde develop. Un solo PR por bloque, incluyendo implementación, correcciones, evidencia y estado; si el smoke exige código ya integrado, actualizar ese mismo PR con el resultado y registrar el cierre documental en el siguiente bloque, sin crear un PR de cierre separado. Un Preview listo no demuestra que su código pertenezca a develop.
 2. **Ownership:** contratos/config/migraciones tienen un escritor único. Asignar archivos; no mover ni incluir cambios ajenos con un `add` global o stash indiscriminado. No mezclar entregas distintas en un commit.
-3. **Autonomía:** revisión, fixes locales, push de la feature, PR a develop y merge a develop se ejecutan **sin pedir permiso** cuando los gates del alcance están aprobados y el CI del PR está verde. Se revisa el diff contra develop y se ejecutan las verificaciones del alcance antes del PR; los auth/importes/concurrencia reciben revisión de otro proveedor. Resolver conflictos con el estado vigente y actualizar H-*/T-* tras incorporar lo verificado.
+3. **Autonomía:** revisión, fixes locales, push de la feature, PR a develop y merge a develop se ejecutan **sin pedir permiso** cuando los gates del alcance están aprobados y el CI del PR está verde. Claude revisa su diff contra develop y ejecuta las verificaciones antes del PR. Codex revisa CI y resumen en bloques no críticos; T-12, T-13 y el reset de T-16 requieren revisión cruzada Codex antes del merge. Resolver conflictos con el estado vigente y actualizar H-*/T-* tras incorporar lo verificado.
 4. **CI obligatorio:** no se fusiona con CI rojo, pendiente ni omitido; no saltar checks, usar bypass de administrador ni forzar pushes sobre ramas compartidas. Un fallo de CI se diagnostica y corrige en la feature.
 5. **Requieren aprobación del usuario únicamente:** (a) promoción a master/Production; (b) operaciones cloud destructivas (borrado, reset, seed sobre datos existentes, migraciones destructivas); (c) bloqueos que exigen al usuario: decisión de alcance/negocio, conexión, autenticación o habilitación de acceso. La aprobación de una de estas acciones no se extiende a otra.
 6. **Sin cambios productivos implícitos:** un push o merge a develop puede generar un Preview, pero no toca Production, su BD, variables ni secretos. Las acciones cloud no destructivas sobre test (Preview/develop, Neon dev) siguen esta política solo después de comprobar el aislamiento del destino.
@@ -33,15 +33,14 @@ Usar autenticación por suscripción. Antes de lanzar procesos, comprobar auth y
 
 ## Reparto de trabajo
 
-| Función | Ejecutor preferido | Contexto que recibe |
+| Función | Ejecutor por defecto | Responsabilidad |
 |---|---|---|
-| Ordenar dependencias, fijar contrato mínimo y repartir archivos | Codex orquestador | Plan vigente, estado del repo y resultado breve del último bloque |
-| Implementación habitual de endpoints/adapters/UI y tests asociados | Un ejecutor Claude Code o Codex CLI según margen disponible | Encargo de una capacidad, archivos permitidos, contratos relevantes y pruebas esperadas |
-| Auth, permisos, importes/pesos, idempotencia y concurrencia | Ejecutor con capacidad suficiente; revisión independiente del otro proveedor | Decisión concreta, diff, contrato y riesgo que debe verificar |
-| Lint/typecheck/tests/build | Herramientas locales, coordinadas por Codex | Comandos y resultado; sin un segundo modelo leyendo logs completos |
-| Integración, comprobación de alcance y actualización de estado | Codex orquestador | Diff y evidencia de pruebas; leer código afectado según riesgo |
+| Implementación y cierre técnico del bloque | Claude Code | Implementar, correr tests y gates, aplicar correcciones, preparar smoke y evidencia, redactar el PR y el resumen |
+| Asignación e integración | Codex | Medir cuotas, asignar bloque y archivos, tomar decisiones transversales y hacer merge con CI verde |
+| Bloques críticos: T-12, T-13 y reset de T-16 | Codex | Revisión cruzada del diff y evidencia antes del merge |
+| Bloques no críticos | Codex | Revisar CI y resumen; investigar únicamente fallos, bloqueos o discrepancias concretas |
 
-No fijar un reparto 50/50 ni duplicar implementación para comparar asistentes. La asignación inicial favorece que Claude resuelva implementación acotada mientras Codex conserva margen para coordinación y validación; cambiarlo según límites/resultado real. **Preferencia vigente (T-07/T-08):** cargar en Claude más implementación, ejecución de gates locales y actualización documental del bloque; Codex se concentra en revisar fronteras/permisos/contratos y en Git/PR/cloud. Elegir modelo y esfuerzo por bloque mediante la matriz siguiente, sin cambiar preferencias globales ni intentar saltarse límites con otro modelo.
+El reparto se ajusta en cada asignación según cuota medida, ventanas y hora, sin porcentajes fijos ni reparto 50/50. Si Codex tiene poco margen, se limita a merge y revisiones críticas y encarga a Claude trabajo mayor, hasta dos bloques relacionados por sesión con un PR por bloque. Si Claude tiene poco margen, Codex ejecuta solo arreglos pequeños; no inicia un bloque grande sin capacidad para terminarlo. Máximo dos ejecutores Claude, en carpetas disjuntas y checkouts/worktrees separados si se solapan en el repositorio. Contratos y estados de pedido tienen un escritor único. Elegir modelo y esfuerzo por bloque mediante la matriz siguiente.
 
 ## Modelos y esfuerzo por complejidad
 
@@ -63,7 +62,7 @@ Familias Claude: **Sonnet** para ejecución habitual y **Opus** para razonamient
 
 Un mismo nombre de esfuerzo no equivale al mismo consumo/capacidad entre modelos. No heredar `high` global para tareas mecánicas: pasar selección explícita por sesión, comprobar restricciones/env y registrar el nivel solicitado y el efectivo (null si no es verificable). `max` solo para un problema excepcional con hipótesis y límite de alcance; no activar Ultra/Ultracode ni equipos recursivos como default. Si un modelo no está incluido, usar una alternativa permitida incluida; si exige conexión/auth o un cambio de alcance, interrumpir y avisar. No activar API de pago, uso extra ni créditos para desbloquearlo.
 
-Revisión independiente de contratos, auth, importes y concurrencia: proveedor distinto con `high`, sobre diff y evidencia concreta; `xhigh` solo cuando el riesgo lo justifique.
+Revisión cruzada Codex en T-12, T-13 y reset de T-16: `high`, sobre diff y evidencia concreta; `xhigh` solo cuando el riesgo lo justifique. En bloques no críticos Codex revisa CI y resumen; escalar si aparecen riesgos transversales concretos.
 
 ## Clean code como criterio de cierre
 
@@ -126,7 +125,7 @@ Encargo reutilizable: «Resuelve [IDs/objetivo]. Tu responsabilidad son [archivo
 
 ## Validación y presupuesto
 
-Buscar/leer archivos concretos y limitar logs a fallos accionables. Mantener instrucciones comunes pequeñas; cargar contexto de dominio solo cuando se utiliza. Tests/lint/typecheck son evidencia principal. Revisión cruzada por otro modelo para auth, totales, estados/concurrencia y cambios compartidos; para cambios simples bastan diff y comprobaciones adecuadas. No repetir todas las suites después de un cambio documental ni repetir revisiones aprobadas sin nueva razón. Build y E2E completos al integrar un corte y en la entrega test final.
+Buscar/leer archivos concretos y limitar logs a fallos accionables. Mantener instrucciones comunes pequeñas; cargar contexto de dominio solo cuando se utiliza. Tests/lint/typecheck son evidencia principal. Aplicar la revisión cruzada de los bloques críticos definida en el reparto; en los demás, Claude verifica diff y comportamiento y Codex revisa CI y resumen. No repetir todas las suites después de un cambio documental ni repetir revisiones aprobadas sin nueva razón. Build y E2E completos al integrar un corte y en la entrega test final.
 
 Un bloque que dependa de API/Postgres solo se cierra con pruebas contra esos servicios reales en test; mocks, memory o demo no lo cierran.
 
@@ -136,9 +135,11 @@ Intentar como máximo dos rondas de corrección sobre el mismo fallo antes de ca
 
 Ante 401/403 confirmado de la única vía, login requerido, cuota agotada sin alternativa incluida, credenciales faltantes o servicio no habilitado: no insistir con reautenticaciones ni crear cuentas/planes por cuenta propia. No desactivar seguridad, cambiar proveedor silenciosamente ni sustituir integración real por mock para cerrar la tarea. Una decisión técnica local con requisitos suficientes se resuelve autónomamente; una elección que cambia alcance o requiere al usuario se eleva con alternativas concretas.
 
-Antes de cada lote consultar cuota Codex desde la app; para Claude usar `rate_limit_event.rate_limit_info.unifiedWindows` cuando la salida estructurada del CLI lo exponga (utilization por ventana y resetsAt), o el estado verificable/aviso de límite disponible. Calcular restante como 100 × (1 − utilization); guardar fuente y hora, sin tratar un dato anterior como actual. Reservar orientativamente 20–25% de la capacidad disponible de Codex para integración, reparación y reporte; es una política de gestión, no una cuota exacta. Reducir paralelismo y encargos al acercarse a los límites. Reconsultar antes de ampliar un bloque, tras una tanda de correcciones y antes de asignar el siguiente; aprovechar eventos de la sesión activa sin abrir prompts solo para medir. Comparar ventanas y margen compartido, cargar implementación/gates/preparación de smoke en el proveedor con más margen y reservar Codex para revisión cruzada, integración y reparación. Adaptar contexto y tamaño del encargo con consumo observado; no declarar ahorros sin medición.
+Antes de cada lote consultar cuota Codex desde la app; para Claude usar `rate_limit_event.rate_limit_info.unifiedWindows` cuando la salida estructurada del CLI lo exponga (utilization por ventana y resetsAt), o el estado verificable/aviso de límite disponible. Calcular restante como 100 × (1 − utilization); guardar fuente y hora, sin tratar un dato anterior como actual. Conservar margen para integración, revisiones críticas y reporte según la cuota medida, sin umbrales porcentuales fijos. Reducir paralelismo y encargos al acercarse a los límites. Reconsultar antes de ampliar un bloque, tras una tanda de correcciones y antes de asignar el siguiente; aprovechar eventos de la sesión activa sin abrir prompts solo para medir. Comparar ventanas y margen compartido, cargar implementación/gates/preparación de smoke en el proveedor con más margen y reservar Codex para revisión cruzada, integración y reparación. Adaptar contexto y tamaño del encargo con consumo observado; no declarar ahorros sin medición.
 
-Si Claude agota capacidad, continuar trabajo acotado con Codex mientras exista margen. Si Codex se acerca al límite, priorizar checkpoint/integración y dejar a Claude únicamente el encargo autosuficiente ya asignado. Si ambos se agotan, guardar estado y reportar la limitación y el reset conocido. No consumir resets de cuenta ni comprar créditos automáticamente.
+Si Claude tiene poco margen, Codex realiza únicamente arreglos pequeños que pueda terminar con su cuota. Si Codex tiene poco margen, reducir su intervención a merge y revisiones críticas y ampliar los encargos autosuficientes de Claude hasta dos bloques relacionados. Si ambos se agotan, guardar estado y reportar la limitación y el reset conocido. No consumir resets de cuenta ni comprar créditos automáticamente.
+
+La contingencia automática desde una terminal se descartó: no completó la orquestación propuesta. No habilitar un modo alternativo que omita la revisión crítica o delegue merges sin verificar sus capacidades. Conservar sesiones/checkpoints y detener el trabajo dependiente cuando falte capacidad o intervención del usuario.
 
 ## Fuentes verificadas el 2026-10-01
 

@@ -224,4 +224,6 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 
 Siguiente bloque: T-12 (estados, pesos y sustituciones), con Opus según la matriz y revisión independiente Codex. Reevaluar margen de ambos proveedores antes de asignarlo; conservar capacidad suficiente para corrección, integración y smoke. Las dependencias T-06/T-10/T-11 están cerradas en servidor. Activación del upload, reducción de cámara >3 MiB y cancelación al desmontar corresponden a T-17.
 
+T-17/T-18: sus adapters pueden avanzar contra APIs ya cerradas (auth, catálogo, tienda, creación y listado de pedidos), sin transiciones de pedido, auditoría, seed ni cambios en `shared/`. El cierre de ambos bloques sigue dependiendo de T-12 y T-16.
+
 Los snapshots de creación contienen los datos personales del pedido; una anonimización por UPDATE y la retención futura deben abarcar también `order_creations`. Borrar un pedido elimina su claim por cascada. No se añade una política de retención en T-10.

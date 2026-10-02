@@ -365,6 +365,19 @@
       "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
       "identificadorEjecucion": "turn_context 2026-10-02T14:05:16.17Z",
       "estado": "finalizado; integrado y validado en test"
+    },
+    {
+      "incremento": "contingencia-orquestacion",
+      "rama": "feature/orquestacion-contingencia",
+      "bloque": "orquestacion",
+      "proveedor": "Claude Code",
+      "rol": "orquestador de contingencia",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "8a4e7e35-8a0b-484a-88cc-0070a713329f",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; contingencia automática no funcional; pasos 3 a 6 del encargo no completados"
     }
   ]
 }
