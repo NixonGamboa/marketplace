@@ -1,9 +1,18 @@
-import type { VercelRequest } from '@vercel/node'
-import { entityIdSchema, issuesFromZodError } from '../../shared/contracts/index.js'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import {
+  buildApiError,
+  entityIdSchema,
+  issuesFromZodError,
+  listOrdersQuerySchema,
+  type ListOrdersQuery,
+} from '../../shared/contracts/index.js'
 import type { OrderActor } from '../../maui-back/src/domain/orders/orderAccess.js'
+import { OrderPersistenceError } from '../../maui-back/src/domain/orders/orderCreation.js'
+import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import type { AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { ValidationError } from '../../maui-back/src/shared/errors.js'
-import { AuthRequestError, authenticateRequest, requireTrustedOrigin } from './auth.js'
+import { AuthRequestError, authenticateRequest, failAuth, requireTrustedOrigin } from './auth.js'
+import { jsonResponse } from './response.js'
 
 /** Tope del cuerpo JSON de pedidos: 50 ítems con snapshot y dirección caben con holgura. */
 export const MAX_ORDER_BODY_BYTES = 32 * 1024
@@ -23,7 +32,23 @@ export const authorizeOrderRequest = async (
   return account
 }
 
-export const orderIdFrom = (req: VercelRequest): string => {
+/** Query del listado validada por el contrato compartido: sin parámetros desconocidos, repetidos ni coerciones. */
+export const listQueryFrom = (req: VercelRequest): ListOrdersQuery => {
+  const parsed = listOrdersQuerySchema.safeParse(req.query ?? {})
+  if (!parsed.success) throw new ValidationError('Invalid query', issuesFromZodError(parsed.error))
+  return parsed.data
+}
+
+/** Errores de pedidos: fallo de persistencia → 503 sin detalles; el resto sigue la política de auth/API. */
+export const failOrderRequest = (res: VercelResponse, err: unknown, config?: AuthConfig): void => {
+  if (err instanceof OrderPersistenceError) {
+    jsonResponse(res, buildApiError('SERVICE_UNAVAILABLE', 'Servicio no disponible'), 503)
+    return
+  }
+  failAuth(res, err, config)
+}
+
+export const orderIdFrom =(req: VercelRequest): string => {
   const raw = typeof req.query.id === 'string' ? req.query.id : req.query.id?.[0]
   if (!raw) throw new AuthRequestError(400, 'MISSING_ID', 'Falta el ID del pedido')
   const parsed = entityIdSchema.safeParse(raw)

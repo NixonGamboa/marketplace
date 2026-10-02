@@ -3,8 +3,21 @@ import type {
   ListOrdersOptions,
   OrdersRepository,
 } from '../../domain/orders/OrdersRepository.js'
+import {
+  matchesOrderFilter,
+  toListPosition,
+  type OrderListPosition,
+  type OrderPage,
+  type OrderPageRequest,
+} from '../../domain/orders/orderListing.js'
 import { ConflictError, NotFoundError } from '../../shared/errors.js'
 import type { CommitOrderCreation, CommitOrderResult, OrderCreationIdentity, StoredOrderCreation } from '../../domain/orders/orderCreation.js'
+
+const DEFAULT_STORE_LIST_LIMIT = 50
+
+/** Orden del listado: más reciente primero y, a igual fecha, ID mayor primero. Negativo = `a` antes. */
+const compareDesc = (a: OrderListPosition, b: OrderListPosition): number =>
+  a.createdAt === b.createdAt ? (a.id === b.id ? 0 : a.id < b.id ? 1 : -1) : a.createdAt < b.createdAt ? 1 : -1
 
 export class OrdersRepositoryMemory implements OrdersRepository {
   private readonly store = new Map<string, Order>()
@@ -55,13 +68,22 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     return this.store.get(id) ?? null
   }
 
-  async listByStore(storeId: string, opts?: ListOrdersOptions): Promise<Order[]> {
-    const all = [...this.store.values()]
-      .filter((o) => o.storeId === storeId)
-      .filter((o) => (opts?.status ? o.status === opts.status : true))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  async listPage({ scope, filter, limit, after }: OrderPageRequest): Promise<OrderPage> {
+    const matching = [...this.store.values()]
+      .filter((order) => matchesOrderFilter(order, scope, filter))
+      .map((order) => ({ order, position: toListPosition(order.createdAt, order.id) }))
+      .filter(({ position }) => after === undefined || compareDesc(position, after) > 0)
+      .sort((a, b) => compareDesc(a.position, b.position))
+    return { entries: matching.slice(0, limit), hasMore: matching.length > limit }
+  }
 
-    return opts?.limit ? all.slice(0, opts.limit) : all
+  async listByStore(storeId: string, opts?: ListOrdersOptions): Promise<Order[]> {
+    const page = await this.listPage({
+      scope: { kind: 'store', storeId },
+      filter: opts?.status ? { status: opts.status } : {},
+      limit: opts?.limit ?? DEFAULT_STORE_LIST_LIMIT,
+    })
+    return page.entries.map(({ order }) => order)
   }
 
   async updateStatus(id: string, status: OrderStatus, updatedAt: string): Promise<Order> {

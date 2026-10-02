@@ -460,7 +460,7 @@ describe('origen, método y cuerpo', () => {
 
   it('métodos no admitidos: 405 con Allow y sin caché', async () => {
     const cases: [HandlerName, string, string][] = [
-      ['create', 'GET', 'POST'],
+      ['create', 'DELETE', 'GET, POST'],
       ['detail', 'DELETE', 'GET'],
       ['status', 'POST', 'PATCH'],
     ]

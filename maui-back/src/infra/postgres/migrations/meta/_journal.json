@@ -36,6 +36,13 @@
       "when": 1790918134794,
       "tag": "0004_order_creation_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790956211029,
+      "tag": "0005_orders_listing_indexes",
+      "breakpoints": true
     }
   ]
 }

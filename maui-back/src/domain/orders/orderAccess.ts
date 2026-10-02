@@ -2,6 +2,7 @@ import type { Account } from '../auth/Account.js'
 import type { RateLimitRule } from '../auth/AuthRepository.js'
 import { AuthorizationError } from '../auth/errors.js'
 import type { Order } from './Order.js'
+import type { OrderListScope } from './orderListing.js'
 
 /**
  * Actor de una operación sobre pedidos. Sale SIEMPRE de la sesión y la cuenta vigentes
@@ -27,6 +28,18 @@ export const assertCanUpdateOrderStatus = (actor: OrderActor): void => {
 export const canAccessOrder = (actor: OrderActor, order: Pick<Order, 'customerId' | 'storeId'>): boolean => {
   if (actor.role === 'customer') return order.customerId === actor.id
   return actor.storeId !== null && order.storeId === actor.storeId
+}
+
+/**
+ * Alcance del listado: cliente → solo sus pedidos; owner/operator → solo los de la tienda de su
+ * cuenta vigente (leída de BD en esta request). Cualquier otra combinación se deniega.
+ */
+export const listScopeFor = (actor: OrderActor): OrderListScope => {
+  if (actor.role === 'customer') return { kind: 'customer', customerId: actor.id }
+  if ((actor.role === 'owner' || actor.role === 'operator') && actor.storeId !== null) {
+    return { kind: 'store', storeId: actor.storeId }
+  }
+  throw new AuthorizationError()
 }
 
 /**

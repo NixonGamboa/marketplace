@@ -1,8 +1,10 @@
 import {
   orderConfirmationSchema,
   orderDtoSchema,
+  orderListResponseSchema,
   type DeliveryDataDto,
   type OrderConfirmationDto,
+  type OrderListResponse,
   type OrderDto,
   type OrderItemDto,
 } from '../../../../shared/contracts/index.js'
@@ -49,6 +51,10 @@ export const toOrderDto = (order: Order): OrderDto =>
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
   })
+
+/** Página del listado: cada pedido sale por el mismo DTO canónico que el detalle. */
+export const toOrderListResponse = (page: { items: Order[]; nextCursor: string | null }): OrderListResponse =>
+  orderListResponseSchema.parse({ items: page.items.map(toOrderDto), nextCursor: page.nextCursor })
 
 /** Respuesta de creación: el pedido nace siempre en `received`. */
 export const toOrderConfirmation = (order: Order): OrderConfirmationDto =>
