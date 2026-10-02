@@ -10,7 +10,8 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | `orderConfirmationSchema` | Respuesta de creación: ID, `received` y estimación |
 | `orderDtoSchema` | Lecturas cliente/admin, salida explícita sin `storeId` ni campos internos |
 | `listOrdersQuerySchema` / `orderListResponseSchema` | GET `/api/orders` (T-11): query estricta (`q`, `status`, `from` inclusivo, `to` exclusivo, `limit` 1–100, `cursor` opaco) y `{items: OrderDto[], nextCursor}`; el alcance lo fija la sesión |
-| `updateOrderStatusRequestSchema` | PATCH de estado, vocabulario común |
+| `updateOrderStatusRequestSchema` | PATCH `/api/orders/:id/status` (T-12): `status`, `expectedVersion` y `reason` obligatorio solo al cancelar (5–500) |
+| `updateOrderItemsRequestSchema` | PATCH `/api/orders/:id` (T-12): `expectedVersion` y `changes` (`weight`, `remove`, `substitute`) sin ítems ni sustitutos repetidos; `customerContacted: true` (declaración del personal) obligatorio para quitar/sustituir con preferencia `call_me` |
 | `apiErrorSchema` | `{error,message,issues?:[{path,message}]}` |
 | `productDtoSchema` / `categoryDtoSchema` | Catálogo público, mismo shape que `shared/catalog` (`Product`/`Category`) |
 | `staffProductDtoSchema` | Vista de personal: añade `active`, `archived` y fechas; nunca `storeId` |
@@ -20,8 +21,17 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 
 IDs opacos no autorizan acceso. Estados comunes: `received`, `confirmed`,
 `preparing`, `ready`, `in_delivery`, `delivered`, `cancelled`. El paso en camino es
-opcional en domicilio; retiro no lo admite. Entregado/cancelado son terminales;
-las transiciones atómicas y trazabilidad completa quedan en T-12.
+opcional en domicilio; retiro no lo admite. Entregado/cancelado son terminales
+(`isTerminalOrderStatus`) e inmutables; los ítems solo cambian en `ITEMS_EDITABLE_STATUS`
+(`preparing`).
+
+T-12 añade al `OrderDto`, como campos opcionales para no romper datos demo: `version`
+(siempre presente en respuestas del servidor; se reenvía como `expectedVersion`),
+`originalItems` (ítems pedidos, desde la primera sustitución o retiro),
+`cancellationReason`/`cancelledAt` (juntos y solo en `cancelled`; ausentes en
+cancelaciones legacy) y `substitutedFor` por ítem sustituto. El actor del cambio no sale
+en el DTO. `finalTotal` refleja los ítems vigentes y existe siempre desde `ready`; ningún pedido
+pasa a `in_delivery`/`delivered` sin total final ni pesos reales completos.
 
 Los importes son enteros COP. `priceAtMoment` es un snapshot unitario o precio por
 kg. En peso variable se usan gramos enteros, hasta tres decimales de kg, y
@@ -43,10 +53,10 @@ cumplen el DTO de salida producen un error seguro, no datos malformados.
 
 Los endpoints de pedidos exigen sesión (T-06): el dueño y la tienda los fija el
 servidor y `userId` del request solo se admite si coincide con la cuenta autenticada
-(si no, 403). Faltan usar el catálogo servidor en pedidos e idempotencia (T-10) y actualizaciones
-atómicas de estados/pesos (T-12): precio y nombre del request siguen siendo datos
-del cliente que esos bloques reemplazarán por autoridad del servidor. Este contrato no acredita que los servicios reales de ambas apps estén
-conectados: T-17/T-18 y el build real T-23 siguen pendientes.
+(si no, 403). Precio y nombre salen del catálogo servidor (T-10), también para los
+sustitutos (T-12); los cambios de estado e ítems son atómicos por versión. Este contrato no
+acredita que los servicios reales de ambas apps estén conectados: T-17/T-18 y el build real
+T-23 siguen pendientes.
 
 ## Catálogo y tienda (T-07/T-08)
 

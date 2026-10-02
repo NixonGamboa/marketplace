@@ -62,6 +62,63 @@ El cursor no es secreto ni autoriza: solo impide mezclar consultas. Migración a
 `cursor` solo por fecha se eliminó por no tener consumidores. Las apps aún usan servicios mock:
 T-17/T-18 deben consumir este contrato y T-19 el polling.
 
+## Ciclo de estados, pesos y sustituciones (T-12)
+
+Solo **owner/operator** de la tienda del pedido mutan pedidos; el cliente (incluso dueño)
+recibe 403 antes de validar el body o leer el pedido, y otra tienda responde el mismo 404
+que un ID inexistente. Rol y tienda salen de la cuenta leída de BD en cada request; el body
+nunca aporta actor, tienda, precios ni importes (esquemas `.strict()`). Ambas rutas exigen
+`Origin` y JSON, y responden el `OrderDto` actualizado.
+
+| Ruta | Body | Regla |
+|---|---|---|
+| `PATCH /api/orders/:id/status` | `{ status, expectedVersion, reason? }` | Máquina común por modalidad (`in_delivery` solo en domicilio, cancelar hasta `ready`). Entrar en `ready`, `in_delivery` o `delivered` exige todos los pesos reales y fija `finalTotal`. `cancelled` exige `reason` (5–500 caracteres, recortado) y guarda motivo y fecha |
+| `PATCH /api/orders/:id` | `{ expectedVersion, changes: [...] }` | Solo en `preparing`, en bloque y todo o nada: `weight` (`itemId`, `kilosReal` 0,001–100 kg en gramos, solo peso variable), `remove` (`itemId`, `customerContacted?`) y `substitute` (`itemId`, `productId`, `qty`, `kilosRequested?`, `kilosReal?`, `customerContacted?`) |
+
+- **Versión optimista:** `version` nace en 1 (también en filas previas) y sube con cada cambio.
+  Una `expectedVersion` vieja o una escritura concurrente que gana entre lectura y escritura
+  responden 409 `ORDER_VERSION_CONFLICT`: se recarga el pedido y se reintenta. El adapter
+  PostgreSQL usa **un solo UPDATE condicional** (`id`, tienda, versión y estado leídos),
+  compatible con Neon HTTP y varias instancias; dos cambios simultáneos no se pisan ni
+  producen doble transición. El adapter memory compara y escribe sin `await` intermedio.
+- **Terminales inmutables:** `delivered` y `cancelled` rechazan cualquier transición o cambio
+  de ítems (400). Cancelaciones previas a T-12 quedan sin motivo/fecha y siguen siendo válidas.
+- **Totales:** `estimatedTotal`, `shippingCost` y el snapshot de idempotencia no cambian.
+  `finalTotal` se recalcula con los ítems vigentes (redondeo por línea en gramos, ADR-006) y
+  el envío cotizado al pedir, que nunca se recotiza; falta mientras haya un peso real pendiente
+  y existe siempre desde `ready` (peso fijo o variable). Cada paso a `ready`, `in_delivery` o
+  `delivered` lo recalcula: un pedido legacy que llegó a `ready`/`in_delivery` sin total lo
+  obtiene al avanzar y, si le falta un peso real, no avanza (400); nunca queda `delivered` sin
+  total. Pedidos legacy sin envío guardado suman solo ítems. Pesos: solo los límites técnicos
+  del contrato (0,001–100 kg en gramos), sin tolerancia respecto al peso pedido.
+- **Sustitución:** producto de la misma tienda, activo, no archivado y con stock, que no esté ya
+  en el pedido; nombre, unidad, precio vigente del catálogo servidor y peso variable salen del
+  catálogo. La misma sentencia que escribe el pedido **bloquea con `FOR SHARE`** (orden por ID)
+  las filas de los sustitutos y exige su versión leída, tienda y disponibilidad: un cambio de
+  catálogo concurrente espera o hace fallar la escritura (409); nunca se confirma un snapshot
+  obsoleto. Los bloqueos duran solo esa sentencia. La línea lleva `substitutedFor` (producto
+  pedido originalmente). El pedido no puede quedar vacío (el DTO exige al menos un ítem): se
+  cancela con motivo.
+- **Preferencias del cliente:** `remove` solo permite quitar, nunca sustituir. `call_me` exige
+  que el personal declare el contacto previo (`customerContacted: true`) para quitar o
+  sustituir; pesar no lo requiere. Es una declaración del operador autenticado: el servidor no
+  la verifica, no envía mensajes y no equivale a una confirmación del cliente. `similar`
+  permite sustituir o quitar.
+- **Snapshots:** la primera sustitución o retiro fija `originalItems` (ítems pedidos, sin pesos
+  reales); los pesos solos no lo crean.
+- **Trazabilidad:** cada cambio guarda `updated_by` (cuenta del personal, no expuesta en el DTO),
+  `updated_at` (no retrocede) y la versión; la cancelación guarda motivo y `cancelled_at`. Cada
+  retiro o sustitución queda en `item_adjustments` (tipo, ítem, sustituto, constancia de
+  contacto, actor y fecha; interno, no sale en el DTO) para que T-13 lo audite. La bitácora
+  persistente de todos los cambios es T-13.
+
+Migración aditiva `0006_orders_state_cycle`: columnas `version` (default 1), `updated_by`,
+`original_items`, `item_adjustments`, `cancellation_reason` y `cancelled_at`, más CHECK de versión positiva y de
+motivo+fecha solo en pedidos cancelados. No reescribe filas ni la función de creación.
+Una fila legacy se reescribe en formato canónico al primer cambio de ítems. Un pedido legacy
+de peso variable que ya estaba en `in_delivery` sin peso real no puede entregarse ni cancelarse
+(los ítems solo se editan en `preparing`): requiere corrección de datos fuera de la API.
+
 **Decisión de stack:** ver [`../docs/tecnicos/adr-001-stack-backend.md`](../docs/tecnicos/adr-001-stack-backend.md).
 
 ## Layout
@@ -76,7 +133,7 @@ T-17/T-18 deben consumir este contrato y T-19 el polling.
 │   ├── store.ts               # → /api/store, /api/store/staff
 │   └── orders/
 │       ├── index.ts           # → GET (listado) y POST /api/orders
-│       ├── [id].ts            # → GET  /api/orders/:id
+│       ├── [id].ts            # → GET y PATCH (ítems) /api/orders/:id
 │       └── [id]/status.ts     # → PATCH /api/orders/:id/status
 └── maui-back/
     ├── src/
@@ -188,7 +245,8 @@ no sustituyen el smoke real Neon/Preview. El build unificado aún compila demo.
 | GET | `/api/orders` | Listado paginado: cliente → sus pedidos; owner/operator → su tienda. Devuelve `{items, nextCursor}` |
 | POST | `/api/orders` | Solo customer; dueño = cuenta de la sesión, tienda fijada por servidor. Devuelve `OrderConfirmationDto` |
 | GET | `/api/orders/:id` | Cliente dueño u owner/operator de la tienda del pedido |
-| PATCH | `/api/orders/:id/status` | Owner/operator de la tienda del pedido (con validación de transición) |
+| PATCH | `/api/orders/:id` | Owner/operator de la tienda del pedido: pesos reales, sustitución y retiro en `preparing` (T-12) |
+| PATCH | `/api/orders/:id/status` | Owner/operator de la tienda del pedido: transición con `expectedVersion`; cancelar exige `reason` (T-12) |
 
 Los pedidos exigen cookie de sesión vigente (401 si falta, expiró, fue revocada o la
 cuenta está deshabilitada). Un pedido de otro cliente u otra tienda responde el mismo
@@ -323,7 +381,8 @@ verificar destino/ledger y su autorización propia antes de ejecutar.
 T-04 no incorpora auth, catálogo servidor, idempotencia ni actualizaciones atómicas
 (catálogo y tienda llegan en T-07/T-08; su uso en pedidos es T-10).
 T-10 toma catálogo y envío del servidor y garantiza la creación idempotente;
-T-12 completa estados y pesos. T-06 aplica autorización por cliente/tienda.
+T-12 completa estados, pesos y sustituciones con escritura condicional por versión (ver su
+sección). T-06 aplica autorización por cliente/tienda.
 
 La creación conserva un snapshot original con nombre, teléfono y domicilio. Borrar
 un pedido elimina su claim por cascada; una anonimización mediante UPDATE no cambia

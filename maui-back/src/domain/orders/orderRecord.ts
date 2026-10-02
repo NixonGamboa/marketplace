@@ -1,4 +1,6 @@
+import { z } from 'zod'
 import {
+  entityIdSchema,
   isDeliveryType,
   isOrderStatus,
   isSubstitutionPref,
@@ -12,7 +14,7 @@ import type {
   OrderItemDto,
   SubstitutionPref,
 } from '../../../../shared/contracts/index.js'
-import type { Order } from './Order.js'
+import type { Order, OrderItemAdjustment } from './Order.js'
 
 /**
  * Forma plana persistida de un pedido (fila de `orders`) y su mapeo explícito
@@ -58,6 +60,14 @@ export interface StoredOrderRecord {
   finalTotal: number | null
   createdAt: string
   updatedAt: string
+  version: number
+  updatedBy: string | null
+  /** Columna `original_items` (T-12): ítems al pedir, fijados en la primera sustitución/retiro. */
+  originalItems: StoredOrderItem[] | null
+  /** Columna `item_adjustments` (T-12): retiros/sustituciones con actor, fecha y constancia de contacto. */
+  itemAdjustments: OrderItemAdjustment[] | null
+  cancellationReason: string | null
+  cancelledAt: string | null
 }
 
 const LEGACY_SUBSTITUTION: Record<string, SubstitutionPref> = {
@@ -67,6 +77,25 @@ const LEGACY_SUBSTITUTION: Record<string, SubstitutionPref> = {
 }
 
 const isLegacyItem = (item: StoredOrderItem): item is LegacyOrderItem => 'productId' in item
+
+/** JSONB interno validado al leer: un registro malformado es un error explícito, no un dato confiado. */
+const itemAdjustmentsSchema = z.array(z.object({
+  type: z.enum(['remove', 'substitute']),
+  itemId: entityIdSchema,
+  productId: entityIdSchema.optional(),
+  customerContacted: z.boolean(),
+  by: entityIdSchema,
+  at: z.string(),
+}).strict())
+
+const adjustmentsFromStored = (value: unknown): OrderItemAdjustment[] =>
+  itemAdjustmentsSchema.parse(value).map(({ productId, at, ...adjustment }) => ({
+    ...adjustment,
+    ...(productId !== undefined ? { productId } : {}),
+    at: normalizeIsoUtc(at),
+  }))
+
+const itemFromStored = (item: StoredOrderItem): OrderItemDto => (isLegacyItem(item) ? fromLegacyItem(item) : item)
 
 export const fromLegacyItem = (item: LegacyOrderItem): OrderItemDto => {
   const base = { id: item.productId, name: item.name, priceAtMoment: item.priceAtMoment }
@@ -122,7 +151,7 @@ export const orderFromRecord = (record: StoredOrderRecord): Order => {
     customerId: record.customerId,
     customerName: record.customerName,
     ...(customerPhone !== null ? { customerPhone } : {}),
-    items: record.items.map((item) => (isLegacyItem(item) ? fromLegacyItem(item) : item)),
+    items: record.items.map(itemFromStored),
     status: record.status,
     deliveryType,
     deliveryData: deliveryDataFromRecord(record, deliveryType),
@@ -132,6 +161,12 @@ export const orderFromRecord = (record: StoredOrderRecord): Order => {
     ...(record.finalTotal !== null ? { finalTotal: record.finalTotal } : {}),
     createdAt: normalizeIsoUtc(record.createdAt),
     updatedAt: normalizeIsoUtc(record.updatedAt),
+    version: record.version,
+    ...(record.updatedBy !== null ? { updatedBy: record.updatedBy } : {}),
+    ...(record.originalItems !== null ? { originalItems: record.originalItems.map(itemFromStored) } : {}),
+    ...(record.itemAdjustments !== null ? { itemAdjustments: adjustmentsFromStored(record.itemAdjustments) } : {}),
+    ...(record.cancellationReason !== null ? { cancellationReason: record.cancellationReason } : {}),
+    ...(record.cancelledAt !== null ? { cancelledAt: normalizeIsoUtc(record.cancelledAt) } : {}),
   }
 }
 
@@ -154,4 +189,10 @@ export const orderToRecord = (order: Order): StoredOrderRecord => ({
   finalTotal: order.finalTotal ?? null,
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
+  version: order.version,
+  updatedBy: order.updatedBy ?? null,
+  originalItems: order.originalItems ?? null,
+  itemAdjustments: order.itemAdjustments ?? null,
+  cancellationReason: order.cancellationReason ?? null,
+  cancelledAt: order.cancelledAt ?? null,
 })

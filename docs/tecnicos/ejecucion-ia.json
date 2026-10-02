@@ -378,6 +378,58 @@
       "sessionId": "8a4e7e35-8a0b-484a-88cc-0070a713329f",
       "identificadorEjecucion": null,
       "estado": "finalizado; contingencia automática no funcional; pasos 3 a 6 del encargo no completados"
+    },
+    {
+      "incremento": "t12-ciclo-estados-pesos",
+      "rama": "feature/ciclo-estados-pesos",
+      "bloque": "T-12",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor principal",
+      "modelo": "claude-opus-5-5",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": null,
+      "sessionId": "b872a38e-aec9-4dbe-ae1b-980cbe50473f",
+      "identificadorEjecucion": null,
+      "estado": "finalizado; revisión cruzada y test real aprobados; cierre en PR #18"
+    },
+    {
+      "incremento": "t12-ciclo-estados-pesos",
+      "rama": "feature/ciclo-estados-pesos",
+      "bloque": "T-12",
+      "proveedor": "Codex",
+      "rol": "orquestador y revisor cruzado",
+      "modelo": "gpt-6.1-sol",
+      "esfuerzoSolicitado": "high",
+      "esfuerzoEfectivo": "high",
+      "sessionId": "01a0f956-6f75-77d2-8f3e-051fb54cd0d8",
+      "identificadorEjecucion": "chat existente; turn_context verificado",
+      "estado": "finalizado; revisión cruzada y test real aprobados; cierre en PR #18"
+    },
+    {
+      "incremento": "t17-adapters-admin",
+      "rama": "feature/adapters-admin-real",
+      "bloque": "T-17",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor de adapters",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "medium",
+      "esfuerzoEfectivo": null,
+      "sessionId": "2034ba4b-d106-474b-adef-5b70ef3d6cc4",
+      "identificadorEjecucion": null,
+      "estado": "finalizado adapters; PR #16 abierto; bloque parcial"
+    },
+    {
+      "incremento": "t18-adapters-pwa",
+      "rama": "feature/adapters-pwa-real",
+      "bloque": "T-18",
+      "proveedor": "Claude Code",
+      "rol": "ejecutor de adapters",
+      "modelo": "claude-sonnet-5-5",
+      "esfuerzoSolicitado": "medium",
+      "esfuerzoEfectivo": null,
+      "sessionId": "2034ba4b-d106-474b-adef-5b70ef3d6cc4",
+      "identificadorEjecucion": "misma sesión frontend reanudada",
+      "estado": "finalizado adapters; PR #17 abierto; bloque parcial"
     }
   ]
 }

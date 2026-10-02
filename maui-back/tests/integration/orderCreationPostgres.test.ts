@@ -13,6 +13,7 @@ import { TestClock, TEST_SECRET } from '../auth/fixtures.js'
 import { validPickupRequest, validDeliveryRequest } from '../contratos/fixtures.js'
 import { initializeOrderCatalog } from '../orders/creationFixture.js'
 import { startEmbeddedPostgres, type EmbeddedPostgres } from './pgliteNeon.js'
+import { forceStatus } from '../orders/forceStatus.js'
 
 const actor = { id: 'cust_01', role: 'customer' as const, storeId: null }
 const context = { storeId: 'leche-y-miel' }
@@ -70,7 +71,7 @@ describe('T-10: commit real PostgreSQL de pedido, idempotencia y cuota', () => {
   it('retry original después de cierre/agotado/estado cambiado, conflicto no consume quota', async () => {
     const key = randomUUID(), original = await create(key)
     await embedded.pg.exec("UPDATE stores SET schedule_override='closed',version=version+1; UPDATE catalog_products SET in_stock=false,version=version+1;")
-    await orders.updateStatus(original.id, 'confirmed', clock.nowIso())
+    await forceStatus(orders, original.id, 'confirmed', clock.nowIso())
     expect(await create(key)).toEqual(original)
     await expect(create(key, { ...validPickupRequest(), customerName: 'Otro' })).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
     expect(await counts()).toEqual({ orders: 1, claims: 1, attempts: 1 })

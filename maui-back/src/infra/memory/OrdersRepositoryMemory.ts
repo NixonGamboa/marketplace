@@ -1,6 +1,7 @@
-import type { Order, OrderStatus } from '../../domain/orders/Order.js'
+import type { Order } from '../../domain/orders/Order.js'
 import type {
   ListOrdersOptions,
+  OrderChange,
   OrdersRepository,
 } from '../../domain/orders/OrdersRepository.js'
 import {
@@ -10,7 +11,7 @@ import {
   type OrderPage,
   type OrderPageRequest,
 } from '../../domain/orders/orderListing.js'
-import { ConflictError, NotFoundError } from '../../shared/errors.js'
+import { ConflictError } from '../../shared/errors.js'
 import type { CommitOrderCreation, CommitOrderResult, OrderCreationIdentity, StoredOrderCreation } from '../../domain/orders/orderCreation.js'
 
 const DEFAULT_STORE_LIST_LIMIT = 50
@@ -18,6 +19,20 @@ const DEFAULT_STORE_LIST_LIMIT = 50
 /** Orden del listado: más reciente primero y, a igual fecha, ID mayor primero. Negativo = `a` antes. */
 const compareDesc = (a: OrderListPosition, b: OrderListPosition): number =>
   a.createdAt === b.createdAt ? (a.id === b.id ? 0 : a.id < b.id ? 1 : -1) : a.createdAt < b.createdAt ? 1 : -1
+
+/** Un cambio de ciclo de vida solo aporta campos mutables; el resto se conserva de la fila guardada. */
+const keepImmutable = (stored: Order, next: Order): Order => {
+  const { customerPhone: _phone, shippingCost: _shipping, ...mutable } = next
+  return {
+    ...mutable,
+    id: stored.id, storeId: stored.storeId, customerId: stored.customerId, customerName: stored.customerName,
+    deliveryType: stored.deliveryType, deliveryData: stored.deliveryData,
+    substitutionPreference: stored.substitutionPreference, estimatedTotal: stored.estimatedTotal,
+    createdAt: stored.createdAt,
+    ...(stored.customerPhone !== undefined ? { customerPhone: stored.customerPhone } : {}),
+    ...(stored.shippingCost !== undefined ? { shippingCost: stored.shippingCost } : {}),
+  }
+}
 
 export class OrdersRepositoryMemory implements OrdersRepository {
   private readonly store = new Map<string, Order>()
@@ -86,12 +101,17 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     return page.entries.map(({ order }) => order)
   }
 
-  async updateStatus(id: string, status: OrderStatus, updatedAt: string): Promise<Order> {
-    const current = this.store.get(id)
-    if (!current) throw new NotFoundError('Order', id)
-    const updated: Order = { ...current, status, updatedAt }
-    this.store.set(id, updated)
-    return updated
+  /**
+   * Compara y escribe sin `await` intermedio: indivisible en este adapter local. Igual que en la
+   * creación, no conoce el catálogo: la vigencia de los sustitutos solo la garantiza PostgreSQL.
+   */
+  async saveChange({ expected, next }: OrderChange): Promise<Order | null> {
+    const current = this.store.get(expected.id)
+    if (!current || current.storeId !== expected.storeId || current.version !== expected.version ||
+      current.status !== expected.status) return null
+    const updated = structuredClone(keepImmutable(current, next))
+    this.store.set(expected.id, updated)
+    return structuredClone(updated)
   }
 
   reset(): void {
