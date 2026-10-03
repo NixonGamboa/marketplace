@@ -3,8 +3,9 @@
  * sin mocks de auth, pedidos, catálogo ni API. El bypass de Preview viaja únicamente hacia el
  * hostname del destino, y WhatsApp se bloquea a nivel de red: los enlaces se verifican, nunca se abren.
  */
-import { expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type APIResponse, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
+import { orderConfirmationSchema } from '../../shared/contracts/index.js'
 import type { Destination } from './env.js'
 import { ARTIFACTS_DIR, saveRuntime, type RuntimeRecord } from './runtime.js'
 import { redact, secretValues } from './redact.js'
@@ -59,6 +60,21 @@ export async function openActor(
       issues.push(`${name}: ${response.request().method()} ${url.pathname} respondió ${response.status()}`)
     }
   })
+  // El ID del pedido se asocia a la clave que realmente lo creó (200/201 del POST), no a la última pendiente.
+  page.on('response', async (response) => {
+    const request = response.request()
+    const url = new URL(response.url())
+    if (!runtime || request.method() !== 'POST' || url.hostname !== dest.hostname || url.pathname !== '/api/orders') return
+    if (response.status() !== 200 && response.status() !== 201) return
+    try {
+      const key = request.headers()['idempotency-key']
+      const parsed = orderConfirmationSchema.safeParse(await response.json())
+      const record = key ? runtime.orders.find((order) => order.key === key) : undefined
+      if (record && parsed.success) { record.orderId = parsed.data.orderId; saveRuntime(runtime, 'created') }
+    } catch {
+      // Registro best-effort: el flujo de la prueba no depende de esta lectura.
+    }
+  })
   page.on('request', (request) => {
     const url = new URL(request.url())
     if (!runtime || request.method() !== 'POST' || url.hostname !== dest.hostname || url.pathname !== '/api/orders') return
@@ -106,4 +122,24 @@ export function apiHeaders(dest: Destination): Record<string, string> {
 export async function expectSessionClosed(actor: Actor, dest: Destination): Promise<void> {
   const response = await actor.context.request.get('/api/auth/session', { headers: apiHeaders(dest) })
   expect(response.status(), `${actor.name}: la sesión debe estar cerrada en el servidor`).toBe(401)
+}
+
+const TRANSIENT_NETWORK = /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|socket hang up/i
+
+/**
+ * GET idempotente con reintento solo ante cortes de red del propio runner (p. ej. ECONNRESET): una
+ * respuesta HTTP, sea cual sea su estado, nunca se reintenta ni se oculta.
+ */
+export async function getWithRetry(
+  request: APIRequestContext, path: string, headers: Record<string, string>, attempts = 3,
+): Promise<APIResponse> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await request.get(path, { headers })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      if (attempt >= attempts || !TRANSIENT_NETWORK.test(message)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt))
+    }
+  }
 }

@@ -3,7 +3,7 @@ import { calculateOrderTotals } from '../../shared/contracts/index.js'
 import { ConfigurationError, nationalPhoneDigits, readCredentials, readDestination } from '../support/env.js'
 import { redact } from '../support/redact.js'
 // @ts-expect-error módulo .mjs del launcher, sin declaraciones de tipos
-import { parseReady, readyStamp } from '../../scripts/e2e-ready.mjs'
+import { directedGrep, parseReady, planDirected, readyStamp } from '../../scripts/e2e-ready.mjs'
 
 // Sin red ni navegador: validan las guardas del runner antes de tocar un Preview.
 const PREVIEW = 'https://maui-git-feature-x-team.vercel.app'
@@ -111,4 +111,32 @@ test('los contratos compartidos calculan los totales esperados por el smoke', ()
     { qty: 1, priceAtMoment: 10_000, is_variable_weight: true, kilosRequested: 0.75, kilosReal: 0.9 },
   ], 0)
   expect(totals).toEqual({ estimatedTotal: 11_500, finalTotal: 13_000 })
+})
+
+test.describe('rondas dirigidas', () => {
+  const consumed = { stamps: [{ stamp: 's1', at: 'x' }] }
+
+  test('exigen un ready ya consumido por un full', () => {
+    expect(() => planDirected({ stamps: [] }, 's1', 'timeout')).toThrow(/ya consumido/)
+  })
+
+  test('se registran y se limitan a dos por ready', () => {
+    const first = planDirected(consumed, 's1', 'timeout', 't1')
+    const second = planDirected(first.consumed, 's1', 'catálogo', 't2')
+    expect(second.consumed.stamps[0].rounds).toEqual([{ at: 't1', pattern: 'timeout' }, { at: 't2', pattern: 'catálogo' }])
+    expect(() => planDirected(second.consumed, 's1', 'otra')).toThrow(/agotó/)
+    expect(consumed.stamps[0]).toEqual({ stamp: 's1', at: 'x' })
+  })
+
+  test('nunca incluyen el smoke y exigen un patrón válido', () => {
+    expect(() => directedGrep('@smoke')).toThrow(/smoke/)
+    expect(() => directedGrep('')).toThrow(/patrón/)
+    expect(() => directedGrep('(')).toThrow(/válida/)
+  })
+
+  test('el patrón solo selecciona títulos @completo', () => {
+    const grep = new RegExp(directedGrep('timeout|catálogo'))
+    expect(grep.test('zz-completo › resiliencia @completo › timeout después de persistir')).toBe(true)
+    expect(grep.test('smoke pedido cliente → admin @smoke › timeout')).toBe(false)
+  })
 })

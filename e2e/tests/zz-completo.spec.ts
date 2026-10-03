@@ -3,14 +3,15 @@ import {
   authSessionResponseSchema, orderConfirmationSchema, orderDtoSchema, orderListResponseSchema,
   publicCatalogResponseSchema, type CreateOrderRequest, type ProductDto,
 } from '../../shared/contracts/index.js'
-import { apiHeaders, openActor, type Actor } from '../support/actors.js'
+import { apiHeaders, getWithRetry, openActor, type Actor } from '../support/actors.js'
 import { readCredentials, readDestination, type Credentials, type Destination } from '../support/env.js'
 import { TechnicalFixtures } from '../support/fixtures.js'
 import {
   addProduct, adminLogin, adminOpenOrderFromList, customerLogin,
-  expectAmount, preparePickupCheckout, submittedOrderId,
+  digitsOf, expectAmount, preparePickupCheckout, submittedOrderId,
 } from '../support/flows.js'
 import { checkHealth, openOwnerApi, type OwnerApi } from '../support/ownerApi.js'
+import { redact } from '../support/redact.js'
 import { createRuntime, saveRuntime, type RuntimeRecord } from '../support/runtime.js'
 
 const ORDERS = '**/api/orders'
@@ -38,19 +39,19 @@ test.describe('resiliencia y reglas reales @completo', () => {
   let latestOrderId: string
 
   const readOrder = async (id: string) => {
-    const response = await customer.context.request.get(`/api/orders/${encodeURIComponent(id)}`, { headers: apiHeaders(dest) })
+    const response = await getWithRetry(customer.context.request, `/api/orders/${encodeURIComponent(id)}`, apiHeaders(dest))
     expect(response.status(), 'GET del pedido propio').toBe(200)
     return orderDtoSchema.parse(await response.json())
   }
   const ownIds = async (): Promise<string[]> => {
-    const response = await customer.context.request.get('/api/orders?limit=100', { headers: apiHeaders(dest) })
+    const response = await getWithRetry(customer.context.request, '/api/orders?limit=100', apiHeaders(dest))
     expect(response.status()).toBe(200)
     const result = orderListResponseSchema.parse(await response.json())
     expect(result.nextCursor, 'el seed acotado debe caber en esta página').toBeNull()
     return result.items.map((order) => order.orderId)
   }
   const sessionOk = async (actor: Actor) =>
-    (await actor.context.request.get('/api/auth/session', { headers: apiHeaders(dest) })).ok()
+    (await getWithRetry(actor.context.request, '/api/auth/session', apiHeaders(dest))).ok()
   const checkout = async (preference: 'similar' | 'call_me' | 'remove' = 'similar') => {
     await addProduct(customer.page, displayName(fixed))
     await preparePickupCheckout(customer.page, credentials.customer.phone, preference)
@@ -61,16 +62,14 @@ test.describe('resiliencia y reglas reales @completo', () => {
     else runtime.orders.push({ key, orderId })
     saveRuntime(runtime, 'created')
   }
-  const rememberPending = (orderId: string) => {
-    const pending = [...runtime.orders].reverse().find((order) => !order.orderId)
-    expect(pending, 'la clave de idempotencia del pedido debe haberse registrado').toBeDefined()
-    remember(pending!.key, orderId)
-  }
+  /** El ID ya se asocia a su clave desde la respuesta del POST; esto solo comprueba que quedó registrado. */
+  const rememberPending = (orderId: string) =>
+    expect.poll(() => runtime.orders.some((order) => order.orderId === orderId), { message: 'pedido registrado en el runtime con su clave', timeout: 10_000 }).toBe(true)
   const submitButton = () => customer.page.getByRole('button', { name: 'Pedir mi Mercado', exact: true })
   const submit = async () => {
     await submitButton().click()
     latestOrderId = await submittedOrderId(customer.page)
-    rememberPending(latestOrderId)
+    await rememberPending(latestOrderId)
     return latestOrderId
   }
   const cancelOnCurrentPage = async (reason: string) => {
@@ -229,7 +228,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
     try {
       await submitButton().dblclick()
       latestOrderId = await submittedOrderId(customer.page)
-      rememberPending(latestOrderId)
+      await rememberPending(latestOrderId)
       expect(new Set(keys).size, 'todos los envíos comparten la clave de idempotencia').toBe(1)
       if (keys.length > 1) runtime.findings.push(`Doble clic emitió ${keys.length} POST con la misma clave (la API los deduplicó)`)
       expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
@@ -316,7 +315,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
       if (stored) {
         for (const pii of [credentials.customer.phone.replace(/\D/g, '').slice(-10), 'address', 'lat']) expect(stored).not.toContain(pii)
         const fingerprint = (JSON.parse(stored) as { fingerprint?: string }).fingerprint
-        if (fingerprint) expect(fingerprint).toMatch(/^[a-f0-9]{64}$/)
+        if (fingerprint) expect(fingerprint).toMatch(/^(sha256:)?[a-f0-9]{64}$/)
       }
       await customer.page.reload()
     } finally { await customer.context.unroute(ORDERS, handler) }
@@ -462,14 +461,31 @@ test.describe('resiliencia y reglas reales @completo', () => {
     await fixtures.watchProduct(fixed.id, ['price'])
     try {
       await admin.page.goto('/admin/catalogo')
+      await expect(admin.page.getByRole('heading', { name: 'Catálogo' })).toBeVisible()
       await admin.page.getByLabel('Buscar productos').fill(fixed.name)
       const row = () => admin.page.getByRole('row').filter({ has: admin.page.getByText(fixed.id, { exact: true }) })
+      await expect(row()).toBeVisible()
       await row().getByRole('button', { name: 'Editar', exact: true }).click()
       const modal = admin.page.getByRole('dialog')
+      const priceField = modal.getByLabel('Precio', { exact: true })
+      // El formulario se reinicia si llegan categorías tras abrirlo: se espera a que esté completo y estable.
+      await expect.poll(() => modal.getByLabel('Categoría').locator('option').count(), { message: 'categorías cargadas en el formulario' }).toBeGreaterThan(0)
+      await expect.poll(async () => digitsOf(await priceField.inputValue()), { message: 'precio actual en el formulario' }).toBe(String(fixed.price))
       const newPrice = fixed.price + 137
-      await modal.getByLabel('Precio', { exact: true }).fill(String(newPrice))
+      // El campo reformatea al recibir foco: se teclea como una persona (fill concatenaba con el valor previo).
+      await priceField.click()
+      await priceField.press('Control+A')
+      await priceField.pressSequentially(String(newPrice))
+      await expect(priceField).toHaveValue(String(newPrice))
       await modal.getByRole('button', { name: 'Guardar', exact: true }).click()
-      await expect(modal).toHaveCount(0)
+      try {
+        await expect(modal).toHaveCount(0)
+      } catch {
+        // Diagnóstico: avisos de la app (no contienen credenciales) y valor que quedó en el campo.
+        const notices = redact((await admin.page.getByRole('status').allInnerTexts()).join(' | ')).slice(0, 300)
+        const shown = await priceField.inputValue().catch(() => '?')
+        throw new Error(`El formulario no se cerró tras Guardar; avisos: [${notices}]; precio en el campo: ${shown}`)
+      }
       await admin.page.reload()
       await admin.page.getByLabel('Buscar productos').fill(fixed.name)
       await expectAmount(row(), newPrice, 'precio editado persistente en admin')

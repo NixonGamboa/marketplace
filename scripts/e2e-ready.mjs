@@ -39,3 +39,26 @@ export function parseReady(text) {
   if (authOrigin && authOrigin !== origin) throw new Error('AUTH_ORIGIN del ready difiere de la URL del Preview')
   return { origin, sha: firstString(pools, SHA_KEYS) }
 }
+
+// Rondas dirigidas: re-ejecutan SOLO pruebas @completo concretas sobre un ready ya consumido por un
+// `full`, para verificar una corrección del runner. Máximo dos por ready, siempre registradas; nunca
+// incluyen el smoke ni sirven para abrir un ready nuevo.
+export const MAX_DIRECTED_ROUNDS = 2
+
+export function directedGrep(pattern) {
+  if (typeof pattern !== 'string' || pattern.trim() === '' || pattern.length > 200) {
+    throw new Error('La ronda dirigida exige un patrón de título (máx. 200 caracteres)')
+  }
+  if (/@smoke/i.test(pattern)) throw new Error('Una ronda dirigida no puede incluir el smoke')
+  try { new RegExp(pattern) } catch { throw new Error('El patrón de la ronda dirigida no es una expresión válida') }
+  return `^(?=.*@completo)(?=.*(?:${pattern}))`
+}
+
+export function planDirected(consumed, stamp, pattern, at = new Date().toISOString(), max = MAX_DIRECTED_ROUNDS) {
+  const entry = consumed.stamps.find((candidate) => candidate.stamp === stamp)
+  if (!entry) throw new Error('Una ronda dirigida exige un ready ya consumido por un full')
+  const rounds = entry.rounds ?? []
+  if (rounds.length >= max) throw new Error(`Este ready ya agotó sus ${max} rondas dirigidas: root debe resetear y publicar uno nuevo`)
+  const grep = directedGrep(pattern)
+  return { grep, consumed: { ...consumed, stamps: consumed.stamps.map((candidate) => (candidate === entry ? { ...entry, rounds: [...rounds, { at, pattern }] } : candidate)) } }
+}
