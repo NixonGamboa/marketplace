@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { parseReady, planDirected, readyStamp } from './e2e-ready.mjs'
+import { parseReady, readyStamp } from './e2e-ready.mjs'
 
 // Launcher del runner E2E de navegador (T-22).
 //
@@ -22,9 +22,7 @@ const modes = {
   selftest: { args: ['--project', 'selftest'], live: false },
   check: { args: ['--project', 'real', '--grep', '@destino'], live: true, consumes: false },
   smoke: { args: ['--project', 'real', '--grep', '@smoke'], live: true, consumes: true },
-  full: { args: ['--project', 'real', '--grep', '@smoke|@completo'], live: true, consumes: true },
-  // node scripts/e2e-run.mjs directed "<patrón de título>": ronda dirigida acotada a pruebas @completo.
-  directed: { args: ['--project', 'real'], live: true, consumes: false, directed: true },
+  full: { args: ['--project', 'real', '--grep', '@smoke|@completo'], live: true, consumes: true, resultFile: 'e2e-full-result.json' },
 }
 
 const fail = (code, message) => {
@@ -33,9 +31,11 @@ const fail = (code, message) => {
 }
 
 const mode = modes[process.argv[2] ?? '']
-if (!mode) fail(2, 'Uso: node scripts/e2e-run.mjs <selftest|check|smoke|full|directed "patrón">')
+if (!mode) fail(2, 'Uso: node scripts/e2e-run.mjs <selftest|check|smoke|full>')
 
 const env = { ...process.env }
+// El resultado del full va a un archivo propio: otras ejecuciones no lo pisan.
+if (mode.resultFile) env.E2E_RESULT_FILE = mode.resultFile
 if (mode.live) {
   if (!existsSync(readyFile)) {
     fail(3, 'Sin night-cloud-ready.json: root debe publicar el Preview real con el seed limpio antes de ejecutar contra cloud.')
@@ -50,13 +50,6 @@ if (mode.live) {
   const consumed = existsSync(consumedFile) ? JSON.parse(readFileSync(consumedFile, 'utf8')) : { stamps: [] }
   if (mode.consumes && consumed.stamps.some((entry) => entry.stamp === stamp)) {
     fail(4, 'Este ready ya se usó en una corrida con escrituras: espera el reset de root y un night-cloud-ready.json nuevo.')
-  }
-  if (mode.directed) {
-    let plan
-    try { plan = planDirected(consumed, stamp, process.argv[3] ?? '') } catch (error) { fail(4, error.message) }
-    // Se registra antes de ejecutar: la ronda puede crear pedidos propios.
-    writeFileSync(consumedFile, JSON.stringify(plan.consumed, null, 2))
-    mode.args = [...mode.args, '--grep', plan.grep]
   }
   if (mode.consumes) {
     mkdirSync(localDir, { recursive: true })

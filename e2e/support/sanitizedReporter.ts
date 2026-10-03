@@ -10,6 +10,11 @@ import { redact } from './redact.js'
 
 const MAX_ERROR_CHARS = 700
 
+/** El launcher fija un archivo propio para el full; el nombre se limita a un archivo local sin rutas. */
+export const resultFileName = (name = process.env.E2E_RESULT_FILE): string => {
+  return name && /^[\w.-]+\.json$/.test(name) ? name : 'e2e-result.json'
+}
+
 interface Entry { title: string; status: string; durationMs: number; error?: string }
 
 export default class SanitizedReporter implements Reporter {
@@ -37,7 +42,7 @@ export default class SanitizedReporter implements Reporter {
     // Los selftests no pisan el resultado de la última corrida contra el Preview.
     if (!this.live) return
     mkdirSync(LOCAL_DIR, { recursive: true })
-    writeFileSync(`${LOCAL_DIR}e2e-result.json`, JSON.stringify({
+    writeFileSync(`${LOCAL_DIR}${resultFileName()}`, JSON.stringify({
       finishedAt: new Date().toISOString(), status: result.status, tests: this.entries,
     }, null, 2))
   }

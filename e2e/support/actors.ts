@@ -125,21 +125,23 @@ export async function expectSessionClosed(actor: Actor, dest: Destination): Prom
 }
 
 const TRANSIENT_NETWORK = /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|socket hang up/i
+const MAX_GET_ATTEMPTS = 2
 
 /**
- * GET idempotente con reintento solo ante cortes de red del propio runner (p. ej. ECONNRESET): una
- * respuesta HTTP, sea cual sea su estado, nunca se reintenta ni se oculta.
+ * GET idempotente con UN reintento, solo ante un corte de red del propio runner (p. ej. ECONNRESET).
+ * Una respuesta HTTP, sea cual sea su estado, nunca se reintenta ni se oculta; POST/PATCH no pasan
+ * por aquí.
  */
 export async function getWithRetry(
-  request: APIRequestContext, path: string, headers: Record<string, string>, attempts = 3,
+  request: Pick<APIRequestContext, 'get'>, path: string, headers: Record<string, string>,
 ): Promise<APIResponse> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await request.get(path, { headers })
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (attempt >= attempts || !TRANSIENT_NETWORK.test(message)) throw error
-      await new Promise((resolve) => setTimeout(resolve, 500 * attempt))
+      if (attempt >= MAX_GET_ATTEMPTS || !TRANSIENT_NETWORK.test(message)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 500))
     }
   }
 }
