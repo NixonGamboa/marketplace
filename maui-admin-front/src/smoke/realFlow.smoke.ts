@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /// <reference types="node" />
 // Smoke E2E REAL (con escrituras) de los adapters del admin contra un Preview/test con T-16 integrado.
 // NO se ejecuta en `npm test` ni en CI: exige `SMOKE_REAL_FLOW=1` y credenciales por canal privado.
@@ -14,10 +15,11 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { URL as NodeURL, fileURLToPath } from 'node:url'
 import { orderConfirmationSchema, authSessionResponseSchema, publicCatalogResponseSchema, type OrderDto } from '@shared/contracts'
 import { createApiClient, type ApiClient } from '../services/http/apiClient'
 import { ApiError } from '../services/http/apiError'
+import { startOrderPolling } from '../lib/orderPolling'
 import { createRealAuditRepository } from '../services/realAuditRepository'
 import { createRealOrderRepository } from '../services/realOrderRepository'
 import { createRealReceiptService } from '../services/realReceiptService'
@@ -35,14 +37,14 @@ const credentials = {
 const complete = Object.values(credentials).every((value) => value !== undefined && value !== '')
 
 // Checkpoint local para limpieza del orquestador: sin cuerpos, cuentas ni secretos.
-const checkpointUrl = new URL('../../../orquestacion-local/smoke-runtime.json', import.meta.url)
+const checkpointUrl = new NodeURL('../../../orquestacion-local/smoke-runtime.json', import.meta.url)
 const runtime: { block: string; phase: string; orders: { key: string; orderId?: string }[]; sessionsClosed?: boolean } = {
   block: 'T-17', phase: 'prepared', orders: [],
 }
 let guardReady = false
 const saveCheckpoint = (phase: string) => {
   runtime.phase = phase
-  mkdirSync(fileURLToPath(new URL('.', checkpointUrl)), { recursive: true })
+  mkdirSync(fileURLToPath(new NodeURL('.', checkpointUrl)), { recursive: true })
   writeFileSync(fileURLToPath(checkpointUrl), JSON.stringify(runtime, null, 2))
 }
 const cleanHttpsOrigin = (value: string, label: string) => {
@@ -219,9 +221,35 @@ describe.skipIf(!enabled)('flujo real cliente → personal', () => {
     expect(forbidden.kind).toBe('forbidden')
   })
 
-  it('entrega el pedido y, una vez terminal, rechaza cancelarlo', async () => {
-    const delivered = await staffOrders.updateStatus(state.orderId!, 'delivered', 'x', state.order!.version)
-    expect(delivered.status).toBe('delivered')
-    expect((await failureOf(staffOrders.cancel(state.orderId!, 'Motivo de prueba', 'x', delivered.version))).kind).toMatch(/conflict|validation/)
+  it('el polling del cliente observa la entrega de otro dispositivo, versión y total final', async () => {
+    let expectedStatus = 'ready'
+    let resolveStatus: (order: OrderDto) => void = () => undefined
+    let rejectStatus: (failure: unknown) => void = () => undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const waitForStatus = (status: string) => {
+      expectedStatus = status
+      return new Promise<OrderDto>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('El polling no observó el estado esperado')), 15_000)
+        resolveStatus = (order) => { clearTimeout(timer); resolve(order) }
+        rejectStatus = (failure) => { clearTimeout(timer); reject(failure) }
+      })
+    }
+    const ready = waitForStatus('ready')
+    const poll = startOrderPolling(async (signal) => {
+      const order = await customerOrders.getById(state.orderId!, { signal })
+      if (!signal.aborted && order.status === expectedStatus) resolveStatus(order)
+    }, (failure) => rejectStatus(failure), 1_000)
+    try {
+      await ready
+      const observed = waitForStatus('delivered')
+      void observed.catch(() => undefined) // Se maneja también si el PATCH falla antes de esperar el sondeo.
+      const delivered = await staffOrders.updateStatus(state.orderId!, 'delivered', 'x', state.order!.version)
+      const fromOtherDevice = await observed
+      expect(fromOtherDevice.orderId).toBe(delivered.orderId)
+      expect(fromOtherDevice.version).toBe(delivered.version)
+      expect(fromOtherDevice.finalTotal).toBe(delivered.finalTotal)
+      expect(fromOtherDevice.estimatedTotal).toBe(state.order!.estimatedTotal)
+      expect((await failureOf(staffOrders.cancel(state.orderId!, 'Motivo de prueba', 'x', delivered.version))).kind).toMatch(/conflict|validation/)
+    } finally { clearTimeout(timer); poll.stop() }
   })
 })

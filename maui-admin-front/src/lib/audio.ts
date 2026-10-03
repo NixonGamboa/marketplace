@@ -1,34 +1,38 @@
-/**
- * @spec §11, TASK-019 — Gestión de audio para alertas de pedidos nuevos.
- * Requiere gesto de usuario previo (política autoplay de browsers).
- * enableSound() debe llamarse desde un handler de click/tap.
- */
+/** Tono local sin assets; cada carga exige gesto explícito para activar WebAudio. */
+let audio: AudioContext | null = null
+let enabled = false
 
-// El flag y la instancia son module-level para sobrevivir re-renders.
-// En Strict Mode React puede ejecutar efectos dos veces en dev; la lógica es idempotente.
-let audio: HTMLAudioElement | null = null
-let enabled = (typeof sessionStorage !== 'undefined')
-  ? sessionStorage.getItem('maui-admin-sound-enabled') === '1'
-  : false
-
-export function enableSound(): void {
+export async function enableSound(): Promise<void> {
+  audio ??= new AudioContext()
+  await audio.resume()
   enabled = true
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem('maui-admin-sound-enabled', '1')
-  }
-  // Crear instancia lazy sólo en el primer gesto de usuario
-  if (!audio) {
-    audio = new Audio('/sounds/new-order.mp3')
-  }
 }
 
-export function isSoundEnabled(): boolean {
-  return enabled
+export function disableSound(): void {
+  enabled = false
+  void audio?.suspend().catch(() => undefined)
 }
 
+export const isSoundEnabled = (): boolean => enabled
+
+/** Una restricción de audio nunca impide presentar ni seguir el pedido. */
 export function playNewOrderSound(): void {
-  if (!enabled || !audio) return
-  audio.currentTime = 0
-  // El catch silencia errores de política de autoplay del browser
-  audio.play().catch(() => { /* política del browser ignoró la reproducción */ })
+  if (!enabled || !audio || audio.state !== 'running') return
+  try {
+    const now = audio.currentTime
+    const oscillator = audio.createOscillator()
+    const gain = audio.createGain()
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(880, now)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25)
+    oscillator.connect(gain)
+    gain.connect(audio.destination)
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
+    oscillator.start(now)
+    oscillator.stop(now + 0.25)
+  } catch {
+    // La alerta visual sigue disponible si el navegador rechaza la reproducción.
+  }
 }

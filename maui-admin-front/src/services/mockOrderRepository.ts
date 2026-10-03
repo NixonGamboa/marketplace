@@ -30,7 +30,7 @@ export interface RealWeightInput {
 
 export interface OrderRepository {
   list(filter?: OrderListFilter): Promise<AdminOrder[]>
-  getById(orderId: string): Promise<AdminOrder>
+  getById(orderId: string, options?: { signal?: AbortSignal }): Promise<AdminOrder>
   /**
    * `expectedVersion` (control optimista del servidor) lo exige el repository real; el demo lo ignora.
    * `by` solo lo usa el demo: el servidor deriva el actor de la sesión.

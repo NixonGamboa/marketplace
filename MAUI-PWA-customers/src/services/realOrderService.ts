@@ -117,8 +117,8 @@ export const createRealOrderService = (
       return promise
     },
 
-    getById(orderId) {
-      return client.request({ path: `/orders/${encodeURIComponent(orderId)}`, schema: orderDtoSchema })
+    getById(orderId, options) {
+      return client.request({ path: `/orders/${encodeURIComponent(orderId)}`, schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
     },
 
     /** El alcance lo fija la sesión del servidor; un `userId` ajeno se rechaza en lugar de ignorarse. */

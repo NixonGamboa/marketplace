@@ -6,11 +6,13 @@
  */
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query'
 import { Search, ShoppingBag } from 'lucide-react'
 import { ORDER_LIST_LIMITS, ORDER_STATUS_VALUES } from '@shared/contracts'
-import { realOrderService } from '@/services/realOrderService'
+import { realOrderService, type OrderPage } from '@/services/realOrderService'
 import type { OrderHistoryFilter } from '@/services/real/orderHistoryQuery'
+import { useOrderPollingAvailability } from '@/shared/hooks/useOrderPollingAvailability'
+import { latestOrderList, orderPollingInterval } from '@/lib/orderPolling'
 import { ApiError } from '@/services/http/apiError'
 import { useAuthStore } from '@/stores/authStore'
 import type { OrderStatus } from '@/types/orderService'
@@ -27,6 +29,7 @@ const historyErrorMessage = (error: unknown): string =>
 
 export default function RealOrdersPage() {
   const userId = useAuthStore((state) => state.user?.id)
+  const expiresAt = useAuthStore((state) => state.sessionExpiresAt)
   const [queryDraft, setQueryDraft] = useState('')
   const [statusDraft, setStatusDraft] = useState<OrderStatus | ''>('')
   const [fromDraft, setFromDraft] = useState('')
@@ -35,17 +38,29 @@ export default function RealOrdersPage() {
   // Filtros aplicados: la lista solo cambia al pulsar «Buscar», nunca al teclear.
   const [filter, setFilter] = useState<OrderHistoryFilter>({})
 
+  const queryKey = ['orders', userId, expiresAt, filter]
+  const active = useOrderPollingAvailability(queryKey)
   const orders = useInfiniteQuery({
-    queryKey: ['orders', userId, filter],
+    queryKey,
     queryFn: ({ pageParam, signal }) =>
       realOrderService.listPage({ ...filter, limit: PAGE_SIZE, ...(pageParam ? { cursor: pageParam } : {}) }, { signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: 0,
-    enabled: !!userId,
+    enabled: !!userId && active,
+    refetchInterval: active ? orderPollingInterval() : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+    retry: false,
+    structuralSharing: (previous, incoming) => {
+      const next = incoming as InfiniteData<OrderPage>
+      const known = (previous as InfiniteData<OrderPage> | undefined)?.pages.flatMap((page) => page.items) ?? []
+      return { ...next, pages: next.pages.map((page) => ({ ...page, items: latestOrderList(known, page.items) })) }
+    },
   })
 
-  const items = orders.data?.pages.flatMap((page) => page.items) ?? []
+  const items = latestOrderList([], orders.data?.pages.flatMap((page) => page.items) ?? [])
   const hasFilter = Object.keys(filter).length > 0
 
   function handleSubmit(event: React.FormEvent) {
@@ -163,6 +178,7 @@ export default function RealOrdersPage() {
         </div>
       )}
 
+      {items.length > 0 && !active && <p role="status" className="mb-3 text-sm text-amber-800">Actualización pausada; mostramos lo último que supimos.</p>}
       {items.length > 0 && (
         <>
           <ul aria-label="Lista de pedidos" className="flex flex-col gap-3">
@@ -179,8 +195,8 @@ export default function RealOrdersPage() {
             <div className="mt-4 flex justify-center">
               <button
                 type="button"
-                onClick={() => void orders.fetchNextPage()}
-                disabled={orders.isFetchingNextPage}
+                onClick={() => void orders.fetchNextPage({ cancelRefetch: false })}
+                disabled={orders.isFetching || !active}
                 className="rounded-xl border border-brand-border px-5 py-2.5 text-sm font-semibold text-brand-dark hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 {orders.isFetchingNextPage ? 'Cargando…' : 'Cargar más'}

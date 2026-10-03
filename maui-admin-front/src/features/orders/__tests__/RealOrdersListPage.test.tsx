@@ -8,6 +8,8 @@ import { MemoryRouter } from 'react-router-dom'
 import type { AdminOrder } from '@/types/adminOrder'
 import { ApiError } from '@/services/http/apiError'
 
+vi.mock('@/auth/useSession', () => ({ useSession: () => ({ session: { user: { email: 'owner@test', merchantId: 'store' }, expiresAt: '2030-01-01' } }) }))
+
 const loadPage = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services', () => ({ isDemoMode: false, orderPages: { loadPage } }))

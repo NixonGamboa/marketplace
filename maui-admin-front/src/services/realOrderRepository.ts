@@ -87,8 +87,8 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
       throw new ApiError({ kind: 'invalid_request', message: 'Hay demasiados pedidos para cargarlos de una vez. Acota las fechas o el estado.' })
     },
 
-    async getById(orderId) {
-      return client.request({ path: orderPath(orderId), schema: orderDtoSchema })
+    async getById(orderId, options) {
+      return client.request({ path: orderPath(orderId), schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
     },
 
     async submit(payload, idempotencyKey, options) {

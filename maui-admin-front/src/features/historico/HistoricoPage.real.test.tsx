@@ -18,6 +18,8 @@ vi.mock('@/services', () => ({
 vi.mock('@/ui/Toast', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }))
 vi.mock('@/features/orders/useNewOrdersWatcher', () => ({ useNewOrdersWatcher: vi.fn() }))
 
+vi.mock('@/auth/useSession', () => ({ useSession: () => ({ session: { user: { email: 'owner@test', merchantId: 'store' }, expiresAt: '2030-01-01' } }) }))
+
 import { HistoricoPage } from './HistoricoPage'
 import { DashboardPage } from '../dashboard/DashboardPage'
 

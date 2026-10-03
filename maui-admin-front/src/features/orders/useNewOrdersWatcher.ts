@@ -45,7 +45,7 @@ function parseOrdersFromValue(value: string | null): Order[] {
  * Strict Mode safe: el ref `knownRef` preserva el estado a través del
  * doble-montaje en desarrollo.
  */
-export function useNewOrdersWatcher(onNew: (order: Order) => void): void {
+export function useNewOrdersWatcher(onNew: (order: Order) => void, enabled = true): void {
   // Ref para el set de ids conocidos — sobrevive el re-mount de Strict Mode
   const knownRef = useRef<Set<string>>(readKnownIds())
   // Ref estable para el callback — evita re-registrar el listener en cada render
@@ -89,5 +89,5 @@ export function useNewOrdersWatcher(onNew: (order: Order) => void): void {
 
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
-  }, []) // sin deps — el callback se lee desde el ref
+  }, [enabled]) // sin deps — el callback se lee desde el ref
 }

@@ -10,6 +10,8 @@ import { X, ShoppingBag } from 'lucide-react'
 import type { Order } from '@/types/orderService'
 import { phoneLast4 } from '@/lib/phone'
 import { playNewOrderSound } from '@/lib/audio'
+import { isDemoMode } from '@/services'
+import { useRealNewOrdersWatcher } from './useRealNewOrdersWatcher'
 import { useNewOrdersWatcher } from './useNewOrdersWatcher'
 
 const MAX_QUEUE = 5
@@ -22,6 +24,7 @@ interface AlertItem {
 }
 
 export function NewOrderAlert() {
+  const [enabled, setEnabled] = useState(isDemoMode)
   const [queue, setQueue] = useState<AlertItem[]>([])
   const navigate = useNavigate()
 
@@ -33,16 +36,18 @@ export function NewOrderAlert() {
     playNewOrderSound()
     setQueue((prev) => {
       const item: AlertItem = {
-        id: `alert-${order.orderId}-${Date.now()}`,
+        id: `alert-${order.orderId}`,
         order,
         arrivedAt: Date.now(),
       }
+      if (prev.some((alert) => alert.order.orderId === order.orderId)) return prev
       const next = [item, ...prev]
       return next.length > MAX_QUEUE ? next.slice(0, MAX_QUEUE) : next
     })
   }, [])
 
-  useNewOrdersWatcher(onNew)
+  useNewOrdersWatcher(onNew, isDemoMode)
+  const failed = useRealNewOrdersWatcher(onNew, !isDemoMode && enabled)
 
   // Auto-dismiss cada 30s (limpia los que superaron los 2min)
   useEffect(() => {
@@ -53,7 +58,7 @@ export function NewOrderAlert() {
     return () => clearInterval(interval)
   }, [])
 
-  if (queue.length === 0) return null
+  if (isDemoMode && queue.length === 0) return null
 
   return (
     <div
@@ -61,6 +66,11 @@ export function NewOrderAlert() {
       aria-label="Alertas de pedidos nuevos"
       className="flex flex-col gap-2 px-4 pt-2"
     >
+      {!isDemoMode && <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" checked={enabled} onChange={(event) => { setEnabled(event.target.checked); setQueue([]) }} />
+        Alertas de pedidos nuevos
+      </label>}
+      {failed && <p role="status" className="text-sm text-amber-800">No pudimos actualizar las alertas. Reintentaremos automáticamente.</p>}
       {queue.map((item) => {
         const { order } = item
         const phoneSuffix = order.customerPhone

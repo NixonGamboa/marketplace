@@ -13,6 +13,7 @@ import { errorMessage, isConflict, isNotFound } from '@/lib/errorMessage'
 import { RealOrderReceipt } from '@/components/orders/RealOrderReceipt'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
+import { latestOrder, orderPollingInterval, startOrderPolling } from '@/lib/orderPolling'
 import { Spinner } from '@/ui/Spinner'
 import { WeightInput } from '@/ui/WeightInput'
 import { Tabs } from '@/ui/Tabs'
@@ -166,41 +167,34 @@ export function OrderDetailPage() {
 
   const by = session?.user.email ?? 'demo'
 
-  // Carga del pedido + nombres del catálogo en paralelo
+  // El sondeo no pisa una versión posterior ni borra el último estado cuando falla.
   useEffect(() => {
     if (!orderId) return
-    let cancelled = false
+    const controller = new AbortController()
+    setOrder(null)
     setLoading(true)
     setLoadError(null)
-
-    orderRepo.getById(orderId)
-      .then(async (o) => {
-        if (cancelled) return
-        setOrder(o as AdminOrder)
-
-        // Los pedidos del servidor traen el nombre como snapshot; el catálogo solo resuelve los que no lo traen (demo).
-        const ids = [...new Set(o.items.filter((i) => !i.name).map((i) => i.id))]
-        if (ids.length === 0) return
-        const products = await Promise.all(ids.map((id) => catalogRepo.getProduct(id)))
-        if (cancelled) return
-        const names: Record<string, string> = {}
-        products.forEach((p: Product | null, idx) => {
-          names[ids[idx]] = p?.name ?? ids[idx]
-        })
-        setProductNames(names)
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        setOrder(null)
-        setLoadError({ notFound: isNotFound(err), message: errorMessage(err, 'No se pudo cargar el pedido') })
-        toast.error('No se pudo cargar el pedido')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => { cancelled = true }
-  }, [orderId, toast, reloadToken])
+    const poll = startOrderPolling(async (signal) => {
+      const received = await orderRepo.getById(orderId, { signal })
+      if (signal.aborted || controller.signal.aborted) return
+      setOrder((current) => latestOrder(current, received))
+      setLoadError(null)
+      setLoading(false)
+      // Los snapshots reales ya traen nombres; solo el demo necesita resolver el catálogo.
+      const ids = [...new Set(received.items.filter((item) => !item.name).map((item) => item.id))]
+      if (ids.length === 0) return
+      const products = await Promise.all(ids.map((id) => catalogRepo.getProduct(id)))
+      if (signal.aborted || controller.signal.aborted) return
+      const names: Record<string, string> = {}
+      products.forEach((product: Product | null, index) => { names[ids[index]] = product?.name ?? ids[index] })
+      setProductNames(names)
+    }, (failure) => {
+      if (controller.signal.aborted) return
+      setLoadError({ notFound: isNotFound(failure), message: errorMessage(failure, 'No pudimos actualizar el pedido; mostramos el último estado.') })
+      setLoading(false)
+    }, isDemoMode ? null : orderPollingInterval())
+    return () => { controller.abort(); poll.stop() }
+  }, [orderId, session?.user.email, session?.expiresAt, reloadToken])
 
   // Un 409 significa que otro cambio ganó: se recarga el pedido vigente (los pesos sin guardar se descartan).
   const reloadOrder = useCallback(() => setReloadToken((value) => value + 1), [])
@@ -346,6 +340,7 @@ export function OrderDetailPage() {
 
   return (
     <article aria-label={`Detalle del pedido ${order.orderId}`}>
+      {loadError && <p role="status" className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{loadError.message}</p>}
       {/* Navegación */}
       <div className="mb-5">
         <Link
