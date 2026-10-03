@@ -4,17 +4,20 @@
  * autenticación por cookie que las apps; no hay atajos ni mocks.
  */
 import { expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
-import { authSessionResponseSchema, auditListResponseSchema, storeDtoSchema, type StoreDto } from '../../shared/contracts/index.js'
+import {
+  authSessionResponseSchema, auditListResponseSchema, staffCatalogResponseSchema, staffProductDtoSchema, storeDtoSchema,
+  type StaffProductDto, type StoreDto, type UpdateProductRequest, type UpdateStoreSettingsRequest,
+} from '../../shared/contracts/index.js'
 import { apiHeaders } from './actors.js'
 import type { Credentials, Destination } from './env.js'
-import { readPreviousRuntime, saveRuntime, type RuntimeRecord } from './runtime.js'
+import type { FixtureApi } from './fixtures.js'
+import { saveRuntime, type RuntimeRecord } from './runtime.js'
 
 type Playwright = PlaywrightWorkerArgs['playwright']
 
-export interface OwnerApi {
+export interface OwnerApi extends FixtureApi {
   request: APIRequestContext
   storeId: string
-  readStaffStore(): Promise<StoreDto>
   /** Abre la tienda solo si no recibe pedidos; devuelve la restauración (idempotente). */
   ensureStoreOpen(runtime: RuntimeRecord): Promise<() => Promise<void>>
   orderAudit(orderId: string): Promise<{ action: string }[]>
@@ -46,6 +49,23 @@ export async function openOwnerApi(playwright: Playwright, dest: Destination, cr
     expect(response.status(), 'GET /api/store/staff').toBe(200)
     return storeDtoSchema.parse(await response.json())
   }
+  const readStaffProduct = async (id: string): Promise<StaffProductDto> => {
+    const response = await request.get('/api/catalog/staff')
+    expect(response.status(), 'GET /api/catalog/staff').toBe(200)
+    const product = staffCatalogResponseSchema.parse(await response.json()).products.find((candidate) => candidate.id === id)
+    expect(product, `producto de personal ${id} presente en el catálogo`).toBeDefined()
+    return product!
+  }
+  const patchStore = async (patch: UpdateStoreSettingsRequest): Promise<StoreDto> => {
+    const response = await request.patch('/api/store/staff', { data: patch })
+    expect(response.status(), 'PATCH /api/store/staff').toBe(200)
+    return storeDtoSchema.parse(await response.json())
+  }
+  const patchProduct = async (id: string, patch: UpdateProductRequest): Promise<StaffProductDto> => {
+    const response = await request.patch(`/api/catalog/products/${encodeURIComponent(id)}`, { data: patch })
+    expect(response.status(), 'PATCH del producto de personal').toBe(200)
+    return staffProductDtoSchema.parse(await response.json())
+  }
   const patchOverride = async (scheduleOverride: 'auto' | 'open' | 'closed') => {
     const response = await request.patch('/api/store/staff', { data: { scheduleOverride } })
     expect(response.status(), `PATCH /api/store/staff scheduleOverride=${scheduleOverride}`).toBe(200)
@@ -56,12 +76,17 @@ export async function openOwnerApi(playwright: Playwright, dest: Destination, cr
     request,
     storeId: (await readStaffStore()).storeId,
     readStaffStore,
+    readStaffProduct,
+    patchStore,
+    patchProduct,
     async ensureStoreOpen(runtime) {
-      const previous = readPreviousRuntime()?.override
+      const previous = runtime.override
       let store = await readStaffStore()
       // Una corrida anterior interrumpida pudo dejar el override propio aplicado: se devuelve antes de seguir.
       if (previous && !previous.restored && store.scheduleOverride === previous.applied) {
         store = await patchOverride(previous.original as 'auto' | 'open' | 'closed')
+        previous.restored = true
+        saveRuntime(runtime, 'store-restored')
       }
       if (store.availability.isOpen && store.availability.acceptsPickup) return async () => undefined
       runtime.override = { original: store.scheduleOverride, applied: 'open', restored: false }

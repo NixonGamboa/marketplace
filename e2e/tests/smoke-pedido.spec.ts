@@ -11,6 +11,7 @@ import {
 } from '../support/flows.js'
 import { checkHealth, openOwnerApi, type OwnerApi } from '../support/ownerApi.js'
 import { createRuntime, saveRuntime, type RuntimeRecord } from '../support/runtime.js'
+import { TechnicalFixtures } from '../support/fixtures.js'
 
 // Smoke de navegador T-22 (parcial hasta T-15/T-20/T-21): un pedido NUEVO y propio recorre
 // cliente → recepción → pesos reales → entrega con dos contextos independientes contra la API real.
@@ -34,6 +35,7 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
   let credentials: Credentials
   let runtime: RuntimeRecord
   let owner: OwnerApi
+  let fixtures: TechnicalFixtures
   let restoreStore: () => Promise<void> = async () => undefined
   let customer: Actor
   let admin: Actor
@@ -47,6 +49,9 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     const health = await checkHealth(playwright, dest)
     expect(health, 'solo se ejecuta contra la API de test conectada').toMatchObject({ status: 'ok', environment: 'test', database: 'connected' })
     owner = await openOwnerApi(playwright, dest, credentials)
+    fixtures = new TechnicalFixtures(owner, runtime)
+    await fixtures.restore() // cambios técnicos que una corrida interrumpida dejó sin devolver
+    if (!(await owner.readStaffStore()).contactPhone) await fixtures.store({ contactPhone: '573101234567' })
     restoreStore = await owner.ensureStoreOpen(runtime)
     customer = await openActor(browser, dest, 'cliente', runtime)
     admin = await openActor(browser, dest, 'admin', runtime)
@@ -58,11 +63,12 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     // Todo se intenta aunque un paso falle: override de tienda, sesiones y contextos.
     const logout = (actor: Actor | undefined) => actor?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) })
     const results = await Promise.allSettled([
-      restoreStore(), logout(customer), logout(admin), owner?.close(),
+      (async () => { await restoreStore(); await fixtures?.restore(); await owner?.close() })(), logout(customer), logout(admin),
     ].map((step) => Promise.resolve(step)))
     runtime.sessionsClosed = results.every((result) => result.status === 'fulfilled')
     saveRuntime(runtime, 'finished')
     await Promise.allSettled([customer?.context.close(), admin?.context.close()])
+    for (const result of results) if (result.status === 'rejected') throw result.reason
   })
 
   test('ambas apps corren en modo REAL y la sesión empieza cerrada', async () => {
@@ -186,13 +192,12 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
 
     // Enlace de contacto del admin al cliente: destino wa.me con su celular y texto preparado; nunca se abre.
     const adminLink = admin.page.locator('a[href^="https://wa.me/"]').first()
-    if (await adminLink.count() > 0) {
+    await expect(adminLink, 'contacto al cliente disponible').toBeVisible()
+    {
       const url = new URL((await adminLink.getAttribute('href')) ?? '')
       expect(url.hostname).toBe('wa.me')
       expect(url.pathname).toMatch(/^\/57\d{10}$/)
       expect(url.searchParams.get('text') ?? '').toContain(scenario.orderId!)
-    } else {
-      runtime.findings.push('El detalle del admin no muestra enlace wa.me al cliente en este estado')
     }
     await admin.page.getByRole('tab', { name: 'Comprobante' }).click()
     await expect(admin.page.getByRole('region', { name: 'Comprobante del pedido' })).toContainText(scenario.orderId!)

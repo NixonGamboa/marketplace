@@ -8,6 +8,7 @@ const SECRET_ENV_NAMES = [
   'SMOKE_STAFF_PASSWORD', 'SMOKE_CUSTOMER_PASSWORD', 'SMOKE_OWNER_PASSWORD',
   'SMOKE_BYPASS_TOKEN', 'SMOKE_VERCEL_BYPASS',
   'SMOKE_STAFF_EMAIL', 'SMOKE_OWNER_EMAIL', 'SMOKE_CUSTOMER_PHONE',
+  'SMOKE_OPERATOR_PASSWORD', 'SMOKE_OPERATOR_EMAIL', 'SMOKE_OTHER_CUSTOMER_PHONE',
 ] as const
 
 const JWT_PATTERN = /eyJ[\w-]{5,}\.[\w-]{5,}\.[\w-]{5,}/g
@@ -21,7 +22,7 @@ export function secretValues(env: NodeJS.ProcessEnv = process.env): string[] {
     const value = env[name]
     if (!value) continue
     values.add(value)
-    if (name === 'SMOKE_CUSTOMER_PHONE') {
+    if (name === 'SMOKE_CUSTOMER_PHONE' || name === 'SMOKE_OTHER_CUSTOMER_PHONE') {
       const digits = value.replace(/\D/g, '')
       if (digits.length >= 10) values.add(digits.slice(-10))
     }

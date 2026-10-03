@@ -17,6 +17,7 @@ export interface Actor {
   page: Page
   /** Fallos de servidor, excepciones de página y peticiones a WhatsApp observadas. */
   issues: string[]
+  controlledFailures: Set<string>
 }
 
 export async function openActor(
@@ -28,11 +29,18 @@ export async function openActor(
     timezoneId: 'America/Bogota',
     // Mobile para el cliente (PWA) y escritorio para el panel.
     viewport: name === 'cliente' ? { width: 390, height: 844 } : { width: 1280, height: 800 },
-    // El service worker se valida en T-20; aquí solo se prueba el flujo de negocio.
-    serviceWorkers: 'block',
+    serviceWorkers: 'allow',
     acceptDownloads: false,
   })
   const issues: string[] = []
+  const controlledFailures = new Set<string>()
+  if (dest.bypassToken) {
+    // Cookie limitada a este origen: los fetch del SW no pasan por context.route.
+    const bootstrap = await context.request.get('/', {
+      headers: { ...apiHeaders(dest), 'x-vercel-set-bypass-cookie': 'true' },
+    })
+    expect(bootstrap.ok(), 'bootstrap de Protection para el Preview identificado').toBe(true)
+  }
   await context.route(WHATSAPP_HOSTS, async (route) => {
     issues.push('Se intentó abrir WhatsApp (bloqueado)')
     await route.abort()
@@ -46,7 +54,8 @@ export async function openActor(
   page.on('pageerror', (error) => issues.push(`${name}: excepción de página: ${redact(error.message).slice(0, 200)}`))
   page.on('response', (response) => {
     const url = new URL(response.url())
-    if (url.hostname === dest.hostname && url.pathname.startsWith('/api/') && response.status() >= 500) {
+    if (url.hostname === dest.hostname && url.pathname.startsWith('/api/') && response.status() >= 500 &&
+      !controlledFailures.has(`${response.request().method()} ${url.pathname} ${response.status()}`)) {
       issues.push(`${name}: ${response.request().method()} ${url.pathname} respondió ${response.status()}`)
     }
   })
@@ -59,7 +68,7 @@ export async function openActor(
       saveRuntime(runtime, 'creating')
     }
   })
-  return { name, context, page, issues }
+  return { name, context, page, issues, controlledFailures }
 }
 
 /** Rellena un campo secreto sin que el log de acciones de Playwright exponga el valor si falla. */

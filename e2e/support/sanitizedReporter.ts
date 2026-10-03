@@ -14,8 +14,10 @@ interface Entry { title: string; status: string; durationMs: number; error?: str
 
 export default class SanitizedReporter implements Reporter {
   private readonly entries: Entry[] = []
+  private live = false
 
   onTestEnd(test: TestCase, result: TestResult): void {
+    if (test.parent.project()?.name === 'real') this.live = true
     const failure = result.errors[0]?.message
     const entry: Entry = {
       title: test.titlePath().slice(2).join(' › '),
@@ -32,6 +34,8 @@ export default class SanitizedReporter implements Reporter {
   onEnd(result: FullResult): void {
     const passed = this.entries.filter((entry) => entry.status === 'passed').length
     console.log(`\nResultado: ${result.status}. ${passed}/${this.entries.length} aprobadas.`)
+    // Los selftests no pisan el resultado de la última corrida contra el Preview.
+    if (!this.live) return
     mkdirSync(LOCAL_DIR, { recursive: true })
     writeFileSync(`${LOCAL_DIR}e2e-result.json`, JSON.stringify({
       finishedAt: new Date().toISOString(), status: result.status, tests: this.entries,

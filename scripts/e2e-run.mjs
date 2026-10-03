@@ -22,6 +22,7 @@ const modes = {
   selftest: { args: ['--project', 'selftest'], live: false },
   check: { args: ['--project', 'real', '--grep', '@destino'], live: true, consumes: false },
   smoke: { args: ['--project', 'real', '--grep', '@smoke'], live: true, consumes: true },
+  full: { args: ['--project', 'real', '--grep', '@smoke|@completo'], live: true, consumes: true },
 }
 
 const fail = (code, message) => {
@@ -30,7 +31,7 @@ const fail = (code, message) => {
 }
 
 const mode = modes[process.argv[2] ?? '']
-if (!mode) fail(2, 'Uso: node scripts/e2e-run.mjs <selftest|check|smoke>')
+if (!mode) fail(2, 'Uso: node scripts/e2e-run.mjs <selftest|check|smoke|full>')
 
 const env = { ...process.env }
 if (mode.live) {

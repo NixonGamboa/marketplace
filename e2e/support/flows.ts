@@ -64,9 +64,20 @@ export async function addProduct(page: Page, name: string, variableKilos?: numbe
 
 /** Carrito → checkout con recogida en tienda y la primera franja disponible; devuelve el ID del pedido. */
 export async function placePickupOrder(page: Page, customerPhone: string): Promise<string> {
+  await preparePickupCheckout(page, customerPhone)
+  await page.getByRole('button', { name: 'Pedir mi Mercado', exact: true }).click()
+  return submittedOrderId(page)
+}
+
+/** Llega hasta el botón final; permite introducir fallos sin simular la respuesta exitosa. */
+export async function preparePickupCheckout(page: Page, customerPhone: string, substitution?: 'similar' | 'call_me' | 'remove'): Promise<void> {
   await page.goto('/cart')
   await page.getByRole('button', { name: /^Pedir mi Mercado/ }).click()
   await expect(page).toHaveURL(/\/checkout/)
+  if (substitution) {
+    await page.locator('button[aria-controls="substitution-options"]').click()
+    await page.locator(`label[for="substitution-${substitution}"]`).click()
+  }
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
 
   await page.getByRole('radio', { name: /Recoger en tienda/ }).click()
@@ -77,7 +88,10 @@ export async function placePickupOrder(page: Page, customerPhone: string): Promi
   if (await phone.inputValue() === '') await phone.fill(nationalPhoneDigits(customerPhone))
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
 
-  await page.getByRole('button', { name: 'Pedir mi Mercado', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Pedir mi Mercado', exact: true })).toBeEnabled()
+}
+
+export async function submittedOrderId(page: Page): Promise<string> {
   await page.waitForURL(/\/pedidos\/[^/]+$/, { timeout: 45_000 })
   const orderId = decodeURIComponent(new URL(page.url()).pathname.split('/').pop() ?? '')
   expect(orderId, 'ID del pedido en la URL de seguimiento').not.toBe('')

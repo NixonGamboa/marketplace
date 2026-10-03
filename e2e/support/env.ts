@@ -4,7 +4,7 @@
  *
  * - `BASE_URL` (o `AUTH_ORIGIN`): origen del Preview de test que sirve PWA, admin (`/admin`) y API.
  * - `SMOKE_BYPASS_TOKEN`: protección de Preview de Vercel; solo se envía al hostname de `BASE_URL`.
- * - `SMOKE_CUSTOMER_*`, `SMOKE_STAFF_*` y, si el personal no es owner, `SMOKE_OWNER_*`.
+ * - `SMOKE_CUSTOMER_*`, `SMOKE_STAFF_*`, `SMOKE_OWNER_*` (si el personal no es owner) y `SMOKE_OPERATOR_*` (opcional).
  * - `E2E_READY_STAMP`: lo fija el launcher tras validar `night-cloud-ready.json`; sin él, solo se
  *   acepta un destino local en loopback.
  */
@@ -26,6 +26,8 @@ export interface Credentials {
   staff: { email: string; password: string }
   /** Cuenta owner para abrir la tienda; por defecto la misma del personal. */
   owner: { email: string; password: string }
+  /** Cuenta operator del seed (permisos negativos); opcional: sin ella el escenario lo registra como hallazgo. */
+  operator: { email: string; password: string } | null
 }
 
 type Source = Record<string, string | undefined>
@@ -85,6 +87,9 @@ export function readCredentials(source: Source = process.env): Credentials {
     owner: source.SMOKE_OWNER_EMAIL && source.SMOKE_OWNER_PASSWORD
       ? { email: source.SMOKE_OWNER_EMAIL, password: source.SMOKE_OWNER_PASSWORD }
       : staff,
+    operator: source.SMOKE_OPERATOR_EMAIL && source.SMOKE_OPERATOR_PASSWORD
+      ? { email: source.SMOKE_OPERATOR_EMAIL, password: source.SMOKE_OPERATOR_PASSWORD }
+      : null,
   }
 }
 
