@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
-  apiErrorSchema, auditListResponseSchema, authSessionResponseSchema, categoryDtoSchema, orderConfirmationSchema, orderDtoSchema,
-  orderListResponseSchema, productDtoSchema, publicCatalogResponseSchema, staffCatalogResponseSchema, staffProductDtoSchema, storeDtoSchema,
-  type OrderDto,
+  AUDIT_FIELD_VALUES, apiErrorSchema, auditListResponseSchema, authSessionResponseSchema, categoryDtoSchema, orderConfirmationSchema, orderDtoSchema,
+  orderListResponseSchema, productDtoSchema, publicCatalogResponseSchema, staffCatalogResponseSchema, staffProductDtoSchema, storeDtoSchema, updateCategoryRequestSchema,
+  updateProductRequestSchema, updateStoreSettingsRequestSchema, type OrderDto,
 } from '../../../shared/contracts/index.js'
 import { customerReceiptFrom, staffReceiptFrom } from '../../../shared/receipts/index.js'
 import { STORE, startHttpWorld, type Actor, type HttpWorld, type WireResponse } from './httpWorld.js'
@@ -119,6 +119,18 @@ describe('contratos serializados entre PWA, admin y API', () => {
     expect(apiErrorSchema.parse(inUse.body).error).toBe('CATEGORY_IN_USE')
     const removed = await send('DELETE', `/api/catalog/categories/${newCategory.id}`, actors.owner)
     expect(removed).toMatchObject({ status: 204, body: null })
+  })
+
+  it('todo campo editable del contrato se puede auditar: un PATCH válido no falla por la lista de campos de auditoría', async () => {
+    for (const schema of [updateProductRequestSchema, updateCategoryRequestSchema, updateStoreSettingsRequestSchema]) {
+      const editable = Object.keys(schema.innerType().shape)
+      expect(editable.filter(field => !(AUDIT_FIELD_VALUES as readonly string[]).includes(field))).toEqual([])
+    }
+    // `currency` es un literal COP aceptado por el contrato: repetirlo es una edición válida, no un 503.
+    const patched = await send('PATCH', '/api/catalog/products/prod_carne', actors.owner, { currency: 'COP', inStock: true })
+    expect(patched.status, JSON.stringify(patched.body)).toBe(200)
+    const events = read(auditListResponseSchema, await get('/api/audit?entity=product&entityId=prod_carne&action=updated', actors.owner)).items
+    expect([...(events[0]?.metadata.fields ?? [])].sort()).toEqual(['currency', 'inStock'])
   })
 
   it('tienda del admin: aliado, estado y horario por /api/store/staff llegan a la PWA y al comprobante', async () => {
