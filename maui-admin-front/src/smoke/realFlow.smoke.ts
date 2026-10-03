@@ -1,7 +1,8 @@
+/// <reference types="node" />
 // Smoke E2E REAL (con escrituras) de los adapters del admin contra un Preview/test con T-16 integrado.
 // NO se ejecuta en `npm test` ni en CI: exige `SMOKE_REAL_FLOW=1` y credenciales por canal privado.
 //
-//   SMOKE_BASE_URL=https://<preview>.vercel.app SMOKE_REAL_FLOW=1 \
+//   SMOKE_BASE_URL=https://<preview>.vercel.app SMOKE_AUTH_ORIGIN=https://<develop>.vercel.app SMOKE_REAL_FLOW=1 \
 //   SMOKE_STAFF_EMAIL=… SMOKE_STAFF_PASSWORD=… SMOKE_CUSTOMER_PHONE=… SMOKE_CUSTOMER_PASSWORD=… \
 //   npm --prefix maui-admin-front run smoke:preview
 //
@@ -11,8 +12,10 @@
 // inventa datos. Solo se ejecuta contra una BD aislada de test; jamás contra Production.
 // Cierre real de T-17: este smoke verde + evidencia de la API/Postgres de test (no los tests con mocks).
 
-import { describe, expect, it } from 'vitest'
-import { authSessionResponseSchema, publicCatalogResponseSchema, type OrderDto } from '@shared/contracts'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { orderConfirmationSchema, authSessionResponseSchema, publicCatalogResponseSchema, type OrderDto } from '@shared/contracts'
 import { createApiClient, type ApiClient } from '../services/http/apiClient'
 import { ApiError } from '../services/http/apiError'
 import { createRealAuditRepository } from '../services/realAuditRepository'
@@ -22,6 +25,7 @@ import { createRealReceiptService } from '../services/realReceiptService'
 const env = import.meta.env as Record<string, string | undefined>
 const baseUrl = (env.SMOKE_BASE_URL ?? '').replace(/\/+$/, '')
 const enabled = env.SMOKE_REAL_FLOW === '1'
+const authOrigin = env.SMOKE_AUTH_ORIGIN ?? ''
 const credentials = {
   staffEmail: env.SMOKE_STAFF_EMAIL,
   staffPassword: env.SMOKE_STAFF_PASSWORD,
@@ -30,15 +34,75 @@ const credentials = {
 }
 const complete = Object.values(credentials).every((value) => value !== undefined && value !== '')
 
+// Checkpoint local para limpieza del orquestador: sin cuerpos, cuentas ni secretos.
+const checkpointUrl = new URL('../../../orquestacion-local/smoke-runtime.json', import.meta.url)
+const runtime: { block: string; phase: string; orders: { key: string; orderId?: string }[]; sessionsClosed?: boolean } = {
+  block: 'T-17', phase: 'prepared', orders: [],
+}
+let guardReady = false
+const saveCheckpoint = (phase: string) => {
+  runtime.phase = phase
+  mkdirSync(fileURLToPath(new URL('.', checkpointUrl)), { recursive: true })
+  writeFileSync(fileURLToPath(checkpointUrl), JSON.stringify(runtime, null, 2))
+}
+const cleanHttpsOrigin = (value: string, label: string) => {
+  let url: URL
+  try { url = new URL(value) } catch { throw new Error(label + ' requiere un origen HTTPS') }
+  if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error(label + ' requiere un origen HTTPS limpio, sin ruta ni credenciales')
+  }
+  return url.origin
+}
+const validateDestination = async () => {
+  if (!complete) throw new Error('El smoke habilitado requiere todas sus credenciales')
+  cleanHttpsOrigin(baseUrl, 'SMOKE_BASE_URL')
+  cleanHttpsOrigin(authOrigin, 'SMOKE_AUTH_ORIGIN')
+  const headers = new Headers()
+  if (env.SMOKE_VERCEL_BYPASS) headers.set('x-vercel-protection-bypass', env.SMOKE_VERCEL_BYPASS)
+  const response = await fetch(new URL('/api/health', baseUrl), { headers, redirect: 'error', signal: AbortSignal.timeout(30_000) })
+  if (!response.ok) throw new Error('El destino no acredita salud de test')
+  const health: unknown = await response.json()
+  expect(health).toMatchObject({ status: 'ok', environment: 'test', database: 'connected' })
+  if (existsSync(fileURLToPath(checkpointUrl))) {
+    const previous: unknown = JSON.parse(readFileSync(fileURLToPath(checkpointUrl), 'utf8'))
+    if (typeof previous !== 'object' || previous === null || !('block' in previous) || previous.block !== runtime.block ||
+      !('orders' in previous) || !Array.isArray(previous.orders)) throw new Error('Checkpoint local inválido')
+    for (const record of previous.orders as unknown[]) {
+      if (typeof record !== 'object' || record === null || !('key' in record) || typeof record.key !== 'string' ||
+        ('orderId' in record && typeof record.orderId !== 'string')) throw new Error('Checkpoint local inválido')
+      runtime.orders.push({ key: record.key, ...('orderId' in record ? { orderId: record.orderId as string } : {}) })
+    }
+  }
+  saveCheckpoint('validated')
+  guardReady = true
+}
+
 /** Contexto aislado: su cookie jar no se comparte con el otro (equivale a dos navegadores). */
-const createContext = (): { client: ApiClient; fetchImpl: typeof fetch } => {
+const createContext = () => {
   const jar = new Map<string, string>()
   const fetchImpl: typeof fetch = async (input, init) => {
     const headers = new Headers(init?.headers)
-    headers.set('Origin', baseUrl)
+    headers.set('Origin', authOrigin)
     if (env.SMOKE_VERCEL_BYPASS) headers.set('x-vercel-protection-bypass', env.SMOKE_VERCEL_BYPASS)
     if (jar.size > 0) headers.set('Cookie', [...jar].map(([name, value]) => `${name}=${value}`).join('; '))
-    const response = await fetch(new URL(String(input), baseUrl), { ...init, headers })
+    const url = new URL(String(input), baseUrl)
+    const createsOrder = init?.method === 'POST' && url.pathname === '/api/orders'
+    const key = createsOrder ? headers.get('Idempotency-Key') : null
+    if (createsOrder) {
+      if (!key) throw new Error('Crear un pedido requiere Idempotency-Key')
+      if (!runtime.orders.some((order) => order.key === key)) runtime.orders.push({ key })
+      saveCheckpoint('creating')
+    }
+    const response = await fetch(url, { ...init, headers, redirect: 'error' })
+    if (createsOrder && (response.status === 201 || response.status === 200)) {
+      const confirmation = orderConfirmationSchema.parse(await response.clone().json())
+      const record = runtime.orders.find((order) => order.key === key && order.orderId === undefined)
+      if (record) record.orderId = confirmation.orderId
+      else if (!runtime.orders.some((order) => order.key === key && order.orderId === confirmation.orderId)) {
+        runtime.orders.push({ key: key!, orderId: confirmation.orderId })
+      }
+      saveCheckpoint('created')
+    }
     for (const cookie of response.headers.getSetCookie()) {
       const [pair] = cookie.split(';')
       const separator = pair.indexOf('=')
@@ -49,7 +113,13 @@ const createContext = (): { client: ApiClient; fetchImpl: typeof fetch } => {
     }
     return response
   }
-  return { client: createApiClient({ baseUrl: '/api', fetchImpl, timeoutMs: 30_000 }), fetchImpl }
+  const client = createApiClient({ baseUrl: '/api', fetchImpl, timeoutMs: 30_000 })
+  return {
+    client,
+    close: async () => {
+      if (jar.size > 0) await client.request({ method: 'POST', path: '/auth/logout' })
+    },
+  }
 }
 
 const loginAs = async (client: ApiClient, body: Record<string, string>) =>
@@ -61,9 +131,17 @@ const failureOf = async (promise: Promise<unknown>): Promise<ApiError> => {
   return error as ApiError
 }
 
-describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real cliente → personal en ${baseUrl}`, () => {
+describe.skipIf(!enabled)('flujo real cliente → personal', () => {
   const customerCtx = createContext()
   const staffCtx = createContext()
+  beforeAll(validateDestination)
+  afterAll(async () => {
+    if (!guardReady) return
+    const results = await Promise.allSettled([customerCtx.close(), staffCtx.close()])
+    runtime.sessionsClosed = results.every((result) => result.status === 'fulfilled')
+    saveCheckpoint('finished')
+    expect(runtime.sessionsClosed, 'todas las sesiones propias deben cerrarse').toBe(true)
+  })
   const customerOrders = createRealOrderRepository(customerCtx.client)
   const staffOrders = createRealOrderRepository(staffCtx.client)
   const state: { customerId?: string; orderId?: string; order?: OrderDto; fixedId?: string; variableId?: string } = {}
@@ -114,7 +192,7 @@ describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real cliente →
     expect((await failureOf(staffOrders.updateStatus(received.orderId, 'preparing', 'ignorado', received.version))).kind).toBe('conflict')
     // Pesar antes de preparar no está permitido.
     const variable = confirmed.items.find((item) => item.is_variable_weight)!
-    expect((await failureOf(staffOrders.setRealWeights(received.orderId, [{ itemId: variable.id, kilos: 0.6 }], 'x', confirmed.version))).kind).not.toBe('unauthenticated')
+    expect((await failureOf(staffOrders.setRealWeights(received.orderId, [{ itemId: variable.id, kilos: 0.6 }], 'x', confirmed.version))).kind).toBe('validation')
 
     const preparing = await staffOrders.updateStatus(received.orderId, 'preparing', 'x', confirmed.version)
     const weighed = await staffOrders.setRealWeights(received.orderId, [{ itemId: variable.id, kilos: 0.6 }], 'x', preparing.version!)
