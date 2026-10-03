@@ -2,7 +2,7 @@
  * @spec §12, §13, CU-3..5, US-4/5, ADR-006, ADR-007, TASK-017
  * Detalle de un pedido: pesos reales, cancelación, contacto cliente, picking list.
  */
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
@@ -199,8 +199,8 @@ export function OrderDetailPage() {
   // Un 409 significa que otro cambio ganó: se recarga el pedido vigente (los pesos sin guardar se descartan).
   const reloadOrder = useCallback(() => setReloadToken((value) => value + 1), [])
 
-  // Inicializar pesos locales al cargar el pedido
-  useEffect(() => {
+  // Sincronizar antes de mostrar los inputs: un efecto tardío borraría una edición inmediata.
+  useLayoutEffect(() => {
     if (!order) return
     const initial: Record<string, number> = {}
     for (const item of order.items) {
