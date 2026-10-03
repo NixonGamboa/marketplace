@@ -25,6 +25,7 @@ export interface ApiErrorInit {
   code?: string
   issues?: readonly ContractIssue[]
   retryAfterSeconds?: number
+  requestId?: string
 }
 
 export class ApiError extends Error {
@@ -34,6 +35,7 @@ export class ApiError extends Error {
   readonly code: string | undefined
   readonly issues: readonly ContractIssue[]
   readonly retryAfterSeconds: number | undefined
+  readonly requestId: string | undefined
 
   constructor(init: ApiErrorInit) {
     super(init.message)
@@ -43,8 +45,12 @@ export class ApiError extends Error {
     this.code = init.code
     this.issues = init.issues ?? []
     this.retryAfterSeconds = init.retryAfterSeconds
+    this.requestId = validRequestId(init.requestId) ? init.requestId : undefined
   }
 }
+
+export const validRequestId = (value: unknown): value is string =>
+  typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,63}$/.test(value)
 
 const KIND_BY_STATUS: Readonly<Record<number, ApiErrorKind>> = {
   400: 'validation',
@@ -104,6 +110,8 @@ export const apiErrorFromResponse = async (response: Response): Promise<ApiError
     status: response.status,
     message: body?.message ?? defaultMessageFor(kind),
   }
+  const requestId = response.headers.get('X-Request-Id')
+  if (validRequestId(requestId)) init.requestId = requestId
   if (body) {
     init.code = body.error
     if (body.issues) init.issues = body.issues

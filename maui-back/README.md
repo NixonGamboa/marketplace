@@ -2,6 +2,17 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
+## Observabilidad y recuperación de test (T-21)
+
+Las 12 Functions añaden `X-Request-Id` y logs JSON saneados de status/latencia, pedidos
+creados y replays evitados. La auditoría distingue errores de driver y contrato sin copiar
+el error original. Los clientes HTTP conservan el identificador para diagnóstico.
+
+El CLI `src/infra/recovery/main.ts` produce backup lógico AES-256-GCM y export del catálogo
+público; restore con dry-run, provenance de clon Neon temporal, SHA fresca y transacción.
+Dev es solo fuente y Production siempre se rechaza. Comandos, clave privada, guards,
+reversión compatible y limitaciones: [operación de test](../docs/tecnicos/operacion-test.md).
+
 ## Seed de test reproducible y reset protegido (T-16)
 
 Siembra el ambiente de test **en servidor**, por los casos de uso reales (no `runAllSeeds` del

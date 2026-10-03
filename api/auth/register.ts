@@ -1,3 +1,4 @@
+import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { registerCustomer } from '../../maui-back/src/usecases/auth/registerCustomer.js'
@@ -11,7 +12,7 @@ import {
 } from '../_lib/auth.js'
 
 /** POST /api/auth/register — alta pública de CLIENTE; abre sesión por cookie HttpOnly. */
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['POST'])) return
 
@@ -24,3 +25,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     failAuth(res, err)
   }
 }
+
+export default withObservability('/api/auth/register', handler)

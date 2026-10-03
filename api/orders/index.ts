@@ -1,9 +1,11 @@
+import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { DEFAULT_STORE_ID } from '../../maui-back/src/domain/orders/Order.js'
 import { toOrderConfirmation, toOrderListResponse } from '../../maui-back/src/domain/orders/orderMappers.js'
 import { getAuthRuntime, type AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { getRepositories } from '../../maui-back/src/infra/factory.js'
 import { createOrder } from '../../maui-back/src/usecases/orders/createOrder.js'
+import { recordOrderOutcome } from '../../maui-back/src/shared/observability.js'
 import { listOrdersForActor } from '../../maui-back/src/usecases/orders/listOrders.js'
 import { allowMethods, prepareAuthResponse, readJsonBody } from '../_lib/auth.js'
 import { MAX_ORDER_BODY_BYTES, authorizeOrderRequest, failOrderRequest, listQueryFrom } from '../_lib/orders.js'
@@ -23,7 +25,7 @@ const placeOrder = async (req: VercelRequest, res: VercelResponse, runtime: Auth
   const body = readJsonBody(req, MAX_ORDER_BODY_BYTES)
   const { orders, catalog, store } = await getRepositories()
   const created = await createOrder(
-    { orders, catalog, store, clock: runtime.deps.clock, keys: runtime.deps.keys },
+    { orders, catalog, store, clock: runtime.deps.clock, keys: runtime.deps.keys, onCreationOutcome: recordOrderOutcome },
     actor,
     body,
     { storeId: DEFAULT_STORE_ID },
@@ -36,7 +38,7 @@ const placeOrder = async (req: VercelRequest, res: VercelResponse, runtime: Auth
  * /api/orders — GET lista pedidos del actor (cliente: los suyos; owner/operator: su tienda);
  * POST crea un pedido propio del cliente.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['GET', 'POST'])) return
 
@@ -48,3 +50,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     failOrderRequest(res, err, runtime?.config)
   }
 }
+
+export default withObservability('/api/orders', handler)

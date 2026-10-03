@@ -1,3 +1,4 @@
+import { withObservability } from './_lib/observability.js'
 import { DEFAULT_STORE_ID } from '../maui-back/src/domain/orders/Order.js'
 import { toStoreDto } from '../maui-back/src/domain/store/storeMappers.js'
 import { getRepositories } from '../maui-back/src/infra/factory.js'
@@ -19,7 +20,7 @@ import { ok } from './_lib/response.js'
  *
  * `availability` se calcula con el reloj del servidor en America/Bogota en cada respuesta.
  */
-export default createOperationHandler(
+const handler = createOperationHandler(
   {
     store: {
       GET: async ({ res }) => {
@@ -44,3 +45,5 @@ export default createOperationHandler(
   },
   'store',
 )
+
+export default withObservability('/api/store', handler)
