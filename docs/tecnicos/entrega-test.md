@@ -1,25 +1,26 @@
-# Entrega del ambiente de test (T-24) — BORRADOR
+# Ambiente de test — preparación de entrega T-24
 
-> **Estado:** borrador local, sin commit. Ninguna prueba sobre el despliegue final se ha ejecutado.
-> Las secciones «Pendiente» se completan con resultados reales; no se rellenan por estimación.
-> No contiene credenciales, tokens ni valores de bypass.
+Preparación técnica completa y validada el 2026-10-03. Las credenciales quedan reservadas por instrucción del usuario; no se entregan ni se publican en este documento. No se promueve Production.
 
-## Acceso y versión
+## Acceso y versión comprobada
 
 | Dato | Valor |
 |---|---|
-| URL estable de test | <https://marketplace-git-develop-infogamboatech-2785.vercel.app> |
-| PWA / Admin / API | `/` · `/admin/` · `/api/` |
-| Protección | Vercel Deployment Protection activa; acceso con la cuenta del entorno o bypass restringido al host de test |
-| Versión desplegada (SHA) | **Pendiente:** se toma de `/build-info.json` del deployment final tras integrar T-22 |
-| Deployment Vercel (ID/URL inmutable) | **Pendiente** |
-| Modo del build | Esperado `real`; **pendiente** de confirmar en `/build-info.json` |
-| Fecha/hora del despliegue y del último reset | **Pendiente** |
-| Cuentas de test | Se entregan por canal privado; no se publican aquí (owner, operator, clientes `@seed.maui.invalid`) |
+| URL estable | [Abrir ambiente de test](https://marketplace-git-develop-infogamboatech-2785.vercel.app) |
+| PWA / admin / API | `/` · `/admin/` · `/api/` |
+| Código probado | `89a588a79f567949e077a5569f80d8350fa78233` |
+| Deployment probado | `dpl_AFEAUeW8k3mfzyxKqSNNvyk1GF2P` |
+| Build | `real`, generado 2026-10-03T15:23:52.235Z |
+| E2E finalizado | 2026-10-03T15:38:12.767Z |
+| Último reset y seed comprobados | 2026-10-03T15:42:59.454Z |
+| Base | Neon dev/maui, aislada de Production |
+| Protección | Vercel Deployment Protection activa |
 
-## Setup
+Consultar `/build-info.json` para el SHA actual. Un commit posterior de documentación cambia esa identificación sin cambiar el código probado; la integración documental exige CI verde y verificación de equivalencia del código. Acceso humano mediante la cuenta autorizada de Vercel; bypass de automatización restringido al host de test y mantenido en privado.
 
-Node 24 y lockfiles del repositorio (guía completa: `docs/tecnicos/despliegue-test.md`).
+## Setup y configuración
+
+Node 24 y npm 11, con los lockfiles del repositorio. Desde la raíz:
 
 ```text
 npm run ci:install
@@ -27,13 +28,13 @@ npm run ci:check
 npm run ci:build
 ```
 
-Variables solo en Preview/develop: `APP_ENV=test`, `DB_DRIVER=postgres`, `DATABASE_URL` (Neon dev/maui),
-`AUTH_JWT_SECRET`, `AUTH_ORIGIN` (= URL estable), guards `TEST_DATABASE_*` / `PRODUCTION_DATABASE_*` y
-Blob de test. Production no se modifica.
+La entrega unificada genera PWA y admin reales. `npm run build:demo` conserva el demo por separado; reconstruir con `ci:build` antes de usar un artefacto de entrega. [Guía de despliegue](despliegue-test.md).
 
-## Migraciones, seed y reset
+Preparar `maui-back/.env.local` privado con `APP_ENV=test`, `DB_DRIVER=postgres`, `DATABASE_URL` de dev/maui, `AUTH_JWT_SECRET`, `AUTH_ORIGIN` igual a la URL estable, guards `TEST_DATABASE_HOST/NAME` y `PRODUCTION_DATABASE_HOST/NAME`, y credenciales `SEED_*` fuera del bundle. El almacenamiento Blob de test conserva su configuración existente. Ningún valor secreto se incorpora al repositorio ni a variables `VITE_*`.
 
-Desde `maui-back`, con `.env.local` privado:
+## Migraciones, seed, reset y recuperación
+
+Desde `maui-back`, con configuración privada preparada:
 
 ```text
 npm run db:migrate
@@ -43,59 +44,69 @@ npm run seed:test
 npm run smoke:test
 ```
 
-Reset (solo Neon dev/maui, guard de T-16: `APP_ENV=test`, `RESET_TARGET=dev/maui`, endpoint fijo):
+El ledger contiene ocho migraciones aplicadas. Dataset `test-seed-v1`: una tienda, nueve categorías, 16 productos, cuatro cuentas y nueve pedidos de seed con estados y modalidades representativos. El pedido previo ajeno al seed se conserva.
 
 ```text
-npm run reset:test                                   # dry-run → confirmationToken
-npm run reset:test -- --execute --confirm=<token>    # token recién obtenido
-npm run seed:test                                    # resembrar; repetir para comprobar idempotencia
+npm run reset:test
+npm run reset:test -- --execute --confirm=<token-reciente-del-dry-run>
+npm run seed:test
+npm run seed:test
 ```
 
-Restaurar = reset + seed. Backup, restauración en clon y rollback: `docs/tecnicos/operacion-test.md`.
+Solo dev/maui: `RESET_TARGET=dev/maui`, guard de entorno T-16, dry-run vigente y token/huella. El reset normal conserva la tienda. Los pedidos de smoke se retiran por IDs/claims identificados y con comprobación del destino; no ampliar el borrado a pedidos ajenos. Las seis ejecuciones de reset/reseed del lote conservaron el pedido previo y el ledger; la última retiró 10 pedidos propios y repitió el seed sin cambios.
 
-## Comando E2E (T-22, **no integrado al momento de este borrador**)
+Reset + seed repone fixtures de test. Recuperar datos de un backup es una operación distinta: [guía de operación y restore](operacion-test.md). T-21 comprobó backup AES-256-GCM y restauración íntegra de nueve tablas/schema/ledger en un clon temporal de dev, después eliminado. El backup Postgres no incluye imágenes Blob; la clave permanece fuera del repositorio.
 
-Los nombres provienen de la rama `feature/runner-e2e-real` y deben confirmarse al integrarla:
+## Validación automatizada
+
+[Build y CI T-23](https://github.com/NixonGamboa/marketplace/pull/31), [runner y E2E T-22](https://github.com/NixonGamboa/marketplace/pull/27). CI: tipos, lint, drift, 1171 pruebas backend, 272 PWA, 226 admin y 38 selftests del runner. Builds real/demo verificados y distinguibles.
+
+Sobre la URL estable: build real con SHA correcto y `no-store`; health test/Postgres; rutas profundas de ambas apps; API desconocida JSON404. Runner `check`: 2/2. Corrida completa final: **23/23**, con dos contextos independientes y servicios reales, sin nuevas correcciones.
+
+| Escenario de navegador | Resultado |
+|---|---|
+| ambas apps corren en modo REAL y la sesión empieza cerrada | Aprobado |
+| el catálogo público tiene un producto de peso fijo y uno de peso variable disponibles | Aprobado |
+| el cliente inicia sesión, arma la canasta y pide con recogida en tienda | Aprobado |
+| el admin recibe el pedido nuevo, lo abre y confirma | Aprobado |
+| el cliente detecta «Confirmado» sin recargar (sondeo entre dispositivos) | Aprobado |
+| el admin prepara, registra el peso real y marca listo | Aprobado |
+| el cliente ve «Listo» con total final; el estimado original persiste en el servidor | Aprobado |
+| el admin entrega y el cliente detecta «Entregado» con ambos totales persistentes | Aprobado |
+| comprobante, enlaces de contacto (sin enviar WhatsApp) y auditoría | Aprobado |
+| cierre de sesión de cliente y admin, y restauración de la tienda | Aprobado |
+| sesiones aisladas, permisos cruzados, cabeceras de caché y X-Request-ID | Aprobado |
+| pedido entregado del smoke persiste en una sesión nueva de cliente | Aprobado |
+| precio manipulado y doble clic: un solo pedido con precio autoritativo | Aprobado |
+| tienda cerrada: el servidor rechaza (409 STORE_CLOSED) y conserva la canasta | Aprobado |
+| agotado por admin: el servidor rechaza, la PWA lo muestra y la canasta sigue | Aprobado |
+| timeout después de persistir: la clave sobrevive a la recarga y no duplica | Aprobado |
+| fallo controlado 429: conserva la canasta y el reintento crea un solo pedido real | Aprobado |
+| fallo controlado 503: conserva la canasta y el reintento crea un solo pedido real | Aprobado |
+| sesión revocada: 401, redirige a ingreso y la canasta sobrevive al reingreso | Aprobado |
+| offline con SW activo conserva la canasta sin caché privada y se recupera en 3G | Aprobado |
+| personal sustituye con declaración de contacto y cancela; histórico y audit persisten | Aprobado |
+| edición de catálogo desde admin persiste y llega a la PWA sin deploy | Aprobado |
+| cierre: sin excepciones ni WhatsApp, fixtures devueltos y sesiones cerradas | Aprobado |
+
+SQL independiente verificó 10 pedidos propios por sus claims, cuatro fixtures restaurados (contacto, horario, stock y precio), cero sesiones activas, pedido previo intacto y ledger de ocho migraciones. Después se retiraron los pedidos propios y se repuso el seed; el ambiente queda listo para una nueva prueba.
+
+Para repetir desde la raíz, con credenciales `SMOKE_*` privadas:
 
 ```text
-npm run e2e:check     # solo lectura: API de test conectada y apps en modo real
-npm run e2e:smoke     # crea un pedido propio; consume el ready
-node scripts/e2e-run.mjs full   # suite completa (@smoke|@completo); consume el ready
+npm run e2e:check
+node scripts/e2e-run.mjs full
 ```
 
-Requisitos: `orquestacion-local/night-cloud-ready.json` publicado por root tras identificar el deployment y
-dejar el seed limpio; cada ready se consume una vez, y otra corrida completa exige reset y ready nuevos.
-Credenciales (`SMOKE_*`) y bypass solo por entorno.
+`full` incluye el smoke de compra y la resiliencia. También existe `npm run e2e:smoke` para el recorrido de compra aislado. Cada corrida con escrituras consume un ready nuevo de `orquestacion-local/night-cloud-ready.json`, publicado tras identificar el Preview y dejar el seed limpio. Reset antes de cada corrida completa; un ready consumido no se reutiliza. Se utiliza Chrome instalado, sin descargar navegadores. [Guía del runner](../../e2e/README.md).
 
-## Resultados
+## Límites y siguiente paso
 
-### Gates locales de T-23 (ejecutados 2026-10-03, sobre `155dc6a` + docs)
+- Credenciales de test reservadas; su entrega por canal privado queda fuera de este encargo.
+- El contacto usa enlaces `wa.me`; se verifica destino/texto sin enviar mensajes ni simular notificaciones automáticas.
+- 429/503 y timeout son fallos de transporte controlados; no acreditan una caída real de Postgres.
+- Cancelación del cliente sigue denegada; el personal autorizado sí puede cancelar. Cobertura limitada al casco urbano de Dolores, sin geocerca.
+- El campo de precio del admin puede pulirse al recibir foco; la interacción de teclado pasó. La caché offline no incluye imágenes Blob de otro origen. La medición de shell en 3G no mide la carga completa del catálogo.
+- Sin acuerdos, pruebas humanas, entrenamiento ni lanzamiento comercial. Production y sus datos/variables permanecen fuera del alcance.
 
-| Gate | Resultado |
-|---|---|
-| `npm run ci:check` | exit 0: typecheck (back/pwa/admin), contratos, lint, tests back 1171, pwa 272, admin 226 |
-| `npm run ci:build` (real) | exit 0; `verify-pwa-build` aprobado (precache 593.2 KiB, `sw.js` 22.1 KiB); `build-info mode=real` |
-| `npm run build:demo` | exit 0; `build-info mode=demo`; hashes de bundle distintos del real |
-
-Son evidencia local; no sustituyen las pruebas sobre el despliegue.
-
-### Pruebas sobre el despliegue final — **Pendiente**
-
-| Prueba | Resultado |
-|---|---|
-| `/build-info.json` (SHA = deployment, `mode=real`) | Pendiente |
-| `/api/health` (`environment=test`, `database=connected`) | Pendiente |
-| Rutas profundas PWA/admin y `/api/*` desconocida → JSON 404 | Pendiente |
-| `smoke:test` contra la URL de test | Pendiente |
-| E2E: compra entre dos contextos independientes | Pendiente |
-| Persistencia tras recarga y nueva sesión | Pendiente |
-| Edición de catálogo en admin visible en la PWA | Pendiente |
-| Flujo completo del pedido, comprobante y enlaces `wa.me` | Pendiente |
-| Reset + resembrado + idempotencia | Pendiente |
-
-## Limitaciones
-
-- T-22 no está integrada: no hay E2E de navegador ni evidencia sobre el despliegue final.
-- Sin gateway de mensajería externo: el contacto usa enlaces `wa.me` con texto preparado.
-- Sin acuerdos, reuniones ni pruebas humanas; el alcance es validación técnica automatizada.
-- El acceso exige la protección de Vercel; las cuentas de test se entregan por canal privado.
+El siguiente paso es entregar acceso de test por canal privado cuando el usuario lo solicite. La evolución E-01 a E-08 se inicia solo con un nuevo encargo.
