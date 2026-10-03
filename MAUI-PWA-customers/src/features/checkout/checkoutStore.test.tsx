@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import CheckoutPage from './CheckoutPage'
 import DeliverySelector from './DeliverySelector'
+import { DEMO_CHECKOUT_RULES } from './storeRules'
+import { renderWithQuery } from './testUtils'
 import { mapCartItemsToOrderItems, normalizeCustomerPhone, useCheckoutStore, useIsDeliveryReady } from './checkoutStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -93,7 +95,7 @@ describe('checkout contact and location', () => {
 
   it('places the GPS action before manual address and keeps manual fallback', () => {
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined })
-    render(<DeliverySelector />)
+    render(<DeliverySelector rules={DEMO_CHECKOUT_RULES} />)
     fireEvent.click(screen.getByRole('radio', { name: /Envío a domicilio/i }))
 
     const gps = screen.getByRole('button', { name: 'Enviar ubicación actual' })
@@ -116,7 +118,7 @@ describe('checkout contact and location', () => {
         } as GeolocationPosition),
       },
     })
-    render(<DeliverySelector />)
+    render(<DeliverySelector rules={DEMO_CHECKOUT_RULES} />)
     fireEvent.click(screen.getByRole('radio', { name: /Envío a domicilio/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar ubicación actual' }))
     expect(screen.queryByText(/Ubicación obtenida/)).not.toBeNull()
@@ -148,7 +150,7 @@ describe('checkout contact and location', () => {
       })
     })
 
-    render(<MemoryRouter><CheckoutPage /></MemoryRouter>)
+    renderWithQuery(<MemoryRouter><CheckoutPage /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
 
     const phone = screen.getByRole('textbox', { name: 'Celular para este pedido' }) as HTMLInputElement

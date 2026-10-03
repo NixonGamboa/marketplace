@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem } from '@/types'
+import type { CartItem, Product } from '@/types'
 
 const STALE_MS = 30 * 24 * 60 * 60 * 1000 // 30 días
 const roundKg = (v: number) => parseFloat(v.toFixed(2))
@@ -15,6 +15,8 @@ interface CartStore {
   updateKilos: (productId: string, kilos: number) => void
   clearCart: () => void
   clearIfStale: () => void
+  /** Actualiza precio, nombre y unidad de lo que ya está en el carrito al valor vigente del catálogo. */
+  syncWithCatalog: (products: readonly Product[]) => void
 }
 
 function calcTotals(items: CartItem[]) {
@@ -74,6 +76,21 @@ export const useCartStore = create<CartStore>()(
       },
 
       clearCart: () => set({ items: [], total: 0, lastUpdated: null }),
+
+      syncWithCatalog: (products) => {
+        const byId = new Map(products.map((product) => [product.id, product]))
+        let changed = false
+        const items = get().items.map((item) => {
+          const product = byId.get(item.productId)
+          if (!product || product.is_variable_weight !== item.is_variable_weight) return item
+          const name = product.name_display ?? product.name
+          if (item.price_at_moment === product.price && item.name === name && item.unit === product.unit && item.imageUrl === product.imageUrl) return item
+          changed = true
+          return { ...item, name, price: product.price, price_at_moment: product.price, unit: product.unit, imageUrl: product.imageUrl }
+        })
+        // Sin cambios no se escribe: evita renders y un bucle con el efecto que lo llama.
+        if (changed) set({ items, ...calcTotals(items) })
+      },
 
       clearIfStale: () => {
         const { lastUpdated } = get()

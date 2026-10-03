@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -35,7 +35,12 @@ function renderPage() {
   )
 }
 
-afterEach(() => window.localStorage.clear())
+// El contacto local del admin demo solo aplica en modo demo; en real el servidor manda (ver pruebas reales).
+beforeEach(() => { vi.stubEnv('VITE_DEMO_MODE', 'true') })
+afterEach(() => {
+  vi.unstubAllEnvs()
+  window.localStorage.clear()
+})
 
 describe('contacto y total del pedido en la PWA', () => {
   it('oculta el enlace cuando WhatsApp conserva el número de ejemplo', async () => {

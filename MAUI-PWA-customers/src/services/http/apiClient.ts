@@ -1,4 +1,5 @@
 import { ApiError, apiErrorFromResponse, defaultMessageFor } from './apiError'
+import { notifySessionExpired } from './sessionExpiry'
 
 /** Esquema estructural (compatible con Zod) para no acoplar el transporte a la librería. */
 export interface ResponseSchema<T> {
@@ -26,6 +27,8 @@ export interface ApiClientOptions {
   baseUrl?: string
   timeoutMs?: number
   fetchImpl?: typeof fetch
+  /** Se invoca ante un 401 de una ruta que no es de `/auth/` (sesión vencida o revocada). */
+  onUnauthenticated?: () => void
 }
 
 export interface ApiClient {
@@ -115,7 +118,11 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
         if (!response.ok) throw await apiErrorFromResponse(response)
         return await readSuccessBody(response, request.schema)
       } catch (error) {
-        if (error instanceof ApiError) throw error
+        if (error instanceof ApiError) {
+          // En `/auth/*` un 401 es «credenciales inválidas» o «sin sesión», no una sesión que venció.
+          if (error.kind === 'unauthenticated' && !request.path.startsWith('/auth/')) options.onUnauthenticated?.()
+          throw error
+        }
         // fetch o la lectura del cuerpo fallaron: el timeout y el abort del llamador se distinguen
         // de un corte de red; el mensaje del error original puede traer URLs, no se propaga.
         if (abort.timedOut()) throw new ApiError({ kind: 'timeout', message: defaultMessageFor('timeout') })
@@ -129,4 +136,4 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
 }
 
 /** Cliente compartido de los repositories reales. */
-export const apiClient: ApiClient = createApiClient()
+export const apiClient: ApiClient = createApiClient({ onUnauthenticated: notifySessionExpired })

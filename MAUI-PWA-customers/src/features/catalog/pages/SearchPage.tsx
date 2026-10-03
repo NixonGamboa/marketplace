@@ -4,37 +4,23 @@ import { ArrowLeft, Search as SearchIcon } from 'lucide-react'
 import { useProducts, useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
+import { CatalogError } from '../components/CatalogError'
+import { searchProducts } from '../catalogDerivations'
 
 const SKELETON_COUNT = 8
-
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-}
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams()
   const rawQuery = searchParams.get('q') ?? ''
   const query = rawQuery.trim()
 
-  const { data: allProducts, isLoading } = useProducts()
+  const { data: allProducts, isLoading, isError, refetch } = useProducts()
   const addToCart = useAddToCart()
   const { items } = useCart()
   const cartProductIds = new Set(items.map((i) => i.productId))
 
-  const results = useMemo(() => {
-    if (!query || !allProducts) return []
-    const needle = normalize(query)
-    return allProducts.filter((p) => {
-      const haystack = [p.name, p.name_display, p.name_legal]
-        .filter(Boolean)
-        .map((s) => normalize(String(s)))
-      return haystack.some((h) => h.includes(needle))
-    })
-  }, [allProducts, query])
+  // Derivada del catálogo vigente (el contrato no tiene endpoint de búsqueda), en el orden del servidor.
+  const results = useMemo(() => (allProducts ? searchProducts(allProducts, query) : []), [allProducts, query])
 
   return (
     <main className="min-h-screen bg-brand-bg">
@@ -82,7 +68,9 @@ export default function SearchPage() {
           </div>
         )}
 
-        {query && !isLoading && results.length === 0 && (
+        {query && !isLoading && isError && <CatalogError onRetry={() => void refetch()} />}
+
+        {query && !isLoading && !isError && results.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <p className="text-brand-dark text-base font-medium">
               Sin resultados para "{query}"
@@ -99,7 +87,7 @@ export default function SearchPage() {
           </div>
         )}
 
-        {query && !isLoading && results.length > 0 && (
+        {query && !isLoading && !isError && results.length > 0 && (
           <>
             <h1 className="text-xl font-semibold text-brand-dark mb-5">
               {results.length} {results.length === 1 ? 'producto' : 'productos'}

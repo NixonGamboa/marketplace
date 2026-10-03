@@ -14,7 +14,9 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import Icon from '@/shared/components/ui/Icon'
-import { merchantWhatsAppUrl, useMerchantWhatsApp } from '@/shared/hooks/useMerchantWhatsApp'
+import { merchantWhatsAppUrl } from '@/shared/hooks/useMerchantWhatsApp'
+import { useStoreContactPhone } from '@/shared/hooks/useStoreContactPhone'
+import { isDemoMode } from '@/config/mode'
 
 /** Devuelve hasta 2 iniciales en mayúscula a partir del nombre. */
 function getInitials(name: string) {
@@ -45,8 +47,11 @@ interface MenuRow {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const merchantPhone = useMerchantWhatsApp()
-  const { user, isAuthenticated, updateProfile, logout } = useAuthStore()
+  const merchantPhone = useStoreContactPhone()
+  const { user, isAuthenticated, updateProfile, logout, signOut } = useAuthStore()
+  // El perfil real (nombre y celular) lo manda el servidor y esta entrega no lo edita; el demo sí.
+  const demo = isDemoMode()
+  const [logoutError, setLogoutError] = useState<string | null>(null)
 
   const [editing, setEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState(user?.name ?? '')
@@ -72,18 +77,27 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => {
-    logout()
-    navigate('/', { replace: true })
+    if (demo) {
+      logout()
+      navigate('/', { replace: true })
+      return
+    }
+    setLogoutError(null)
+    // Si el servidor no confirma el cierre la cookie sigue viva: se avisa en vez de aparentar que salió.
+    signOut().then(
+      () => navigate('/', { replace: true }),
+      () => setLogoutError('No pudimos cerrar tu sesión. Inténtalo de nuevo.'),
+    )
   }
 
   const menu: MenuRow[] = [
     { icon: ShoppingBag, label: 'Mis pedidos', helper: 'Historial y seguimiento', to: '/pedidos' },
-    {
+    ...(demo ? [{
       icon: MapPin,
       label: 'Dirección de entrega',
       helper: user.address || 'Sin dirección guardada',
       onClick: () => setEditing(true),
-    },
+    }] : []),
     { icon: Heart, label: 'Favoritos', helper: 'Productos que te gustaron', to: '/favoritos' },
     {
       icon: MessageCircle,
@@ -130,7 +144,7 @@ export default function ProfilePage() {
                 <span className="tabular-nums truncate">{formatPhonePretty(user.phone)}</span>
               </div>
             </div>
-            {!editing && (
+            {!editing && demo && (
               <button
                 onClick={() => setEditing(true)}
                 aria-label="Editar perfil"
@@ -188,6 +202,7 @@ export default function ProfilePage() {
         </nav>
 
         {/* Cerrar sesión */}
+        {logoutError && <p role="alert" className="text-center text-sm font-medium text-red-700">{logoutError}</p>}
         <button
           onClick={handleLogout}
           className="w-full bg-white rounded-2xl border border-brand-border shadow-card px-5 py-4 flex items-center justify-center gap-2 text-brand-error font-semibold text-sm hover:bg-red-50 transition-colors"

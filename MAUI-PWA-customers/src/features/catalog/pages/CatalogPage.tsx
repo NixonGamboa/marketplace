@@ -4,14 +4,16 @@ import { useProducts, useCategories } from '@/hooks'
 import { useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
+import { CatalogError } from '../components/CatalogError'
 
 const SKELETON_COUNT = 8
 
 export default function CatalogPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
 
-  const { data: allProducts, isLoading: loadingProducts } = useProducts()
-  const { data: categories, isLoading: loadingCats } = useCategories()
+  const { data: allProducts, isLoading: loadingProducts, isError: productsFailed, refetch: refetchProducts } = useProducts()
+  const { data: categories, isLoading: loadingCats, isError: categoriesFailed, refetch: refetchCategories } = useCategories()
+  const failed = productsFailed || categoriesFailed
 
   const addToCart = useAddToCart()
   const { items } = useCart()
@@ -29,7 +31,7 @@ export default function CatalogPage() {
   const products = (allProducts ?? []).filter((p) => p.categoryId === resolvedId)
 
   // Category not found (data loaded but no match)
-  const notFound = !isLoading && !category
+  const notFound = !isLoading && !failed && !category
 
   return (
     <main className="min-h-screen bg-brand-bg">
@@ -93,6 +95,11 @@ export default function CatalogPage() {
           </div>
         )}
 
+        {/* ── Error de carga: no es «pasillo vacío» ───────────────────── */}
+        {!isLoading && failed && (
+          <CatalogError onRetry={() => { void refetchProducts(); void refetchCategories() }} />
+        )}
+
         {/* ── Not found state ─────────────────────────────────────────── */}
         {!isLoading && notFound && (
           <div className="flex flex-col items-center justify-center py-16 gap-5 text-center">
@@ -107,7 +114,7 @@ export default function CatalogPage() {
         )}
 
         {/* ── Empty state: category exists but has no products ────────── */}
-        {!isLoading && !notFound && products.length === 0 && (
+        {!isLoading && !failed && !notFound && products.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-5 text-center">
             <p className="text-brand-muted text-base">
               No hay productos en este pasillo
@@ -122,7 +129,7 @@ export default function CatalogPage() {
         )}
 
         {/* ── Success state: product grid ──────────────────────────────── */}
-        {!isLoading && !notFound && products.length > 0 && (
+        {!isLoading && !failed && !notFound && products.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {products.map((product) => (
               <ProductCard

@@ -102,4 +102,24 @@ describe('transporte tipado', () => {
     const error = await failureOf(createApiClient({ fetchImpl }).request({ path: '/orders', signal: controller.signal }))
     expect(error.kind).toBe('aborted')
   })
+
+  it('avisa la sesión vencida solo ante un 401 fuera de /auth/*', async () => {
+    const onUnauthenticated = vi.fn()
+    const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(apiProblem(401, 'UNAUTHENTICATED', 'Sin sesión')))
+    const client = createApiClient({ fetchImpl, onUnauthenticated })
+    await failureOf(client.request({ path: '/auth/login', method: 'POST', body: {} }))
+    await failureOf(client.request({ path: '/auth/session' }))
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+    await failureOf(client.request({ path: '/orders' }))
+    expect(onUnauthenticated).toHaveBeenCalledTimes(1)
+  })
+
+  it('no avisa la expiración ante 403, 409 ni 503', async () => {
+    const onUnauthenticated = vi.fn()
+    const fetchImpl = vi.fn<typeof fetch>()
+    for (const status of [403, 409, 503]) fetchImpl.mockResolvedValueOnce(apiProblem(status, 'ERR', 'Fallo'))
+    const client = createApiClient({ fetchImpl, onUnauthenticated })
+    for (let i = 0; i < 3; i += 1) await failureOf(client.request({ path: '/orders' }))
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+  })
 })

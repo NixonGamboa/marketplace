@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useCategories } from '@/hooks'
+import { CatalogError } from '../components/CatalogError'
 
 export default function CatalogLandingPage() {
-  const { data: categories, isLoading } = useCategories()
+  const { data: categories, isLoading, isError, refetch } = useCategories()
 
   return (
     <main className="min-h-screen bg-brand-bg">
@@ -30,7 +31,9 @@ export default function CatalogLandingPage() {
           </div>
         )}
 
-        {!isLoading && categories && (
+        {!isLoading && isError && <CatalogError onRetry={() => void refetch()} />}
+
+        {!isLoading && !isError && categories && (
           <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
             {categories
               .slice()

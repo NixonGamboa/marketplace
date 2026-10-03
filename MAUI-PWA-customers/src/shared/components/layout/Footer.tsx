@@ -1,5 +1,6 @@
 import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_RAW } from '@/config/app'
-import { merchantWhatsAppUrl, useMerchantWhatsApp } from '@/shared/hooks/useMerchantWhatsApp'
+import { merchantWhatsAppUrl } from '@/shared/hooks/useMerchantWhatsApp'
+import { useStoreContactPhone } from '@/shared/hooks/useStoreContactPhone'
 import logoMaui from '@/assets/logo/imagotipo.png'
 
 interface FooterProps {
@@ -15,7 +16,7 @@ const Footer = ({
   supportPhoneRaw = SUPPORT_PHONE_RAW,
   year = new Date().getFullYear(),
 }: FooterProps) => {
-  const merchantPhone = useMerchantWhatsApp()
+  const merchantPhone = useStoreContactPhone()
   const whatsappLink = merchantPhone
     ? merchantWhatsAppUrl(merchantPhone, 'Hola, necesito ayuda con MAUI.')
     : null

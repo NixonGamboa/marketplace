@@ -2,6 +2,7 @@ import {
   IDEMPOTENCY_KEY_HEADER,
   ORDER_LIST_LIMITS,
   createOrderRequestSchema,
+  listOrdersQuerySchema,
   type CreateOrderRequest,
   orderConfirmationSchema,
   orderDtoSchema,
@@ -12,6 +13,7 @@ import { apiClient, type ApiClient } from './http/apiClient'
 import { ApiError, defaultMessageFor } from './http/apiError'
 import { validateRequest } from './http/validateRequest'
 import { createOrderRequestFrom } from './real/adapters'
+import { orderHistoryQueryFrom, type OrderHistoryPage } from './real/orderHistoryQuery'
 import { createCheckoutIntents, stableStringify, type CheckoutIntents } from './real/checkoutIntent'
 import { realAuthService, type RealAuthService, type RequestOptions } from './realAuthService'
 
@@ -22,8 +24,11 @@ export interface OrderPage {
 }
 
 export interface RealOrderService extends OrderService {
-  /** Una página del historial propio (createdAt DESC) con el cursor del servidor. */
-  listPage(page?: { limit?: number; cursor?: string }, options?: RequestOptions): Promise<OrderPage>
+  /**
+   * Una página del historial propio (createdAt DESC) con el cursor del servidor. Los filtros
+   * `q/status/from/to` se validan con el esquema compartido y se aplican en el servidor antes de paginar.
+   */
+  listPage(page?: OrderHistoryPage, options?: RequestOptions): Promise<OrderPage>
   submit(payload: OrderPayload, options?: RequestOptions): Promise<OrderConfirmation>
 }
 
@@ -79,13 +84,19 @@ export const createRealOrderService = (
     }
   }
 
-  const listPage: RealOrderService['listPage'] = async (page, options) =>
-    client.request({
+  const listPage: RealOrderService['listPage'] = async (page, options) => {
+    const query = orderHistoryQueryFrom(page)
+    // Misma validación que el handler (límites, fechas, cursor, texto) antes de gastar red.
+    validateRequest(listOrdersQuerySchema, Object.fromEntries(
+      Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]),
+    ))
+    return client.request({
       path: '/orders',
-      query: { limit: page?.limit, cursor: page?.cursor },
+      query,
       schema: orderListResponseSchema,
       ...(options?.signal ? { signal: options.signal } : {}),
     })
+  }
 
   return {
     listPage,

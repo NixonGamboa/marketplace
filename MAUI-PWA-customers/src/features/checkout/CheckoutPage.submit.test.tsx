@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/services/http/apiError'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import CheckoutPage from './CheckoutPage'
 import { useCheckoutStore } from './checkoutStore'
+import { renderWithQuery } from './testUtils'
 
 const submit = vi.hoisted(() => vi.fn())
 vi.mock('@/services', () => ({ orderService: { submit } }))
@@ -30,7 +31,7 @@ const goToPayment = () => {
       total: 5000,
     })
   })
-  render(<MemoryRouter><CheckoutPage /></MemoryRouter>)
+  renderWithQuery(<MemoryRouter><CheckoutPage /></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
   fireEvent.click(screen.getByRole('radio', { name: /Recoger en tienda/i }))
   fireEvent.click(screen.getByRole('radio', { name: /Lo antes posible/i }))
