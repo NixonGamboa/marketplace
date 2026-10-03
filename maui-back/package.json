@@ -12,6 +12,10 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env.local src/infra/postgres/migrate.ts",
+    "seed:manifest": "tsx src/infra/seed/main.ts manifest",
+    "seed:test": "tsx --env-file=.env.local src/infra/seed/main.ts seed",
+    "reset:test": "tsx --env-file=.env.local src/infra/seed/main.ts reset",
+    "smoke:test": "tsx --env-file=.env.local src/infra/seed/main.ts smoke",
     "db:studio": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {

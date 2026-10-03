@@ -24,10 +24,24 @@ export interface CreateOrderDeps {
   store: Pick<StoreRepository, 'findSettings'>
   clock: Clock
   keys: BucketKeyer
+  /** Generador del ID del pedido; el seed de test (T-16) lo fija para que el ID sea determinista. */
+  newOrderId?: () => string
 }
 const hash = (value: string): string => createHash('sha256').update(value).digest('hex')
+/** Hash de la clave de idempotencia tal como se guarda en el claim (`order_creations.key_hash`). */
+export const idempotencyKeyHash = hash
 /** Orden por unidades de código UTF-16: independiente del locale del runtime. */
 const byIdCodeUnits = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+type OrderIntent = ReturnType<typeof createOrderRequestSchema.parse>
+/** Huella canónica de la intención de compra: campos legacy ignorados no la cambian. */
+export const orderIntentFingerprint = (data: OrderIntent): string => hash(JSON.stringify({
+  items: data.items.map(({ id, qty, kilosRequested }) => ({ id, qty, kilosRequested }))
+    .sort(byIdCodeUnits),
+  substitutionPreference: data.substitutionPreference, deliveryType: data.deliveryType,
+  deliveryData: { address: data.deliveryData.address, lat: data.deliveryData.lat,
+    lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
+  customerName: data.customerName, customerPhone: data.customerPhone,
+}))
 const replay = (creation: StoredOrderCreation, fingerprint: string): Order => {
   if (creation.fingerprint !== fingerprint) throw new IdempotencyConflictError()
   return creation.order
@@ -46,15 +60,7 @@ export const createOrder = async (
   const key = idempotencyKeySchema.safeParse(idempotencyKey)
   if (!key.success) throw new ValidationError('Idempotency-Key inválida', issuesFromZodError(key.error))
   const identity = { customerId: actor.id, storeId: context.storeId, keyHash: hash(key.data) }
-  // Forma explícita/canónica: campos legacy ignorados no cambian la intención de compra.
-  const fingerprint = hash(JSON.stringify({
-    items: data.items.map(({ id, qty, kilosRequested }) => ({ id, qty, kilosRequested }))
-      .sort(byIdCodeUnits),
-    substitutionPreference: data.substitutionPreference, deliveryType: data.deliveryType,
-    deliveryData: { address: data.deliveryData.address, lat: data.deliveryData.lat,
-      lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
-    customerName: data.customerName, customerPhone: data.customerPhone,
-  }))
+  const fingerprint = orderIntentFingerprint(data)
   const prior = await deps.orders.findCreation(identity)
   if (prior) return replay(prior, fingerprint)
 
@@ -81,7 +87,7 @@ export const createOrder = async (
     const estimatedTotal = subtotal + shippingCost
     if (estimatedTotal > MAX_COP_AMOUNT) throw new ValidationError(`El total estimado supera el máximo permitido (${MAX_COP_AMOUNT} COP)`)
     const order: Order = {
-      id: newId(), storeId: context.storeId, customerId: actor.id,
+      id: (deps.newOrderId ?? newId)(), storeId: context.storeId, customerId: actor.id,
       customerName: data.customerName, customerPhone: data.customerPhone, items,
       status: OrderStatus.RECEIVED, deliveryType: data.deliveryType, deliveryData: data.deliveryData,
       substitutionPreference: data.substitutionPreference, shippingCost, estimatedTotal,

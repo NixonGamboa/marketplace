@@ -2,6 +2,99 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
+## Seed de test reproducible y reset protegido (T-16)
+
+Siembra el ambiente de test **en servidor**, por los casos de uso reales (no `runAllSeeds` del
+navegador): tienda (`initializeStore`), catálogo (`seedCatalogBaseline`), cuentas
+(`createStaffAccount` y `createCustomerAccount`, la variante interna del registro sin sesión ni
+cota) y pedidos (`createOrder` + `updateOrderStatus`/`updateOrderItems`, con CAS, snapshots,
+versiones y auditoría vigentes). Dataset `test-seed-v1`; `npm run seed:manifest` imprime su
+versión, IDs y `contentHash` (cambia con cualquier edición del catálogo, tienda, cuentas o pedidos).
+
+| Comando (`npm --prefix maui-back run …`) | Efecto |
+|---|---|
+| `seed:manifest` | Versión y fixtures; sin base de datos ni entorno |
+| `seed:test -- --dry-run` | Solo preflight (esquema, colisiones, plan); no escribe |
+| `seed:test` | Preflight + siembra idempotente |
+| `reset:test` | **Dry-run** del reset de fixtures: mide y devuelve `confirmationToken` |
+| `reset:test -- --execute --confirm=<token>` | Borra los fixtures medidos si nada cambió desde el dry-run |
+| `reset:test -- --include-store` | Amplía el alcance a la fila de la tienda y su historial (el token lo refleja) |
+| `smoke:test` | Smoke de solo lectura contra la API de test desplegada |
+
+Los scripts leen `.env.local` (como `db:migrate`). Ejecutar siempre **después de las migraciones**:
+el CLI exige que el ledger de Drizzle tenga todas las del journal (`MIGRATIONS_NOT_APPLIED`).
+
+**Entorno.** `APP_ENV` (`local` o `test`), `DB_DRIVER=postgres`, `DATABASE_URL` y el aislamiento ya
+validado por `loadConfig` (`TEST_DATABASE_HOST/NAME`, `PRODUCTION_DATABASE_HOST/NAME`). Credenciales de
+las cuentas **solo por entorno o canal privado**: `SEED_OWNER_PASSWORD`, `SEED_OPERATOR_PASSWORD`,
+`SEED_CUSTOMER_PASSWORD` (política de contraseña del contrato). Solo se exigen si hay cuentas por crear; no
+se registran, no entran al bundle ni a la salida (que es JSON sin cadenas de conexión). Smoke:
+`SMOKE_BASE_URL` (origen https limpio) y, si Preview está protegido, `SMOKE_BYPASS_TOKEN`.
+`SMOKE_AUTH_ORIGIN` permite enviar el origen autorizado del frontend cuando difiere del Preview;
+por defecto toma `AUTH_ORIGIN` y, en su ausencia, `SMOKE_BASE_URL`. No cambia la validación del servidor.
+
+**Dataset.** Tienda `leche-y-miel` con los datos de `storeSeed` (contacto del negocio `null`, cobertura
+urbana fijada), 9 categorías y 16 productos de `shared/catalog` con IDs estables (incluye el agotado
+`jabon-bano-3pack`, no pedible), cuentas `acc_seed_owner`, `acc_seed_operator`, `acc_seed_customer_ana` y
+`acc_seed_customer_luis` (emails `@seed.maui.invalid`, celulares de fixture `300 000 000x`) y 9 pedidos
+`ord-seed-*` con ID, clave de idempotencia y fecha deterministas: lunes a jueves, 09:30–11:00 de Bogotá,
+dentro del horario y antes del corte, sin cambiar las reglas de T-08.
+
+| Pedido | Modalidad | Estado final | Cubre |
+|---|---|---|---|
+| `recibido-recogida` | recogida | received | peso fijo, estimado |
+| `confirmado-domicilio` | domicilio | confirmed | envío cobrado |
+| `preparando-peso-variable` | domicilio | preparing | peso variable pendiente (sin total final) |
+| `listo-recogida-sustitucion` | recogida | ready | `call_me`, sustitución con contacto, peso real, estimado ≠ final |
+| `en-camino-domicilio` | domicilio | in_delivery | peso real, final con envío |
+| `entregado-domicilio-gratis` | domicilio | delivered | envío gratis por umbral |
+| `entregado-recogida-peso` | recogida | delivered | peso variable real |
+| `cancelado-recibido`, `cancelado-confirmado` | domicilio / recogida | cancelled | motivo y fecha |
+
+**Idempotencia y no sobrescritura.** Tienda y catálogo se insertan solo si faltan; una cuenta existente se
+verifica por identidad, rol, tienda y estado, sin elevar permisos ni resetear su contraseña (por eso un
+re-seed funciona sin credenciales); los pedidos usan su claim de idempotencia. Un pedido a medias se
+reanuda desde su versión; uno que el personal ya avanzó o editó queda `preserved` y no se toca. Actores
+de auditoría: `system` para tienda/catálogo, el cliente al crear y las cuentas owner/operator al mutar.
+
+**Preflight sin parcialidad.** Antes de escribir, todo conflicto aborta el seed completo con códigos
+(`order_id_foreign`, `category_id_other_store`, `category_slug_taken`, `product_id_other_store`,
+`account_identity_taken`, `account_mismatch`, `order_claim_mismatch`, `order_fingerprint_changed`,
+`schema_missing`), sin reflejar datos de la fila ajena.
+
+**Reset (solo fixtures, nunca la base completa).** Solo código, sin ejecución automática. Guards previos
+a cualquier conexión: `APP_ENV=test` (ni `local` ni `NODE_ENV`), `DB_DRIVER=postgres` explícito,
+`VERCEL_ENV` distinto de production, sin overrides ambientales (`PGHOST`, `PGDATABASE`…), `RESET_TARGET=dev/maui`
+igual a la base de la conexión, endpoint fijo `ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech`
+(incluido su pooler normalizado), host/base iguales a los de test declarados y distintos de Production
+(`loadConfig`), y la base que reporta el servidor (`current_database()`) igual a la declarada. El CLI solo
+admite `--execute`, `--confirm`, `--include-store` (no hay forma de elegir entorno, host ni base). Borra solo
+filas con ID **e** identidad/tienda del dataset (pedidos y claims, cuentas y sesiones, cuotas de pedidos,
+productos, categorías e historial de esas entidades); conserva pedidos legacy, otras tiendas, la
+configuración de la tienda (salvo `--include-store`) y el ledger. Una fila ajena con ID del dataset o un
+producto ajeno en una categoría de fixture **bloquea** el reset. También bloquean los pedidos manuales
+de clientes fixture: se conservan su cuenta y acceso a la historia. `--include-store` se rechaza si
+quedan pedidos, claims, cuentas, catálogo o historial ajenos vinculados a la tienda.
+La confirmación liga destino (host/base), versión del dataset, alcance y una huella SHA-256 del
+contenido completo relevante. Conteos, bloqueos y huella se leen en una sola sentencia PostgreSQL;
+editar contenido sin cambiar cantidades invalida el token. El batch transaccional toma bloqueos
+`SHARE ROW EXCLUSIVE` sobre las tablas afectadas y vuelve a verificar la huella antes de borrar:
+si el estado cambió después del preflight, aborta con `STATE_CHANGED` sin efectos parciales.
+La huella es opaca; no salen filas, datos personales ni hashes de contraseña. Los bloqueos impiden
+escrituras durante el reset. Restaurar = `reset:test` + `seed:test`. La rama `dev` se acredita por
+el endpoint fijo del guard; declarar otro `TEST_DATABASE_HOST` no autoriza el reset.
+
+**Smoke.** Lecturas, login y logout de las sesiones propias, sin crear pedidos: exige que `/api/health`
+declare `environment: test`, y comprueba roles, alcance por cuenta, catálogo, pedidos del dataset (los
+editados por el personal no se evalúan), auditoría con actor y 403 de cliente.
+
+**Pruebas.** `tests/seed/`: PGlite con todas las migraciones y los adapters de producción (dos
+siembras, huellas, ediciones preservadas, conflictos sin escritura, reproducibilidad, reset/guards/token),
+CLI con la composición real y los handlers HTTP con scrypt/JWT/sesiones (roles, auth, estados, pesos,
+precios, audit). El transporte PGlite ejecuta `db.batch` en orden dentro de una transacción real:
+se verifican el guard antes de borrar y el rollback ante un fallo posterior. Estas pruebas no
+acreditan el smoke cloud ni contención entre conexiones independientes en Neon.
+
 ## Auditoría comercial persistente (T-13)
 
 `GET /api/audit` exige sesión vigente **owner/operator** y lista únicamente eventos de
