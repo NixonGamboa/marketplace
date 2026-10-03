@@ -40,7 +40,13 @@ const complete = Object.values(credentials).every((value) => value !== undefined
 
 // Checkpoint local para limpieza del orquestador: sin cuerpos, cuentas ni secretos.
 const checkpointUrl = new URL('../../../orquestacion-local/smoke-runtime.json', import.meta.url)
-const runtime: { block: string; phase: string; orders: { key: string; orderId?: string }[]; sessionsClosed?: boolean } = {
+const runtime: {
+  block: string
+  phase: string
+  orders: { key: string; orderId?: string }[]
+  sessionsClosed?: boolean
+  historyFilter?: { timeZone: string; createdAt: string; storeDay: string; previousDay: string }
+} = {
   block: 'T-18', phase: 'prepared', orders: [],
 }
 let guardReady = false
@@ -233,15 +239,26 @@ describe.skipIf(!enabled)('flujo real de cliente', () => {
 
     const persisted = await mine.orders.getById(state.orderId!)
     const createdAt = Date.parse(persisted.createdAt)
-    const from = new Date(createdAt - 1_000).toISOString()
-    const to = new Date(createdAt + 1_000).toISOString()
-    const window = await mine.orders.listPage({ q: state.orderId!, from, to, limit: 100 })
-    expect(window.items.some((order) => order.orderId === state.orderId)).toBe(true)
-    // El contrato incluye from y excluye to: el instante de creación como to queda fuera.
-    const beforeCreation = await mine.orders.listPage({
-      q: state.orderId!, from, to: new Date(createdAt).toISOString(), limit: 100,
+    const timeZone = 'America/Bogota'
+    const dateFormat = new Intl.DateTimeFormat('en', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
     })
-    expect(beforeCreation.items.some((order) => order.orderId === state.orderId)).toBe(false)
+    const storeDateFor = (timestamp: number) => {
+      const parts = Object.fromEntries(dateFormat.formatToParts(new Date(timestamp)).map(({ type, value }) => [type, value]))
+      return `${parts.year}-${parts.month}-${parts.day}`
+    }
+    const storeDay = storeDateFor(createdAt)
+    // Bogotá no cambia de offset: restar 24 horas da el día anterior de la tienda.
+    const previousDay = storeDateFor(createdAt - 24 * 60 * 60 * 1_000)
+    runtime.historyFilter = { timeZone, createdAt: persisted.createdAt, storeDay, previousDay }
+    saveCheckpoint('checking-history-date')
+    // listPage recibe días inclusivos; el adapter los convierte al intervalo ISO de Bogotá.
+    const day = await mine.orders.listPage({ q: state.orderId!, from: storeDay, to: storeDay, limit: 100 })
+    expect(day.items.some((order) => order.orderId === state.orderId)).toBe(true)
+    const previous = await mine.orders.listPage({
+      q: state.orderId!, from: previousDay, to: previousDay, limit: 100,
+    })
+    expect(previous.items.some((order) => order.orderId === state.orderId)).toBe(false)
 
     const pagedA = await mine.orders.listPage({ limit: 1 })
     if (pagedA.nextCursor !== null) {
