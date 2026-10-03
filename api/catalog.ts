@@ -1,3 +1,4 @@
+import { withObservability } from './_lib/observability.js'
 import {
   toPublicCatalogResponse,
   toProductDto,
@@ -34,7 +35,7 @@ import { imageVersionFrom, readProductImage } from './_lib/productImage.js'
  *
  * La tienda pública la fija el servidor; la de personal sale de la cuenta de la sesión.
  */
-export default createOperationHandler(
+const handler = createOperationHandler(
   {
     image: {
       POST: async ({ req, res, sessionActor }) => {
@@ -117,3 +118,5 @@ export default createOperationHandler(
   },
   'catalog',
 )
+
+export default withObservability('/api/catalog', handler)

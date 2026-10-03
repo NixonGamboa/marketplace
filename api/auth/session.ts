@@ -1,3 +1,4 @@
+import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
@@ -11,7 +12,7 @@ import {
 } from '../_lib/auth.js'
 
 /** GET /api/auth/session — cuenta vigente leída de la BD (rol/tienda no salen del JWT). */
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['GET'])) return
 
@@ -25,3 +26,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     failAuth(res, err, config)
   }
 }
+
+export default withObservability('/api/auth/session', handler)

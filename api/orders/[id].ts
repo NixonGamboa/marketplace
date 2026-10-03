@@ -1,3 +1,4 @@
+import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { toOrderDto } from '../../maui-back/src/domain/orders/orderMappers.js'
 import { getAuthRuntime, type AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
@@ -26,7 +27,7 @@ const changeItems = async (req: VercelRequest, res: VercelResponse, runtime: Aut
 }
 
 /** /api/orders/:id — GET detalle; PATCH cambios de ítems con `expectedVersion`. */
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['GET', 'PATCH'])) return
 
@@ -38,3 +39,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     failOrderRequest(res, err, runtime?.config)
   }
 }
+
+export default withObservability('/api/orders/[id]', handler)
