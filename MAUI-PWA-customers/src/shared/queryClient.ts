@@ -5,7 +5,8 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 min
-      retry: 1,
+      // Un reintento, y solo con red: sin ella el error se muestra de inmediato y «Reintentar» queda en manos de la persona.
+      retry: (failureCount: number) => failureCount < 1 && navigator.onLine !== false,
     },
   },
 })

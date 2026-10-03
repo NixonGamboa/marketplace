@@ -1,4 +1,5 @@
 import { withObservability } from './_lib/observability.js'
+import type { VercelResponse } from '@vercel/node'
 import {
   toPublicCatalogResponse,
   toProductDto,
@@ -19,6 +20,13 @@ import { readJsonBody } from './_lib/auth.js'
 import { MAX_CATALOG_BODY_BYTES, createOperationHandler, routeIdFrom } from './_lib/operations.js'
 import { jsonResponse, ok } from './_lib/response.js'
 import { imageVersionFrom, readProductImage } from './_lib/productImage.js'
+
+/** Solo DTOs públicos exitosos: revalidar en red y permitir la copia offline acotada de la PWA. */
+const okPublicCatalog = <T>(res: VercelResponse, body: T): void => {
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Vary', 'Origin')
+  ok(res, body)
+}
 
 /**
  * Catálogo por tienda (T-07), una sola Function:
@@ -59,14 +67,14 @@ const handler = createOperationHandler(
     catalog: {
       GET: async ({ res }) => {
         const { catalog } = await getRepositories()
-        ok(res, toPublicCatalogResponse(await getPublicCatalog({ catalog }, DEFAULT_STORE_ID)))
+        okPublicCatalog(res, toPublicCatalogResponse(await getPublicCatalog({ catalog }, DEFAULT_STORE_ID)))
       },
     },
     product: {
       GET: async ({ req, res }) => {
         const id = routeIdFrom(req)
         const { catalog } = await getRepositories()
-        ok(res, toProductDto(await getPublicProduct({ catalog }, DEFAULT_STORE_ID, id)))
+        okPublicCatalog(res, toProductDto(await getPublicProduct({ catalog }, DEFAULT_STORE_ID, id)))
       },
       PATCH: async ({ req, res, sessionActor }) => {
         const actor = await sessionActor({ mutation: true })

@@ -1,7 +1,7 @@
 import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_RAW } from '@/config/app'
 import { merchantWhatsAppUrl } from '@/shared/hooks/useMerchantWhatsApp'
 import { useStoreContactPhone } from '@/shared/hooks/useStoreContactPhone'
-import logoMaui from '@/assets/logo/imagotipo.png'
+import logoMaui from '@/assets/logo/imagotipo.webp'
 
 interface FooterProps {
   supportEmail?: string

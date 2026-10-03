@@ -44,49 +44,42 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true,
-        type: 'module',
+      // El worker (src/sw.ts) lleva la política de caché propia; ver src/pwa/.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      // La versión nueva espera a que la persona la acepte (PWAUpdateBanner): no se recarga sola.
+      registerType: 'prompt',
+      // IIFE: el worker generado se puede ejecutar fuera del navegador (scripts/verify-pwa-build.mjs).
+      injectManifest: {
+        rollupFormat: 'iife',
+        // Precache = app shell. Las imágenes comerciales se cachean al verse (src/pwa/runtimeCache.ts);
+        // `admin/` es otra app injertada en dist/admin/ y no entra al worker de la PWA.
+        globPatterns: ['**/*.{js,css,html,svg}', 'icons/icon-192.png', 'icons/apple-touch-icon.png'],
+        globIgnores: ['admin/**/*', 'vite.svg'],
+        maximumFileSizeToCacheInBytes: 512 * 1024,
       },
-      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
+      // Los iconos 512 los descarga el navegador al instalar; no hace falta precachearlos.
+      includeManifestIcons: false,
+      // Sin worker en `npm run dev`: evita cachés viejas al desarrollar. Se prueba sobre `vite preview`.
+      devOptions: { enabled: false },
+      // Único manifest efectivo: se emite como /manifest.webmanifest y se enlaza desde index.html.
       manifest: {
-        name: 'MAUI',
+        id: '/',
+        name: 'MAUI — Tu Mercado Local',
         short_name: 'MAUI',
+        description: 'Tu mercado local, digital y sin fricción',
+        lang: 'es-CO',
         theme_color: '#5B3DF5',
         background_color: '#F8F9FC',
         display: 'standalone',
-        start_url: '.',
+        start_url: '/',
+        scope: '/',
+        categories: ['shopping', 'food'],
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB — hero images are large
-        // Excluye el admin del precache: es una app independiente injertada en
-        // dist/admin/ que sirve su propio bundle. No debe entrar al SW de la PWA.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
-        globIgnores: ['admin/**/*'],
-        // Deja que el browser haga fetch directo al servidor para /admin/*
-        // sin que el navigateFallback del SW devuelva index.html de la PWA.
-        navigateFallbackDenylist: [/^\/admin/, /^\/sw\.js$/, /^\/workbox-/],
-        // Toma control inmediato del cliente, reemplaza SW viejos sin recarga.
-        // Necesario para que quien tenía la PWA v1 registrada vea el fix del
-        // navigateFallbackDenylist sin unregister manual.
-        skipWaiting: true,
-        clientsClaim: true,
-        // Fuerza limpieza de precaches viejos que puedan tener /admin/* cacheado.
-        cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.destination === 'image',
-            handler: 'CacheFirst',
-            options: { cacheName: 'images-cache' },
-          },
-          // Auth y pedidos privados deben viajar a la red sin persistir respuestas.
-          // T-20 definirá caché explícita únicamente para catálogo público.
         ],
       },
     }),
