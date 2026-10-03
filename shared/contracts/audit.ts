@@ -6,7 +6,7 @@ import { ORDER_STATUS_VALUES } from './orderEnums.js'
 export const AUDIT_ENTITY_VALUES = ['order', 'product', 'category', 'store'] as const
 export const AUDIT_ACTION_VALUES = ['created', 'updated', 'deleted', 'status_changed', 'items_changed'] as const
 /** Nombres de campos, nunca sus valores libres ni snapshots personales. */
-export const AUDIT_FIELD_VALUES = ['name', 'icon', 'slug', 'illustrationUrl', 'order', 'categoryId', 'name_display', 'name_legal', 'price', 'originalPrice', 'unit', 'imageUrl', 'inStock', 'is_variable_weight', 'badge', 'description', 'nutritionalInfo', 'availability', 'active', 'archived', 'contactPhone', 'address', 'weeklySchedule', 'scheduleOverride', 'delivery', 'timeSlots', 'status', 'items', 'finalTotal'] as const
+export const AUDIT_FIELD_VALUES = ['name', 'icon', 'slug', 'illustrationUrl', 'order', 'categoryId', 'name_display', 'name_legal', 'price', 'originalPrice', 'currency', 'unit', 'imageUrl', 'inStock', 'is_variable_weight', 'badge', 'description', 'nutritionalInfo', 'availability', 'active', 'archived', 'contactPhone', 'address', 'weeklySchedule', 'scheduleOverride', 'delivery', 'timeSlots', 'status', 'items', 'finalTotal'] as const
 export const auditMetadataSchema = z.object({
   fields: z.array(z.enum(AUDIT_FIELD_VALUES)).max(40).optional(),
   previousVersion: z.number().int().positive().optional(),
