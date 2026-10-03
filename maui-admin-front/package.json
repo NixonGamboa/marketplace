@@ -9,13 +9,15 @@
     "dev:unified": "cross-env VITE_ADMIN_BASE=/admin/ vite --port 5174",
     "prebuild": "bash ../scripts/check-types-drift.sh",
     "build": "vite build",
-    "build:unified": "cross-env VITE_ADMIN_BASE=/admin/ vite build --outDir dist-unified",
+    "build:unified": "cross-env VITE_DEMO_MODE=false VITE_ADMIN_BASE=/admin/ vite build --mode real --outDir dist-unified",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke:preview": "vitest run --config vitest.smoke.config.ts"
+    "smoke:preview": "vitest run --config vitest.smoke.config.ts",
+    "build:demo": "cross-env VITE_DEMO_MODE=true vite build --mode demo",
+    "build:unified:demo": "cross-env VITE_DEMO_MODE=true VITE_ADMIN_BASE=/admin/ vite build --mode demo --outDir dist-unified"
   },
   "dependencies": {
     "lucide-react": "^0.575.0",

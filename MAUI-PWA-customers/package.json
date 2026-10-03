@@ -8,13 +8,14 @@
     "dev:real": "vite",
     "dev:unified": "concurrently -k -n admin,pwa -c cyan,magenta \"cd ../maui-admin-front && npm run dev:unified\" \"cross-env VITE_UNIFIED_DEV=1 vite --mode demo --port 5173\"",
     "build": "vite build",
-    "build:demo": "vite build --mode demo",
-    "build:unified": "vite build --mode demo && cd ../maui-admin-front && npm run build:unified && node ../scripts/merge-unified-build.mjs",
+    "build:demo": "cross-env VITE_DEMO_MODE=true vite build --mode demo",
+    "build:unified": "cross-env VITE_DEMO_MODE=false vite build --mode real && cd ../maui-admin-front && npm run build:unified && node ../scripts/merge-unified-build.mjs && node ../scripts/write-build-info.mjs real",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest",
     "smoke:preview": "vitest run --config vitest.smoke.config.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
+    "build:unified:demo": "cross-env VITE_DEMO_MODE=true vite build --mode demo && cd ../maui-admin-front && npm run build:unified:demo && node ../scripts/merge-unified-build.mjs && node ../scripts/write-build-info.mjs demo"
   },
   "overrides": {
     "react": "19.1.0",
