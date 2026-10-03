@@ -7,6 +7,7 @@ import { merchantRepo } from '@/services'
 const toastError = vi.fn()
 
 vi.mock('@/services', () => ({
+  isDemoMode: true,
   merchantRepo: { get: vi.fn(), update: vi.fn() },
 }))
 vi.mock('@/auth/useSession', () => ({

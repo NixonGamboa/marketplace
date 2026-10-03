@@ -6,6 +6,7 @@ import { OrderDetailPage } from '../OrderDetailPage'
 import { orderRepo } from '@/services'
 
 vi.mock('@/services', () => ({
+  isDemoMode: true,
   orderRepo: { getById: vi.fn(), updateStatus: vi.fn(), setRealWeights: vi.fn(), cancel: vi.fn() },
   catalogRepo: { getProduct: vi.fn(async () => null) },
 }))

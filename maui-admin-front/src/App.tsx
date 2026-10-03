@@ -12,6 +12,7 @@ import { EmptyState } from '@/ui/EmptyState'
 
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { OrdersListPage } from '@/features/orders/OrdersListPage'
+import { RealOrdersListPage } from '@/features/orders/RealOrdersListPage'
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage'
 import { HistoricoPage } from '@/features/historico/HistoricoPage'
 import { CatalogoPage } from '@/features/catalogo/CatalogoPage'
@@ -19,6 +20,8 @@ import { CategoriasPage } from '@/features/categorias/CategoriasPage'
 import { TiendaPage } from '@/features/tienda/TiendaPage'
 import { ConfigPage } from '@/features/configuracion/ConfigPage'
 import { AuditPage } from '@/features/auditoria/AuditPage'
+import { RealAuditPage } from '@/features/auditoria/RealAuditPage'
+import { isDemoMode } from '@/services'
 
 function NotFound() {
   return (
@@ -54,7 +57,7 @@ export default function App() {
               }
             >
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/pedidos" element={<OrdersListPage />} />
+              <Route path="/pedidos" element={isDemoMode ? <OrdersListPage /> : <RealOrdersListPage />} />
               <Route path="/pedidos/:orderId" element={<OrderDetailPage />} />
               <Route path="/historico" element={<HistoricoPage />} />
               <Route
@@ -93,7 +96,7 @@ export default function App() {
                 path="/auditoria"
                 element={
                   <RequireAuth role="owner">
-                    <AuditPage />
+                    {isDemoMode ? <AuditPage /> : <RealAuditPage />}
                   </RequireAuth>
                 }
               />

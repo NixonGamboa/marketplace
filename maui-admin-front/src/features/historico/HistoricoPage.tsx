@@ -2,15 +2,19 @@
  * @spec CU-9, US-9, TASK-020
  * Histórico de pedidos con filtro por rango de fechas. Default: últimos 30 días.
  */
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Inbox } from 'lucide-react'
-import type { AdminOrder } from '@/types/adminOrder'
-import { orderRepo } from '@/services'
+import { ORDER_LIST_LIMITS } from '@shared/contracts'
+import { ORDER_STATUS_VALUES } from '@shared/contracts'
+import type { OrderStatus } from '@/types/orderService'
+import { isDemoMode } from '@/services'
 import { useToast } from '@/ui/Toast'
 import { Spinner } from '@/ui/Spinner'
 import { EmptyState } from '@/ui/EmptyState'
 import { StatusBadge } from '@/features/orders/StatusBadge'
+import { useOrderPages } from '@/features/orders/useOrderPages'
+import type { OrderListFilterInput } from '@/services/real/adapters'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -31,33 +35,26 @@ const currencyFormatter = new Intl.NumberFormat('es-CO', {
 })
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' })
 
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  received: 'Recibido',
+  confirmed: 'Confirmado',
+  preparing: 'Preparando',
+  ready: 'Listo',
+  in_delivery: 'En camino',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+}
+
 export function HistoricoPage() {
   const toast = useToast()
   const initial = defaultRange()
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
-  const [orders, setOrders] = useState<AdminOrder[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(
-    async (rangeFrom: string, rangeTo: string) => {
-      setLoading(true)
-      try {
-        const list = await orderRepo.list({ from: rangeFrom, to: rangeTo })
-        setOrders(list as AdminOrder[])
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo cargar el histórico')
-      } finally {
-        setLoading(false)
-      }
-    },
-    [toast],
-  )
-
-  useEffect(() => {
-    load(initial.from, initial.to)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [statusDraft, setStatusDraft] = useState<OrderStatus | ''>('')
+  const [queryDraft, setQueryDraft] = useState('')
+  // Filtros aplicados: el listado solo se recarga al pulsar «Aplicar», nunca al teclear.
+  const [applied, setApplied] = useState<OrderListFilterInput>({ from: initial.from, to: initial.to })
+  const { orders, loading, loadingMore, error, hasMore, loadMore, reload } = useOrderPages(applied)
 
   function handleApply(e: React.FormEvent) {
     e.preventDefault()
@@ -65,7 +62,8 @@ export function HistoricoPage() {
       toast.error('El "desde" no puede ser mayor que el "hasta"')
       return
     }
-    load(from, to)
+    const q = queryDraft.trim()
+    setApplied({ from, to, ...(statusDraft ? { status: statusDraft } : {}), ...(q ? { q } : {}) })
   }
 
   return (
@@ -100,6 +98,40 @@ export function HistoricoPage() {
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
           />
         </div>
+        {!isDemoMode && (
+          <>
+            <div>
+              <label htmlFor="hist-status" className="block text-xs font-medium text-gray-600 mb-1">
+                Estado
+              </label>
+              <select
+                id="hist-status"
+                value={statusDraft}
+                onChange={(e) => setStatusDraft(e.target.value as OrderStatus | '')}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+              >
+                <option value="">Todos</option>
+                {ORDER_STATUS_VALUES.map((value) => (
+                  <option key={value} value={value}>{STATUS_LABELS[value]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="hist-q" className="block text-xs font-medium text-gray-600 mb-1">
+                Buscar
+              </label>
+              <input
+                id="hist-q"
+                type="search"
+                value={queryDraft}
+                maxLength={ORDER_LIST_LIMITS.maxSearchLength}
+                onChange={(e) => setQueryDraft(e.target.value)}
+                placeholder="Nombre, ID o teléfono"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+              />
+            </div>
+          </>
+        )}
         <button
           type="submit"
           disabled={loading}
@@ -113,6 +145,17 @@ export function HistoricoPage() {
       {loading ? (
         <div className="flex justify-center items-center py-16">
           <Spinner size={28} />
+        </div>
+      ) : error && orders.length === 0 ? (
+        <div role="alert" className="flex flex-col items-center gap-3 rounded-2xl border border-red-200 bg-red-50 py-10 text-center">
+          <p className="text-sm text-red-700">{error}</p>
+          <button
+            type="button"
+            onClick={reload}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition"
+          >
+            Reintentar
+          </button>
         </div>
       ) : orders.length === 0 ? (
         <EmptyState
@@ -143,7 +186,7 @@ export function HistoricoPage() {
                     {dateFormatter.format(new Date(o.createdAt))}
                   </td>
                   <td className="px-4 py-2 text-right font-medium text-gray-800">
-                    {currencyFormatter.format(o.estimatedTotal)}
+                    {currencyFormatter.format(o.finalTotal ?? o.estimatedTotal)}
                   </td>
                   <td className="px-4 py-2">
                     <StatusBadge status={o.status} />
@@ -152,6 +195,22 @@ export function HistoricoPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && error && orders.length > 0 && (
+        <p role="alert" className="text-sm text-red-700">{error}</p>
+      )}
+      {!loading && hasMore && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm font-medium rounded-lg transition"
+          >
+            {loadingMore ? 'Cargando…' : 'Cargar más'}
+          </button>
         </div>
       )}
     </div>

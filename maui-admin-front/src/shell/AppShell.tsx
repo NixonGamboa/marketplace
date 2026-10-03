@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { useSession } from '@/auth/useSession'
+import { useToast } from '@/ui/Toast'
 import { merchantRepo } from '@/services'
 import { Sidebar } from './Sidebar'
 import { EnableSoundGate } from './EnableSoundGate'
@@ -18,6 +19,7 @@ export function AppShell() {
   const [merchantName, setMerchantName] = useState('MAUI Admin')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
+  const toast = useToast()
 
   useEffect(() => {
     if (!session) return
@@ -54,7 +56,8 @@ export function AppShell() {
   }, [drawerOpen])
 
   function handleLogout() {
-    logout().catch(() => {/* audit puede fallar silenciosamente en demo */})
+    // Si el servidor no confirma el cierre la cookie sigue viva: se avisa en vez de aparentar que salió.
+    logout().catch(() => toast.error('No se pudo cerrar la sesión. Inténtalo de nuevo.'))
   }
 
   return (
