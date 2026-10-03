@@ -38,10 +38,13 @@ describe('guion del smoke de contención (handlers en proceso)', () => {
   })
 
   it('con cuota: todos los escenarios pasan, solo toca pedidos propios y los deja cancelados sin filtrar secretos', async () => {
+    const activeBefore = (await world.embedded.pg.query<{ n: number }>('select count(*)::int n from auth_sessions where revoked_at is null')).rows[0]!.n
     const report = await runContentionSmoke(clientOf(true), credentials, { parallelism: 6, quota: true, runId: 'unit' })
     expect(report.checks.filter(check => !check.ok), JSON.stringify(report.checks)).toEqual([])
     expect(report.checks).toHaveLength(5)
-    expect(report).toMatchObject({ ok: true, orders: { created: 23, cancelled: 23, cancelFailed: 0 } })
+    expect(report).toMatchObject({ ok: true, orders: { created: 23, cancelled: 23, cancelFailed: 0 }, sessions: { opened: 4, closed: 4, closeFailed: 0 } })
+    const activeAfter = (await world.embedded.pg.query<{ n: number }>('select count(*)::int n from auth_sessions where revoked_at is null')).rows[0]!.n
+    expect(activeAfter).toBe(activeBefore)
     const { rows } = await world.embedded.pg.query<{ status: string; n: number }>(`select status, count(*)::int n from orders where customer_name = 'Contención unit' group by status`)
     expect(rows).toEqual([{ status: 'cancelled', n: 23 }])
     expect(JSON.stringify(report)).not.toMatch(/clave-personal-segura|@contratos.test|session=|eyJ/)
@@ -52,5 +55,13 @@ describe('guion del smoke de contención (handlers en proceso)', () => {
       credentials, { parallelism: 4, runId: 'broken' })
     expect(report.ok).toBe(false)
     expect(report.checks.find(check => check.name.startsWith('CAS: 4 cambios de estado'))).toMatchObject({ ok: false, detail: expect.stringContaining('se esperaba un 200 y el resto 409') })
+  })
+
+  it('revoca el login parcial del owner si falla el acceso del operador', async () => {
+    const before = (await world.embedded.pg.query<{ n: number }>('select count(*)::int n from auth_sessions where revoked_at is null')).rows[0]!.n
+    const failed = await runContentionSmoke(clientOf(true), { ...credentials, operator: { ...credentials.operator, password: 'clave-equivocada' } }, { parallelism: 2 })
+    expect(failed).toMatchObject({ ok: false, sessions: { opened: 1, closed: 1, closeFailed: 0 } })
+    const after = (await world.embedded.pg.query<{ n: number }>('select count(*)::int n from auth_sessions where revoked_at is null')).rows[0]!.n
+    expect(after).toBe(before)
   })
 })
