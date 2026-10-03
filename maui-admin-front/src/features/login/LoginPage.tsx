@@ -9,13 +9,27 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
 import { Spinner } from '@/ui/Spinner'
+import { isDemoMode } from '@/services'
+import { ApiError } from '@/services/http/apiError'
 
 interface LocationState {
   from?: { pathname: string }
 }
 
+/** Un 401 en el login son credenciales inválidas (no «sesión expirada»); el resto conserva el mensaje del servidor. */
+function loginErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return 'Credenciales inválidas'
+  if (error.kind === 'unauthenticated' || error.kind === 'invalid_request' || error.kind === 'validation') {
+    return 'Credenciales inválidas'
+  }
+  if (error.kind === 'rate_limited' && error.retryAfterSeconds !== undefined) {
+    return `Demasiados intentos. Intenta de nuevo en ${Math.ceil(error.retryAfterSeconds / 60)} min.`
+  }
+  return error.message
+}
+
 export function LoginPage() {
-  const { login } = useSession()
+  const { login, sessionExpired } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
@@ -31,8 +45,8 @@ export function LoginPage() {
     try {
       await login(email.trim(), password)
       navigate(from, { replace: true })
-    } catch {
-      toast.error('Credenciales inválidas')
+    } catch (error) {
+      toast.error(loginErrorMessage(error))
     } finally {
       setLoading(false)
     }
@@ -45,6 +59,12 @@ export function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">MAUI Admin</h1>
           <p className="text-sm text-gray-500 mt-1">Inicia sesión para continuar</p>
         </div>
+
+        {sessionExpired && (
+          <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Tu sesión expiró. Vuelve a iniciar sesión.
+          </p>
+        )}
 
         <form
           onSubmit={handleSubmit}
@@ -65,7 +85,7 @@ export function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 disabled:bg-gray-50 transition"
-              placeholder="owner@lechemiel.demo"
+              placeholder={isDemoMode ? 'owner@lechemiel.demo' : undefined}
             />
           </div>
 
@@ -82,7 +102,7 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
               className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 disabled:bg-gray-50 transition"
-              placeholder="demo1234"
+              placeholder={isDemoMode ? 'demo1234' : undefined}
             />
           </div>
 

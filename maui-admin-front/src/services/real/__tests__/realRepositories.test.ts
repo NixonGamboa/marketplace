@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/types/catalog'
-import { realAuditRepository } from '../../realAuditRepository'
+import { createRealAuditRepository } from '../../realAuditRepository'
 import { createRealAuthRepository } from '../../realAuthRepository'
 import { createRealCatalogRepository } from '../../realCatalogRepository'
 import { createRealMerchantRepository } from '../../realMerchantRepository'
@@ -9,6 +9,7 @@ import { createRealStoreStatusRepository } from '../../realStoreStatusRepository
 import { CapabilityUnavailableError } from '../capabilityUnavailable'
 import {
   FUTURE_ISO,
+  NOW_ISO,
   apiProblem,
   clientWith,
   customerSession,
@@ -337,25 +338,86 @@ describe('pedidos reales', () => {
     expect(await rejection(repo.submit(payload, 'corta'))).toMatchObject({ kind: 'invalid_request' })
   })
 
-  it('transiciones, pesos y cancelación quedan no disponibles sin tocar la red', async () => {
-    const { client, fetchImpl } = clientWith()
+  it('transición de estado: PATCH /status con la versión leída; el 409 llega como conflicto', async () => {
+    const updated = orderDto({ status: 'confirmed', version: 3 })
+    const { client, fetchImpl } = clientWith(json(updated), apiProblem(409, 'ORDER_VERSION_CONFLICT', 'El pedido cambió'))
     const repo = createRealOrderRepository(client)
-    for (const call of [
-      repo.updateStatus('ord-1', 'preparing', 'x'),
-      repo.setRealWeights('ord-1', [{ itemId: 'p', kilos: 1 }], 'x'),
-      repo.cancel('ord-1', 'motivo largo', 'x'),
-    ]) {
-      expect(await rejection(call)).toBeInstanceOf(CapabilityUnavailableError)
-    }
-    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(await repo.updateStatus('ord-1', 'confirmed', 'ignorado@maui.test', 2)).toEqual(updated)
+    expect(requestAt(fetchImpl)).toMatchObject({ url: '/api/orders/ord-1/status', method: 'PATCH', body: { status: 'confirmed', expectedVersion: 2 } })
+    expect(await rejection(repo.updateStatus('ord-1', 'confirmed', 'x', 2))).toMatchObject({ kind: 'conflict', code: 'ORDER_VERSION_CONFLICT' })
+  })
+
+  it('cancelar envía motivo y versión; sin motivo válido o sin versión no toca la red', async () => {
+    const { client, fetchImpl } = clientWith(json(orderDto({ status: 'cancelled', cancellationReason: 'Sin stock', cancelledAt: NOW_ISO, version: 4 })))
+    const repo = createRealOrderRepository(client)
+    expect((await repo.cancel('ord-1', '  Sin stock  ', 'x', 3)).status).toBe('cancelled')
+    expect(requestAt(fetchImpl).body).toEqual({ status: 'cancelled', expectedVersion: 3, reason: 'Sin stock' })
+    expect(await rejection(repo.cancel('ord-1', 'no', 'x', 3))).toMatchObject({ kind: 'invalid_request' })
+    expect(await rejection(repo.cancel('ord-1', 'Sin stock', 'x'))).toMatchObject({ kind: 'invalid_request' })
+    expect(await rejection(repo.updateStatus('ord-1', 'confirmed', 'x'))).toMatchObject({ kind: 'invalid_request' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('pesos reales: PATCH de cambios tipo weight con la versión leída y límites de gramos', async () => {
+    const { client, fetchImpl } = clientWith(json(orderDto({ status: 'preparing', version: 5 })))
+    const repo = createRealOrderRepository(client)
+    await repo.setRealWeights('ord-1', [{ itemId: 'prod-queso', kilos: 0.755 }], 'x', 4)
+    expect(requestAt(fetchImpl)).toMatchObject({
+      url: '/api/orders/ord-1', method: 'PATCH',
+      body: { expectedVersion: 4, changes: [{ type: 'weight', itemId: 'prod-queso', kilosReal: 0.755 }] },
+    })
+    expect(await rejection(repo.setRealWeights('ord-1', [{ itemId: 'prod-queso', kilos: 0.7555 }], 'x', 4))).toMatchObject({ kind: 'invalid_request' })
+    expect(await rejection(repo.setRealWeights('ord-1', [{ itemId: 'prod-queso', kilos: 0 }], 'x', 4))).toMatchObject({ kind: 'invalid_request' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('sustituir y quitar ítems viajan en un solo PATCH atómico', async () => {
+    const { client, fetchImpl } = clientWith(json(orderDto({ status: 'preparing', version: 6 })))
+    await createRealOrderRepository(client).changeItems('ord-1', [
+      { type: 'remove', itemId: 'prod-a', customerContacted: true },
+      { type: 'substitute', itemId: 'prod-b', productId: 'prod-c', qty: 1, customerContacted: true },
+    ], 5)
+    expect(requestAt(fetchImpl).body).toEqual({
+      expectedVersion: 5,
+      changes: [
+        { type: 'remove', itemId: 'prod-a', customerContacted: true },
+        { type: 'substitute', itemId: 'prod-b', productId: 'prod-c', qty: 1, customerContacted: true },
+      ],
+    })
   })
 })
 
 describe('auditoría real', () => {
-  it('declara la auditoría no disponible en lugar de usar el log local', async () => {
-    const repo = realAuditRepository
-    expect(await rejection(repo.list())).toBeInstanceOf(CapabilityUnavailableError)
-    expect(await rejection(repo.log({ user: 'x', action: 'auth.login' }))).toBeInstanceOf(CapabilityUnavailableError)
+  const event = {
+    id: 'aud-1', storeId: 'store-1', entity: 'order', entityId: 'ord-1', action: 'status_changed',
+    actorKind: 'account', actorId: 'usr-owner', createdAt: NOW_ISO, metadata: { previousStatus: 'received', status: 'confirmed', version: 2 },
+  }
+
+  it('lista una página con filtros y cursor del servidor', async () => {
+    const { client, fetchImpl } = clientWith(json({ items: [event], nextCursor: 'cur_1' }))
+    const page = await createRealAuditRepository(client).listPage(
+      { entity: 'order', action: 'status_changed', entityId: ' ord-1 ', from: '2026-10-01T05:00:00.000Z' },
+      { limit: 50, cursor: 'previo' },
+    )
+    expect(page).toEqual({ items: [event], nextCursor: 'cur_1' })
+    const url = new URL(requestAt(fetchImpl).url, 'https://admin.test')
+    expect(url.pathname).toBe('/api/audit')
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      entity: 'order', action: 'status_changed', entityId: 'ord-1', from: '2026-10-01T05:00:00.000Z', limit: '50', cursor: 'previo',
+    })
+  })
+
+  it('valida la query antes de enviar y rechaza eventos fuera del contrato', async () => {
+    const { client, fetchImpl } = clientWith(json({ items: [{ ...event, metadata: { secreto: 'x' } }], nextCursor: null }))
+    const repo = createRealAuditRepository(client)
+    expect(await rejection(repo.listPage({ from: '2026-10-05T00:00:00Z', to: '2026-10-01T00:00:00Z' }))).toMatchObject({ kind: 'invalid_request' })
+    expect(await rejection(repo.listPage({}, { limit: 500 }))).toMatchObject({ kind: 'invalid_request' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(await rejection(repo.listPage())).toMatchObject({ kind: 'invalid_response' })
+  })
+
+  it.each([[401, 'unauthenticated'], [403, 'forbidden'], [503, 'unavailable']])('propaga HTTP %i', async (status, kind) => {
+    const { client } = clientWith(apiProblem(status, 'ERR', 'Fallo'))
+    expect(await rejection(createRealAuditRepository(client).listPage())).toMatchObject({ kind, status })
   })
 })
-

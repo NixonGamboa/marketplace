@@ -9,7 +9,9 @@ import { Link } from 'react-router-dom'
 import { AlertCircle, Inbox } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
 import type { AdminOrder } from '@/types/adminOrder'
-import { orderRepo } from '@/services'
+import { isDemoMode, orderRepo } from '@/services'
+import { errorMessage } from '@/lib/errorMessage'
+import { storeDayOf } from '@/lib/storeDay'
 import { Spinner } from '@/ui/Spinner'
 import { EmptyState } from '@/ui/EmptyState'
 import { useNewOrdersWatcher } from '@/features/orders/useNewOrdersWatcher'
@@ -59,13 +61,18 @@ function isToday(isoString: string): boolean {
 export function DashboardPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const all = await orderRepo.list()
+      // Real: el servidor devuelve solo el día de la tienda (America/Bogota); el demo filtra abajo.
+      const today = storeDayOf()
+      const all = await orderRepo.list(isDemoMode ? undefined : { from: today, to: today })
       setOrders(all as AdminOrder[])
-    } catch {
-      // error silencioso en demo — dashboard muestra datos vacíos
+      setError(null)
+    } catch (failure) {
+      // Con datos ya cargados se conservan y se avisa; el demo local no falla.
+      setError(errorMessage(failure, 'No se pudo cargar el dashboard.'))
     } finally {
       setLoading(false)
     }
@@ -85,7 +92,7 @@ export function DashboardPage() {
     )
   }
 
-  const todayOrders = orders.filter((o) => isToday(o.createdAt))
+  const todayOrders = isDemoMode ? orders.filter((o) => isToday(o.createdAt)) : orders
 
   // Conteos por status para hoy
   const counts = ORDERED_STATUSES.reduce<Record<OrderStatus, number>>(
@@ -99,7 +106,7 @@ export function DashboardPage() {
   // Ticket promedio de entregados hoy
   const delivered = todayOrders.filter((o) => o.status === 'delivered')
   const avgTicket = delivered.length > 0
-    ? delivered.reduce((sum, o) => sum + o.estimatedTotal, 0) / delivered.length
+    ? delivered.reduce((sum, o) => sum + (o.finalTotal ?? o.estimatedTotal), 0) / delivered.length
     : 0
 
   // Alertas: received con más de 5 min sin atender
@@ -112,7 +119,27 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-5">Dashboard del día</h1>
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <h1 className="text-xl font-bold text-gray-900">Dashboard del día</h1>
+        {!isDemoMode && (
+          <button
+            type="button"
+            onClick={() => { setLoading(true); load() }}
+            className="px-3 py-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition"
+          >
+            Actualizar
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{error}</span>
+          <button type="button" onClick={() => { setLoading(true); load() }} className="font-medium underline">
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Cards de status */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

@@ -6,7 +6,10 @@ import {
   orderConfirmationSchema,
   orderDtoSchema,
   orderListResponseSchema,
+  updateOrderItemsRequestSchema,
+  updateOrderStatusRequestSchema,
   ORDER_LIST_LIMITS,
+  type OrderItemChange,
 } from '@shared/contracts'
 import type { AdminOrder } from '@/types/adminOrder'
 import type { OrderConfirmation, OrderPayload } from '@/types/orderService'
@@ -14,7 +17,6 @@ import { apiClient, type ApiClient } from './http/apiClient'
 import { ApiError } from './http/apiError'
 import { validateRequest } from './http/validateRequest'
 import { orderListQueryFrom, type OrderListFilterInput, type OrderPageRequest } from './real/adapters'
-import { CapabilityUnavailableError } from './real/capabilityUnavailable'
 import type { RequestOptions } from './realAuthRepository'
 import type { OrderRepository } from './mockOrderRepository'
 
@@ -29,7 +31,19 @@ export interface RealOrderRepository extends OrderRepository {
   listPage(filter?: OrderListFilterInput, page?: OrderPageRequest, options?: RequestOptions): Promise<OrderPage>
   /** Creación de cliente con clave de idempotencia estable entre reintentos (el servidor rechaza personal con 403). */
   submit(payload: OrderPayload, idempotencyKey: string, options?: RequestOptions): Promise<OrderConfirmation>
+  /** Quitar, sustituir o pesar ítems en bloque (solo en preparación); `expectedVersion` es la versión leída. */
+  changeItems(orderId: string, changes: OrderItemChange[], expectedVersion: number): Promise<AdminOrder>
 }
+
+/** Las mutaciones exigen la versión que vio el usuario: sin ella no hay control de concurrencia. */
+const requireVersion = (expectedVersion: number | undefined): number => {
+  if (expectedVersion === undefined) {
+    throw new ApiError({ kind: 'invalid_request', message: 'El pedido no trae versión; recárgalo antes de modificarlo.' })
+  }
+  return expectedVersion
+}
+
+const orderPath = (orderId: string): string => `/orders/${encodeURIComponent(orderId)}`
 
 /** Tope de `list()` completo: 25 páginas × 100. Más allá se exige filtrar o paginar con `listPage`. */
 const MAX_LIST_PAGES = 25
@@ -49,6 +63,14 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
     })
   }
 
+  const changeItems: RealOrderRepository['changeItems'] = async (orderId, changes, expectedVersion) =>
+    client.request({
+      method: 'PATCH',
+      path: orderPath(orderId),
+      body: validateRequest(updateOrderItemsRequestSchema, { expectedVersion, changes }),
+      schema: orderDtoSchema,
+    })
+
   return {
     listPage,
 
@@ -66,7 +88,7 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
     },
 
     async getById(orderId) {
-      return client.request({ path: `/orders/${encodeURIComponent(orderId)}`, schema: orderDtoSchema })
+      return client.request({ path: orderPath(orderId), schema: orderDtoSchema })
     },
 
     async submit(payload, idempotencyKey, options) {
@@ -80,10 +102,34 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
       })
     },
 
-    // Sin endpoint de transiciones, pesos ni cancelación (T-12): no hay respaldo local.
-    updateStatus: () => Promise.reject(new CapabilityUnavailableError('El cambio de estado del pedido')),
-    setRealWeights: () => Promise.reject(new CapabilityUnavailableError('El registro de pesos reales')),
-    cancel: () => Promise.reject(new CapabilityUnavailableError('La cancelación del pedido')),
+    /** Transición de la máquina común; actor y tienda salen de la sesión (`by` no viaja). 409 si la versión cambió. */
+    async updateStatus(orderId, next, _by, expectedVersion) {
+      return client.request({
+        method: 'PATCH',
+        path: `${orderPath(orderId)}/status`,
+        body: validateRequest(updateOrderStatusRequestSchema, { status: next, expectedVersion: requireVersion(expectedVersion) }),
+        schema: orderDtoSchema,
+      })
+    },
+
+    setRealWeights(orderId, weights, _by, expectedVersion) {
+      return changeItems(
+        orderId,
+        weights.map(({ itemId, kilos }) => ({ type: 'weight', itemId, kilosReal: kilos })),
+        requireVersion(expectedVersion),
+      )
+    },
+
+    async cancel(orderId, reason, _by, expectedVersion) {
+      return client.request({
+        method: 'PATCH',
+        path: `${orderPath(orderId)}/status`,
+        body: validateRequest(updateOrderStatusRequestSchema, { status: 'cancelled', expectedVersion: requireVersion(expectedVersion), reason }),
+        schema: orderDtoSchema,
+      })
+    },
+
+    changeItems,
   }
 }
 

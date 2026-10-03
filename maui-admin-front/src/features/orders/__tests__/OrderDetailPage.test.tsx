@@ -42,6 +42,7 @@ const mockOrderNoPhone: AdminOrder = {
 }
 
 vi.mock('@/services', () => ({
+  isDemoMode: true,
   orderRepo: {
     getById: vi.fn(),
     updateStatus: vi.fn(),

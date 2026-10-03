@@ -6,11 +6,12 @@
 import { useEffect, useState } from 'react'
 import { Save } from 'lucide-react'
 import type { MerchantConfig } from '@/types/merchant'
-import { merchantRepo } from '@/services'
+import { isDemoMode, merchantRepo } from '@/services'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
 import { Spinner } from '@/ui/Spinner'
 import { normalizePhone, formatPhonePretty } from '@/lib/phone'
+import { errorMessage } from '@/lib/errorMessage'
 import { ResetDemoButton } from './ResetDemoButton'
 
 function normalizeMerchantWhatsApp(raw: string): string | null {
@@ -35,7 +36,7 @@ export function ConfigPage() {
     merchantRepo
       .get(merchantId)
       .then((cfg) => { if (!cancelled) setConfig(cfg) })
-      .catch(() => { if (!cancelled) toast.error('No se pudo cargar la configuración') })
+      .catch((err: unknown) => { if (!cancelled) toast.error(errorMessage(err, 'No se pudo cargar la configuración')) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [merchantId, toast])
@@ -126,13 +127,15 @@ export function ConfigPage() {
         </div>
       </form>
 
-      <section className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="font-semibold text-gray-800 mb-1">Demo</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Limpia pedidos, catálogo editado, horarios y sesiones del demo para arrancar desde los datos de fábrica.
-        </p>
-        <ResetDemoButton />
-      </section>
+      {isDemoMode && (
+        <section className="bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="font-semibold text-gray-800 mb-1">Demo</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Limpia pedidos, catálogo editado, horarios y sesiones del demo para arrancar desde los datos de fábrica.
+          </p>
+          <ResetDemoButton />
+        </section>
+      )}
     </div>
   )
 }
