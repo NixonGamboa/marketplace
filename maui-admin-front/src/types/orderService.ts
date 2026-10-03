@@ -53,6 +53,6 @@ export type Order = OrderDto
 
 export interface OrderService {
   submit(payload: OrderPayload): Promise<OrderConfirmation>
-  getById(orderId: string): Promise<Order>
+  getById(orderId: string, options?: { signal?: AbortSignal }): Promise<Order>
   list(userId?: string): Promise<Order[]>
 }

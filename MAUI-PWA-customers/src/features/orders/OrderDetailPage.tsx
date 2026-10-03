@@ -2,7 +2,7 @@
   OrderDetailPage
   ─────────────────────────────────────────────────────────────────────────────
   Página de detalle de un pedido identificado por :orderId en la URL.
-  - Hace polling cada 5 s mientras la pestaña está visible.
+  - Sondea cada 30–60 s en modo real y reconcilia al recuperar pantalla o red.
   - Muestra stepper OrderTimeline, resumen de items, modalidad y CTA WhatsApp.
   - Accesibilidad: WCAG 2.2 AA — contraste ≥ 7:1 sobre fondo crema brand-bg.
 
@@ -20,6 +20,10 @@ import { merchantWhatsAppUrl } from '../../shared/hooks/useMerchantWhatsApp'
 import { useStoreContactPhone } from '../../shared/hooks/useStoreContactPhone'
 import { isDemoMode } from '../../config/mode'
 import { ApiError } from '../../services/http/apiError'
+import { useAuthStore } from '@/stores/authStore'
+import { useOrderPollingAvailability } from '@/shared/hooks/useOrderPollingAvailability'
+import { latestOrder, orderPollingInterval } from '@/lib/orderPolling'
+import type { Order } from '@/types/orderService'
 import { RealOrderReceipt } from './RealOrderReceipt'
 import OrderTimeline from './OrderTimeline'
 
@@ -128,13 +132,23 @@ export default function OrderDetailPage() {
   // AC-1 — useParams
   const { orderId } = useParams<{ orderId: string }>()
 
-  // AC-1 — useQuery with refetchInterval 5000
+  const userId = useAuthStore((state) => state.user?.id)
+  const expiresAt = useAuthStore((state) => state.sessionExpiresAt)
+  const demo = isDemoMode()
+  const queryKey = ['order', demo ? 'demo' : userId, expiresAt, orderId]
+  const active = useOrderPollingAvailability(queryKey)
+  // Cada cuenta, sesión y pedido tiene su propia consulta cancelable.
   const { data: order, isLoading, error, refetch } = useQuery({
-    queryKey:                   ['order', orderId],
-    queryFn:                    () => orderService.getById(orderId!),
-    enabled:                    !!orderId,
-    refetchInterval:            5_000,
+    queryKey:                   queryKey,
+    queryFn:                    ({ signal }) => orderService.getById(orderId!, { signal }),
+    enabled:                    !!orderId && (demo || !!userId) && active,
+    refetchInterval:            active ? (demo ? 5_000 : orderPollingInterval()) : false,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+    staleTime: 0,
+    retry: false,
+    structuralSharing: (previous, next) => latestOrder(previous as Order | undefined, next as Order),
   })
 
   // ── Guard: missing orderId param ──────────────────────────────────────────
@@ -203,9 +217,9 @@ export default function OrderDetailPage() {
         </p>
       </header>
 
-      {error && (
+      {(!active || error) && (
         <p role="status" className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-          No pudimos actualizar el estado. Mostramos lo último que supimos; reintentaremos automáticamente.
+          {!active ? 'Actualización pausada. Mostramos el último estado; se actualizará al volver a tener conexión y pantalla activa.' : 'No pudimos actualizar el estado. Mostramos lo último que supimos; reintentaremos automáticamente.'}
         </p>
       )}
 

@@ -3,7 +3,7 @@
  * al servidor, cursor, aislamiento por cuenta, sondeo con fallos y comprobante.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Order } from '@/types/orderService'
@@ -15,7 +15,7 @@ vi.mock('@/services/realOrderService', () => ({ realOrderService: { listPage: mo
 vi.mock('@/services/realCatalogService', () => ({ realCatalogService: { getStore: mocks.getStore, getCatalog: vi.fn() } }))
 vi.mock('../../services/index', () => ({ orderService: { getById: mocks.getById } }))
 vi.mock('./RealOrderReceipt', () => ({ RealOrderReceipt: ({ orderId }: { orderId: string }) => <p>comprobante {orderId}</p> }))
-vi.mock('./OrderTimeline', () => ({ default: () => <div>Estado del pedido</div> }))
+vi.mock('./OrderTimeline', () => ({ default: ({ currentStatus }: { currentStatus: string }) => <div><span>Estado del pedido</span><span>estado {currentStatus}</span></div> }))
 
 import RealOrdersPage from './pages/RealOrdersPage'
 import OrderDetailPage from './OrderDetailPage'
@@ -169,7 +169,7 @@ describe('OrderDetailPage real (servicio simulado)', () => {
     mocks.getById.mockResolvedValueOnce(order('ord-1')).mockRejectedValue(new ApiError({ kind: 'network', message: 'x' }))
     renderDetail(qc)
     await screen.findByText('Estado del pedido')
-    await qc.refetchQueries({ queryKey: ['order', 'ord-1'] })
+    await qc.refetchQueries({ queryKey: ['order', 'usr-1', null, 'ord-1'] })
     expect(await screen.findByText(/No pudimos actualizar el estado/)).toBeInTheDocument()
     expect(screen.getByText('Estado del pedido')).toBeInTheDocument()
   })
@@ -182,4 +182,25 @@ describe('OrderDetailPage real (servicio simulado)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver comprobante' }))
     expect(await screen.findByText('comprobante ord-1')).toBeInTheDocument()
   })
+  it('pausa offline, reconcilia al volver y refleja cancelación y total final', async () => {
+    mocks.getById.mockResolvedValueOnce(order('ord-1', { version: 1 }))
+      .mockResolvedValue(order('ord-1', { version: 2, status: 'cancelled', finalTotal: 18000 }))
+    renderDetail()
+    await screen.findByText('Estado del pedido')
+    vi.useFakeTimers()
+    try {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+      fireEvent(window, new Event('offline'))
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(mocks.getById).toHaveBeenCalledTimes(1)
+      expect(screen.getByText(/Actualización pausada/)).toBeInTheDocument()
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+      fireEvent(window, new Event('online'))
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(screen.getByText('estado cancelled')).toBeInTheDocument()
+      expect(screen.getByText(/Total final:/)).toBeInTheDocument()
+      expect(screen.queryByText(/Actualización pausada/)).toBeNull()
+    } finally { vi.useRealTimers(); vi.restoreAllMocks() }
+  })
+
 })
