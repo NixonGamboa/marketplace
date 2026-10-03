@@ -1,12 +1,12 @@
-import bebidas from './bebidas.png'
-import congelados from './cogelados.png'
-import despensa from './despensa.png'
-import electro from './electro.png'
-import herramientas from './herramientas.png'
-import jugueteria from './jugueteria.png'
-import lacteos from './lacteos.png'
-import limpieza from './limpieza.png'
-import snacks from './snacks.png'
+import bebidas from './bebidas.webp'
+import congelados from './cogelados.webp'
+import despensa from './despensa.webp'
+import electro from './electro.webp'
+import herramientas from './herramientas.webp'
+import jugueteria from './jugueteria.webp'
+import lacteos from './lacteos.webp'
+import limpieza from './limpieza.webp'
+import snacks from './snacks.webp'
 
 export const categoryImages = {
   bebidas,

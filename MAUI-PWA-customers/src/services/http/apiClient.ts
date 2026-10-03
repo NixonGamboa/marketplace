@@ -1,4 +1,5 @@
-import { ApiError, apiErrorFromResponse, defaultMessageFor } from './apiError'
+import { ApiError, apiErrorFromResponse, defaultMessageFor, validRequestId } from './apiError'
+import { telemetryEndpoint, type ApiErrorTelemetry } from './telemetry'
 import { notifySessionExpired } from './sessionExpiry'
 
 /** Esquema estructural (compatible con Zod) para no acoplar el transporte a la librería. */
@@ -21,6 +22,8 @@ export interface ApiRequest<T> {
   schema?: ResponseSchema<T>
   signal?: AbortSignal
   timeoutMs?: number
+  /** Cabeceras de una respuesta exitosa, antes de leer el cuerpo (p. ej. para saber si salió de la caché del worker). */
+  onResponseHeaders?: (headers: Headers) => void
 }
 
 export interface ApiClientOptions {
@@ -29,6 +32,8 @@ export interface ApiClientOptions {
   fetchImpl?: typeof fetch
   /** Se invoca ante un 401 de una ruta que no es de `/auth/` (sesión vencida o revocada). */
   onUnauthenticated?: () => void
+  /** Solo campos saneados; el callback no recibe cuerpos, errores originales ni query. */
+  onError?: (event: ApiErrorTelemetry) => void
 }
 
 export interface ApiClient {
@@ -102,7 +107,11 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
     async request<T = void>(request: ApiRequest<T>): Promise<T> {
       const doFetch = options.fetchImpl ?? fetch
       const abort = withAbort(request.signal, request.timeoutMs ?? defaultTimeout)
+      const start = performance.now()
+      let requestId = crypto.randomUUID() as string
       const headers: Record<string, string> = { Accept: 'application/json', ...request.headers }
+      for (const name of Object.keys(headers)) if (name.toLowerCase() === 'x-request-id') delete headers[name]
+      headers['X-Request-Id'] = requestId
       if (request.body !== undefined) headers['Content-Type'] = 'application/json'
 
       try {
@@ -115,19 +124,26 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
           signal: abort.signal,
           ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
         })
+        const responseId = response.headers.get('X-Request-Id')
+        if (validRequestId(responseId)) requestId = responseId
         if (!response.ok) throw await apiErrorFromResponse(response)
+        request.onResponseHeaders?.(response.headers)
         return await readSuccessBody(response, request.schema)
       } catch (error) {
-        if (error instanceof ApiError) {
-          // En `/auth/*` un 401 es «credenciales inválidas» o «sin sesión», no una sesión que venció.
-          if (error.kind === 'unauthenticated' && !request.path.startsWith('/auth/')) options.onUnauthenticated?.()
-          throw error
+        const failure = error instanceof ApiError ? new ApiError({ kind: error.kind, message: error.message,
+          ...(error.status !== undefined ? { status: error.status } : {}),
+          ...(error.code !== undefined ? { code: error.code } : {}), issues: error.issues,
+          ...(error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}), requestId })
+          : new ApiError({ kind: abort.timedOut() ? 'timeout' : abort.signal.aborted ? 'aborted' : 'network',
+            message: defaultMessageFor(abort.timedOut() ? 'timeout' : abort.signal.aborted ? 'aborted' : 'network'), requestId })
+        if (failure.kind !== 'aborted') {
+          const event: ApiErrorTelemetry = { event: 'client_api_error', client: 'pwa', endpoint: telemetryEndpoint(request.path),
+            method: request.method ?? 'GET', kind: failure.kind, status: failure.status, requestId, durationMs: Math.round(performance.now() - start) }
+          try { (options.onError ?? ((entry) => console.warn(JSON.stringify(entry))))(event) } catch { /* Telemetría no cambia el resultado del transporte. */ }
         }
-        // fetch o la lectura del cuerpo fallaron: el timeout y el abort del llamador se distinguen
-        // de un corte de red; el mensaje del error original puede traer URLs, no se propaga.
-        if (abort.timedOut()) throw new ApiError({ kind: 'timeout', message: defaultMessageFor('timeout') })
-        if (abort.signal.aborted) throw new ApiError({ kind: 'aborted', message: defaultMessageFor('aborted') })
-        throw new ApiError({ kind: 'network', message: defaultMessageFor('network') })
+        // En `/auth/*` un 401 es «credenciales inválidas» o «sin sesión», no una sesión que venció.
+        if (failure.kind === 'unauthenticated' && !request.path.startsWith('/auth/')) options.onUnauthenticated?.()
+        throw failure
       } finally {
         abort.dispose()
       }

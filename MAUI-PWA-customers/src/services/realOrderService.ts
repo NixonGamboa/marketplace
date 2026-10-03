@@ -65,7 +65,7 @@ export const createRealOrderService = (
   }
 
   const send = async (request: CreateOrderRequest, fingerprint: string, options?: RequestOptions): Promise<OrderConfirmation> => {
-    const key = intents.keyFor(fingerprint)
+    const key = await intents.keyFor(fingerprint)
     try {
       const confirmation = await client.request({
         method: 'POST',

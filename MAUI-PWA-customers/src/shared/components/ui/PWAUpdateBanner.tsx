@@ -1,4 +1,5 @@
 import { useUIStore } from '@/stores/uiStore'
+import { applyServiceWorkerUpdate } from '@/pwa/updateChannel'
 import Button from './Button'
 
 export function PWAUpdateBanner() {
@@ -16,7 +17,7 @@ export function PWAUpdateBanner() {
       <Button
         variant="secondary"
         size="sm"
-        onClick={() => window.location.reload()}
+        onClick={() => void applyServiceWorkerUpdate()}
       >
         Actualizar
       </Button>

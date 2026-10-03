@@ -3,6 +3,7 @@ import Header from './Header'
 import Footer from './Footer'
 import BottomNavBar from './BottomNavBar'
 import { PWAUpdateBanner } from '@/shared/components/ui/PWAUpdateBanner'
+import { ConnectivityBanner } from '@/shared/components/ui/ConnectivityBanner'
 import { useCartStore } from '@/stores/cartStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useBottomNavVisible } from '@/shared/hooks/useBottomNavVisible'
@@ -37,6 +38,7 @@ export default function RootLayout() {
           }}
         />
       )}
+      <ConnectivityBanner />
       <main
         role="main"
         className="flex-1 main-bottom-padding lg:pb-0"

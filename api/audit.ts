@@ -1,3 +1,4 @@
+import { withObservability } from './_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { buildApiError, issuesFromZodError, listAuditQuerySchema } from '../shared/contracts/index.js'
 import { AuditPersistenceError } from '../maui-back/src/domain/audit/AuditRepository.js'
@@ -9,7 +10,7 @@ import { listAuditForActor } from '../maui-back/src/usecases/audit/listAudit.js'
 import { allowMethods, authenticateRequest, failAuth, prepareAuthResponse } from './_lib/auth.js'
 import { jsonResponse, ok } from './_lib/response.js'
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['GET'])) return
   let runtime: AuthRuntime | undefined
@@ -26,3 +27,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     else failAuth(res, error, runtime?.config)
   }
 }
+
+export default withObservability('/api/audit', handler)

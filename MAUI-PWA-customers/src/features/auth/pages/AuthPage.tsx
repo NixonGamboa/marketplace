@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import Icon from '@/shared/components/ui/Icon'
-import logoMaui from '@/assets/logo/imagotipo.png'
+import logoMaui from '@/assets/logo/imagotipo.webp'
 
 type Step = 'phone' | 'sent'
 

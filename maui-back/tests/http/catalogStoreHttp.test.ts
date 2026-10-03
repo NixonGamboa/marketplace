@@ -46,22 +46,41 @@ const publicCatalog = async () => {
 }
 
 describe('GET /api/catalog público', () => {
-  it('sin sesión devuelve el catálogo de la tienda del servidor, no-store y sin datos internos', async () => {
+  it('sin sesión devuelve un catálogo público revalidable y sin datos internos', async () => {
     const res = await call('catalog', operationRequest())
     expect(statusOf(res)).toBe(200)
-    expect(headerOf(res, 'Cache-Control')).toMatch(/no-store/)
+    expect(headerOf(res, 'Cache-Control')).toBe('no-cache')
+    expect(headerOf(res, 'Vary')).toBe('Origin')
     const body = publicCatalogResponseSchema.parse(bodyOf(res))
     expect(body.categories).toHaveLength(9)
     expect(body.products.length).toBeGreaterThanOrEqual(16)
     expect(JSON.stringify(body)).not.toMatch(/storeId|version|archived/)
   })
 
+  it('cookies cliente, personal y manipulada no cambian el DTO público ni abren respuesta privada', async () => {
+    const baseline = await call('catalog', operationRequest())
+    for (const cookie of [world.customer.cookie, world.owner.cookie, 'maui_session=manipulada']) {
+      const res = await call('catalog', operationRequest({ cookie }))
+      expect(bodyOf(res)).toEqual(bodyOf(baseline))
+      expect(headerOf(res, 'Cache-Control')).toBe('no-cache')
+      expect(headerOf(res, 'Vary')).toBe('Origin')
+      expect(headerOf(res, 'Set-Cookie')).toBeUndefined()
+    }
+    const staff = await call('catalog', operationRequest({ cookie: world.owner.cookie, query: { op: 'staff' } }))
+    expect(headerOf(staff, 'Cache-Control')).toMatch(/no-store/)
+    expect(headerOf(staff, 'Vary')).toMatch(/Cookie/)
+  })
+
   it('detalle público válido, ID inválido 400 y desconocido 404', async () => {
     const ok = await call('catalog', operationRequest({ query: { op: 'product', id: 'queso-campesino-250g' } }))
+    expect(headerOf(ok, 'Cache-Control')).toBe('no-cache')
+    expect(headerOf(ok, 'Vary')).toBe('Origin')
     expect(productDtoSchema.parse(bodyOf(ok))).toMatchObject({ is_variable_weight: true, unit: 'Por Kilogramo', currency: 'COP' })
     expect(statusOf(await call('catalog', operationRequest({ query: { op: 'product', id: 'bad id' } })))).toBe(400)
     expect(statusOf(await call('catalog', operationRequest({ query: { op: 'product' } })))).toBe(400)
-    expect(statusOf(await call('catalog', operationRequest({ query: { op: 'product', id: 'no-existe' } })))).toBe(404)
+    const missing = await call('catalog', operationRequest({ query: { op: 'product', id: 'no-existe' } }))
+    expect(statusOf(missing)).toBe(404)
+    expect(headerOf(missing, 'Cache-Control')).toMatch(/no-store/)
   })
 
   it('operación desconocida o repetida responde 404 JSON; método no declarado 405 con Allow', async () => {

@@ -1,1 +1,1 @@
-export { default as promoEnvioGratis } from './envio-gratis.png';
+export { default as promoEnvioGratis } from './envio-gratis.webp';

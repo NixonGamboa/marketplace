@@ -26,6 +26,8 @@ export interface CreateOrderDeps {
   keys: BucketKeyer
   /** Generador del ID del pedido; el seed de test (T-16) lo fija para que el ID sea determinista. */
   newOrderId?: () => string
+  /** Observador de resultado sin datos del pedido; HTTP puede medir creaciones y replays. */
+  onCreationOutcome?: (outcome: 'created' | 'replayed') => void
 }
 const hash = (value: string): string => createHash('sha256').update(value).digest('hex')
 /** Hash de la clave de idempotencia tal como se guarda en el claim (`order_creations.key_hash`). */
@@ -42,6 +44,10 @@ export const orderIntentFingerprint = (data: OrderIntent): string => hash(JSON.s
     lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
   customerName: data.customerName, customerPhone: data.customerPhone,
 }))
+/** El observador no decide el resultado: su fallo no altera la creación ni activa la recuperación. */
+const notifyOutcome = (deps: CreateOrderDeps, outcome: 'created' | 'replayed'): void => {
+  try { deps.onCreationOutcome?.(outcome) } catch { /* La observabilidad nunca cambia el resultado. */ }
+}
 const replay = (creation: StoredOrderCreation, fingerprint: string): Order => {
   if (creation.fingerprint !== fingerprint) throw new IdempotencyConflictError()
   return creation.order
@@ -62,7 +68,7 @@ export const createOrder = async (
   const identity = { customerId: actor.id, storeId: context.storeId, keyHash: hash(key.data) }
   const fingerprint = orderIntentFingerprint(data)
   const prior = await deps.orders.findCreation(identity)
-  if (prior) return replay(prior, fingerprint)
+  if (prior) { const order = replay(prior, fingerprint); notifyOutcome(deps, 'replayed'); return order }
 
   try {
     const settings = await getStoreSettings(deps, context.storeId)
@@ -101,13 +107,15 @@ export const createOrder = async (
     if (result.kind === 'conflict') throw new IdempotencyConflictError()
     if (result.kind === 'changed') throw new ConflictError('El catálogo o la tienda cambió; vuelve a intentar')
     if (result.kind === 'limited') throw new RateLimitedError(result.retryAfterSeconds)
-    return replay(result.creation, fingerprint)
+    const saved = replay(result.creation, fingerprint)
+    notifyOutcome(deps, result.kind)
+    return saved
   } catch (error) {
     // Otro request pudo confirmar después de la primera lectura, mientras cambiaba catálogo
     // o se perdía la respuesta. Una sola lectura adicional recupera su creación inmutable.
     // Si esa lectura falla, el error útil es el original, no el de la recuperación.
     const completed = await deps.orders.findCreation(identity).catch(() => null)
-    if (completed) return replay(completed, fingerprint)
+    if (completed) { const order = replay(completed, fingerprint); notifyOutcome(deps, 'replayed'); return order }
     throw error
   }
 }
