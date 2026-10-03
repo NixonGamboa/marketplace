@@ -15,6 +15,7 @@
     "typecheck:back": "npm --prefix maui-back run typecheck",
     "typecheck:pwa": "npm --prefix MAUI-PWA-customers run typecheck",
     "typecheck:admin": "npm --prefix maui-admin-front run typecheck",
+    "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "check:contracts": "bash scripts/check-types-drift.sh",
     "lint:pwa": "npm --prefix MAUI-PWA-customers run lint",
     "lint:admin": "npm --prefix maui-admin-front run lint",
@@ -23,7 +24,10 @@
     "test:admin": "npm --prefix maui-admin-front run test",
     "ci:check": "node scripts/ci-check.mjs",
     "ci:build": "npm --prefix MAUI-PWA-customers run build:unified",
-    "build:demo": "npm --prefix MAUI-PWA-customers run build:unified:demo"
+    "build:demo": "npm --prefix MAUI-PWA-customers run build:unified:demo",
+    "e2e:selftest": "node scripts/e2e-run.mjs selftest",
+    "e2e:check": "node scripts/e2e-run.mjs check",
+    "e2e:smoke": "node scripts/e2e-run.mjs smoke"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
@@ -36,6 +40,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@vercel/node": "^5.0.0"
   },
   "engines": {

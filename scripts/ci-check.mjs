@@ -25,12 +25,15 @@ const checks = [
   ['typecheck:back'],
   ['typecheck:pwa'],
   ['typecheck:admin'],
+  ['typecheck:e2e'],
   ['check:contracts'],
   ['lint:pwa'],
   ['lint:admin'],
   ['test:back'],
   ['test:pwa'],
   ['test:admin'],
+  // Guardas y saneado del runner de navegador: sin red, credenciales ni Chrome.
+  ['e2e:selftest'],
 ]
 
 // Solo CI activa reportes; la validación local conserva sus comandos habituales.
