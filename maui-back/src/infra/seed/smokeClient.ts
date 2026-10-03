@@ -21,6 +21,18 @@ export const createFetchSmokeClient = (env: NodeJS.ProcessEnv, fetchImpl: typeof
     throw new DomainError('SMOKE_BASE_URL debe ser un origen https limpio, sin ruta ni credenciales', 'SMOKE_BASE_URL_INVALID')
   }
   const bypass = env.SMOKE_BYPASS_TOKEN
+  const authOriginRaw = env.SMOKE_AUTH_ORIGIN ?? env.AUTH_ORIGIN ?? raw
+  let authOrigin: URL
+  try {
+    authOrigin = new URL(authOriginRaw ?? '')
+  } catch {
+    throw new DomainError('SMOKE_AUTH_ORIGIN debe ser un origen limpio', 'SMOKE_AUTH_ORIGIN_INVALID')
+  }
+  const authLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(authOrigin.hostname)
+  if (authOrigin.origin !== authOriginRaw || authOrigin.username || authOrigin.password ||
+      !(authOrigin.protocol === 'https:' || (authOrigin.protocol === 'http:' && authLoopback))) {
+    throw new DomainError('SMOKE_AUTH_ORIGIN debe ser un origen https limpio', 'SMOKE_AUTH_ORIGIN_INVALID')
+  }
 
   return {
     async request(method, path, init = {}): Promise<SmokeResponse> {
@@ -29,7 +41,7 @@ export const createFetchSmokeClient = (env: NodeJS.ProcessEnv, fetchImpl: typeof
         redirect: 'manual',
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
-          origin: origin.origin,
+          origin: authOrigin.origin,
           accept: 'application/json',
           ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
           ...(init.cookie ? { cookie: init.cookie } : {}),

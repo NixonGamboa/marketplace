@@ -22,6 +22,7 @@ const TEST_HOST = 'ep-fixture-dev.example.neon.tech'
 const HANDLERS = {
   health: () => import('../../../api/health.js'),
   login: () => import('../../../api/auth/login.js'),
+  logout: () => import('../../../api/auth/logout.js'),
   orders: () => import('../../../api/orders/index.js'),
   detail: () => import('../../../api/orders/[id].js'),
   status: () => import('../../../api/orders/[id]/status.js'),
@@ -37,6 +38,7 @@ function route(path: string): { handler: keyof typeof HANDLERS; query: Record<st
   const segments = url.pathname.split('/').filter(Boolean)
   if (url.pathname === '/api/health') return { handler: 'health', query }
   if (url.pathname === '/api/auth/login') return { handler: 'login', query }
+  if (url.pathname === '/api/auth/logout') return { handler: 'logout', query }
   if (url.pathname === '/api/audit') return { handler: 'audit', query }
   if (url.pathname === '/api/store') return { handler: 'store', query }
   if (url.pathname === '/api/catalog') return { handler: 'catalog', query }
@@ -121,6 +123,7 @@ describe('seed + handlers HTTP reales (APP_ENV=test)', () => {
     expect(report.checks.filter(check => !check.ok)).toEqual([])
     expect(report.ok).toBe(true)
     expect(report.checks.length).toBeGreaterThanOrEqual(14)
+    expect((await embedded.pg.query<{ count: number }>('SELECT count(*)::int AS count FROM auth_sessions WHERE revoked_at IS NULL')).rows[0]?.count).toBe(0)
   })
 
   it('roles y credenciales: cada cuenta entra con su rol y una contraseña errónea no entra ni cambia nada', async () => {

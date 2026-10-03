@@ -30,6 +30,8 @@ las cuentas **solo por entorno o canal privado**: `SEED_OWNER_PASSWORD`, `SEED_O
 `SEED_CUSTOMER_PASSWORD` (política de contraseña del contrato). Solo se exigen si hay cuentas por crear; no
 se registran, no entran al bundle ni a la salida (que es JSON sin cadenas de conexión). Smoke:
 `SMOKE_BASE_URL` (origen https limpio) y, si Preview está protegido, `SMOKE_BYPASS_TOKEN`.
+`SMOKE_AUTH_ORIGIN` permite enviar el origen autorizado del frontend cuando difiere del Preview;
+por defecto toma `AUTH_ORIGIN` y, en su ausencia, `SMOKE_BASE_URL`. No cambia la validación del servidor.
 
 **Dataset.** Tienda `leche-y-miel` con los datos de `storeSeed` (contacto del negocio `null`, cobertura
 urbana fijada), 9 categorías y 16 productos de `shared/catalog` con IDs estables (incluye el agotado
@@ -82,7 +84,7 @@ La huella es opaca; no salen filas, datos personales ni hashes de contraseña. L
 escrituras durante el reset. Restaurar = `reset:test` + `seed:test`. La rama `dev` se acredita por
 el endpoint fijo del guard; declarar otro `TEST_DATABASE_HOST` no autoriza el reset.
 
-**Smoke.** Solo lecturas y logins (sin escribir ni pedir por el reloj real): exige que `/api/health`
+**Smoke.** Lecturas, login y logout de las sesiones propias, sin crear pedidos: exige que `/api/health`
 declare `environment: test`, y comprueba roles, alcance por cuenta, catálogo, pedidos del dataset (los
 editados por el personal no se evalúan), auditoría con actor y 403 de cliente.
 

@@ -11,7 +11,7 @@ import type { SeedCredentials } from './runSeed.js'
 
 /**
  * Smoke del seed contra una API desplegada (Preview/Neon dev), solo con lecturas y logins: no
- * escribe, no crea pedidos (el reloj real puede tener la tienda cerrada) y no consume la cota de
+ * crea pedidos (el reloj real puede tener la tienda cerrada) y no consume la cota de
  * intentos fallidos. Verifica identidad/rol/tienda, alcance por cuenta, catálogo, pedidos del dataset
  * y auditoría con actor, con las credenciales de test que llegan por entorno.
  */
@@ -114,15 +114,15 @@ export const runSmoke = async (client: SmokeClient, passwords: Required<SeedCred
   for (const staff of SEED_STAFF) {
     await run(`login ${staff.role}: identidad, rol y tienda`, async () => {
       const session = await login(client, { email: staff.email }, passwordOf(staff.key))
-      expect(session.role === staff.role && session.accountId === staff.id, 'identidad o rol distintos del dataset')
       sessions.set(staff.key, session)
+      expect(session.role === staff.role && session.accountId === staff.id, 'identidad o rol distintos del dataset')
     })
   }
   for (const customer of SEED_CUSTOMERS) {
     await run(`login cliente ${customer.key}`, async () => {
       const session = await login(client, { phone: `57${customer.phone}` }, passwords.customer)
-      expect(session.role === 'customer' && session.accountId === customer.id, 'identidad o rol distintos del dataset')
       sessions.set(customer.key, session)
+      expect(session.role === 'customer' && session.accountId === customer.id, 'identidad o rol distintos del dataset')
     })
   }
 
@@ -201,5 +201,11 @@ export const runSmoke = async (client: SmokeClient, passwords: Required<SeedCred
     }
   })
 
+  for (const [key, session] of sessions) {
+    await run(`cerrar sesión propia de ${key}`, async () => {
+      const response = await client.request('POST', '/api/auth/logout', { cookie: session.cookie })
+      expectStatus(response, 204, 'logout')
+    })
+  }
   return { datasetVersion: SEED_DATASET_VERSION, ok: checks.every(check => check.ok), checks }
 }
