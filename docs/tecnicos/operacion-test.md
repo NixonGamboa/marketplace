@@ -117,12 +117,20 @@ Comparar journal/ledger y migraciones añadidas antes de revertir el código; un
 necesita eliminar columnas, tablas o datos no es compatible. No ejecutar migraciones down
 automáticas ni restaurar dev/Production con este CLI. Si existe drift o ledger distinto,
 el restore falla antes de cambiar datos. Promover master/Production exige autorización separada.
-
 ## Evidencia y límites
 
 Pruebas locales comprueban cifrado/alteración, guards, caducidad, esquema, SQL atómico,
-estado cambiado y rollback FK con PostgreSQL embebido y transporte Neon de fixture. Son
-pruebas técnicas, no evidencia de Neon real ni de contención entre conexiones independientes.
-T-21 permanece parcial hasta el backup/restore real, borrado del clon, integración PWA,
-CI verde y correlación sobre Preview identificado por SHA. El reporte global vive en
+estado cambiado y rollback FK con PostgreSQL embebido y transporte Neon de fixture; también
+que un observador de pedidos que falla no altera la creación ni el replay. Son pruebas
+técnicas, no evidencia de Neon real ni de contención entre conexiones independientes.
+
+El orquestador ejecutó el 2026-10-03 (13:33:46Z) el flujo real descrito arriba: backup AES-256-GCM
+con clave independiente fuera del repo, export del catálogo, clon temporal de dev
+(`br-lingering-mouse-auy47bw4`) con un solo precio alterado, dry-run con SHA y restore atómico.
+Comparó las nueve tablas completas, el schema y el ledger con el backup (huella `10501f6e…0e1c`),
+con dev intacto, y borró el clon (`deletedAt` 13:36:49Z). El proof con IDs y huellas está en la
+orquestación local; contiene conteos y hashes, no filas ni secretos.
+
+T-21 permanece parcial hasta la integración PWA (parche preparado, se aplica tras T-20), CI verde
+y la correlación sobre un Preview identificado por SHA. El reporte global vive en
 `estado-plan.md`; esta guía no declara el cierre del bloque.
