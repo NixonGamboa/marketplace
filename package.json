@@ -9,7 +9,7 @@
     "install:admin": "npm --prefix maui-admin-front install --no-audit --no-fund",
     "install:back": "npm --prefix maui-back install --no-audit --no-fund",
     "install:all": "npm run install:pwa && npm run install:admin && npm run install:back",
-    "build:unified": "npm run install:all && npm --prefix MAUI-PWA-customers run build:unified",
+    "build:unified": "npm --prefix MAUI-PWA-customers run build:unified",
     "vercel-build": "npm run build:unified",
     "ci:install": "npm ci --no-audit --no-fund && npm --prefix maui-back ci --no-audit --no-fund && npm --prefix MAUI-PWA-customers ci --no-audit --no-fund && npm --prefix maui-admin-front ci --no-audit --no-fund",
     "typecheck:back": "npm --prefix maui-back run typecheck",
@@ -24,6 +24,7 @@
     "test:admin": "npm --prefix maui-admin-front run test",
     "ci:check": "node scripts/ci-check.mjs",
     "ci:build": "npm --prefix MAUI-PWA-customers run build:unified",
+    "build:demo": "npm --prefix MAUI-PWA-customers run build:unified:demo",
     "e2e:selftest": "node scripts/e2e-run.mjs selftest",
     "e2e:check": "node scripts/e2e-run.mjs check",
     "e2e:smoke": "node scripts/e2e-run.mjs smoke"

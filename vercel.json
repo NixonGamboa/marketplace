@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "MAUI-PWA-customers/dist",
-  "installCommand": "npm install",
+  "installCommand": "npm run ci:install",
   "framework": null,
   "rewrites": [
     { "source": "/api/orders/:id/status", "destination": "/api/orders/[id]/status" },
@@ -19,5 +19,8 @@
     { "source": "/admin", "destination": "/admin/index.html" },
     { "source": "/admin/(.*)", "destination": "/admin/index.html" },
     { "source": "/((?!admin(?:/|$)|api(?:/|$)|_lib(?:/|$)).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/build-info.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
   ]
 }
