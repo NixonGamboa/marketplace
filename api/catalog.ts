@@ -1,3 +1,4 @@
+import { withObservability } from './_lib/observability.js'
 import type { VercelResponse } from '@vercel/node'
 import {
   toPublicCatalogResponse,
@@ -42,7 +43,7 @@ const okPublicCatalog = <T>(res: VercelResponse, body: T): void => {
  *
  * La tienda pública la fija el servidor; la de personal sale de la cuenta de la sesión.
  */
-export default createOperationHandler(
+const handler = createOperationHandler(
   {
     image: {
       POST: async ({ req, res, sessionActor }) => {
@@ -125,3 +126,5 @@ export default createOperationHandler(
   },
   'catalog',
 )
+
+export default withObservability('/api/catalog', handler)

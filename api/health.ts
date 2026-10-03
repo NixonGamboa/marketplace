@@ -1,9 +1,10 @@
+import { withObservability } from './_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { checkHealth } from '../maui-back/src/usecases/health/checkHealth.js'
 import { jsonResponse, methodNotAllowed } from './_lib/response.js'
 import { buildApiError } from '../shared/contracts/errors.js'
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   res.setHeader('Cache-Control', 'no-store')
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     methodNotAllowed(res, ['GET', 'HEAD'])
@@ -28,3 +29,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     jsonResponse(res, buildApiError('SERVICE_UNAVAILABLE', 'Servicio no disponible'), 503, head)
   }
 }
+
+export default withObservability('/api/health', handler)

@@ -1,3 +1,4 @@
+import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getAuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { logout } from '../../maui-back/src/usecases/auth/logout.js'
@@ -15,7 +16,7 @@ import {
  * POST /api/auth/logout — revoca la sesión en el servidor y borra la cookie.
  * Si la revocación falla responde 503 SIN borrar la cookie: no se aparenta un cierre inexistente.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   prepareAuthResponse(res)
   if (!allowMethods(req, res, ['POST'])) return
 
@@ -29,3 +30,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     failAuth(res, err)
   }
 }
+
+export default withObservability('/api/auth/logout', handler)
