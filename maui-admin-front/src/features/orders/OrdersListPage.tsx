@@ -3,7 +3,6 @@
  * Lista de pedidos con tabs por estado, búsqueda multi-campo y badge de cuenta.
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { Search, Inbox } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
 import type { AdminOrder } from '@/types/adminOrder'
@@ -11,8 +10,8 @@ import { isCancelled } from '@/types/adminOrder'
 import { orderRepo } from '@/services'
 import { Spinner } from '@/ui/Spinner'
 import { Tabs } from '@/ui/Tabs'
-import { StatusBadge } from './StatusBadge'
-import { phoneLast4, phoneMatchesQuery } from '@/lib/phone'
+import { OrderRow } from './OrderRow'
+import { phoneMatchesQuery } from '@/lib/phone'
 
 const DEBOUNCE_MS = 150
 
@@ -32,12 +31,6 @@ const STATUS_LABELS: Record<TabValue, string> = {
   cancelled: 'Cancelados',
 }
 
-const currencyFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-})
-
 /** Determina si una cadena es completamente numérica (después de normalizar). */
 function isAllDigits(s: string): boolean {
   return /^\d+$/.test(s.trim())
@@ -55,12 +48,6 @@ function applySearch(orders: AdminOrder[], query: string): AdminOrder[] {
     (o) =>
       o.customerName.toLowerCase().includes(lower) ||
       o.orderId.toLowerCase().includes(lower),
-  )
-}
-
-function formatTime(isoString: string): string {
-  return new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit' }).format(
-    new Date(isoString),
   )
 }
 
@@ -183,48 +170,3 @@ function EmptyOrdersList({ query }: { query: string }) {
   )
 }
 
-interface OrderRowProps {
-  order: AdminOrder
-  activeStatus: TabValue
-}
-
-function OrderRow({ order, activeStatus }: OrderRowProps) {
-  const phoneSuffix = order.customerPhone
-    ? ` · …${phoneLast4(order.customerPhone)}`
-    : ''
-
-  // Pulso sutil para pedidos received en el tab activo (AC-7)
-  const isPulse = order.status === 'received' && activeStatus === 'received'
-
-  return (
-    <li>
-      <Link
-        to={`/pedidos/${order.orderId}`}
-        className="flex items-center justify-between gap-3 bg-white border border-gray-200 hover:border-indigo-200 hover:shadow-sm rounded-xl px-4 py-3 transition"
-        aria-label={`Pedido ${order.orderId} de ${order.customerName}, estado ${order.status}`}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Dot de pulso para received */}
-          {isPulse && (
-            <span className="shrink-0 w-2 h-2 rounded-full bg-blue-500 animate-pulse" aria-hidden />
-          )}
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">
-              {order.customerName}{phoneSuffix}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5 font-mono">{order.orderId}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <StatusBadge status={order.status} />
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-700">
-              {currencyFormatter.format(order.estimatedTotal)}
-            </p>
-            <p className="text-xs text-gray-400">{formatTime(order.createdAt)}</p>
-          </div>
-        </div>
-      </Link>
-    </li>
-  )
-}

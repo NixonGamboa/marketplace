@@ -31,9 +31,13 @@ export interface RealWeightInput {
 export interface OrderRepository {
   list(filter?: OrderListFilter): Promise<AdminOrder[]>
   getById(orderId: string): Promise<AdminOrder>
-  updateStatus(orderId: string, next: OrderStatus, by: string): Promise<AdminOrder>
-  setRealWeights(orderId: string, weights: RealWeightInput[], by: string): Promise<AdminOrder>
-  cancel(orderId: string, reason: string, by: string): Promise<AdminOrder>
+  /**
+   * `expectedVersion` (control optimista del servidor) lo exige el repository real; el demo lo ignora.
+   * `by` solo lo usa el demo: el servidor deriva el actor de la sesión.
+   */
+  updateStatus(orderId: string, next: OrderStatus, by: string, expectedVersion?: number): Promise<AdminOrder>
+  setRealWeights(orderId: string, weights: RealWeightInput[], by: string, expectedVersion?: number): Promise<AdminOrder>
+  cancel(orderId: string, reason: string, by: string, expectedVersion?: number): Promise<AdminOrder>
 }
 
 function readAll(): Record<string, AdminOrder> {

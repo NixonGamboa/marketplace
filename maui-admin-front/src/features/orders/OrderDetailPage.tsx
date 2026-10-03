@@ -8,7 +8,9 @@ import { ArrowLeft } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
 import { isCancelled as isOrderCancelled, isTerminal, type AdminOrder } from '@/types/adminOrder'
 import type { Product } from '@/types/catalog'
-import { orderRepo, catalogRepo } from '@/services'
+import { isDemoMode, orderRepo, catalogRepo } from '@/services'
+import { errorMessage, isConflict, isNotFound } from '@/lib/errorMessage'
+import { RealOrderReceipt } from '@/components/orders/RealOrderReceipt'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
 import { Spinner } from '@/ui/Spinner'
@@ -17,6 +19,7 @@ import { Tabs } from '@/ui/Tabs'
 import { StatusBadge } from './StatusBadge'
 import { CustomerContactBar } from './CustomerContactBar'
 import { PickingListView } from './PickingListView'
+import { ItemChangesPanel } from './ItemChangesPanel'
 
 // ---------------------------------------------------------------------------
 // State-machine de transiciones
@@ -60,10 +63,13 @@ const currencyFormatter = new Intl.NumberFormat('es-CO', {
 interface CancelSectionProps {
   orderId: string
   by: string
+  /** Versión que el usuario está viendo: el servidor rechaza (409) si otro cambio ganó. */
+  version: number | undefined
   onCancelled(order: AdminOrder): void
+  onConflict(): void
 }
 
-function CancelSection({ orderId, by, onCancelled }: CancelSectionProps) {
+function CancelSection({ orderId, by, version, onCancelled, onConflict }: CancelSectionProps) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -74,12 +80,16 @@ function CancelSection({ orderId, by, onCancelled }: CancelSectionProps) {
     if (!valid) return
     setBusy(true)
     try {
-      const updated = await orderRepo.cancel(orderId, reason, by)
+      const updated = await orderRepo.cancel(orderId, reason, by, version)
       onCancelled(updated as AdminOrder)
       toast.success('Pedido cancelado')
       setOpen(false)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al cancelar')
+      toast.error(errorMessage(err, 'Error al cancelar'))
+      if (isConflict(err)) {
+        setOpen(false)
+        onConflict()
+      }
     } finally {
       setBusy(false)
     }
@@ -136,7 +146,7 @@ function CancelSection({ orderId, by, onCancelled }: CancelSectionProps) {
 // OrderDetailPage
 // ---------------------------------------------------------------------------
 
-type DetailTab = 'detail' | 'picking'
+type DetailTab = 'detail' | 'picking' | 'receipt'
 
 export function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
@@ -146,10 +156,13 @@ export function OrderDetailPage() {
   const [order, setOrder] = useState<AdminOrder | null>(null)
   const [productNames, setProductNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<{ notFound: boolean; message: string } | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
   const [activeTab, setActiveTab] = useState<DetailTab>('detail')
   // Pesos locales: id → kilos
   const [localWeights, setLocalWeights] = useState<Record<string, number>>({})
   const [advanceBusy, setAdvanceBusy] = useState(false)
+  const [weightsBusy, setWeightsBusy] = useState(false)
 
   const by = session?.user.email ?? 'demo'
 
@@ -158,14 +171,16 @@ export function OrderDetailPage() {
     if (!orderId) return
     let cancelled = false
     setLoading(true)
+    setLoadError(null)
 
     orderRepo.getById(orderId)
       .then(async (o) => {
         if (cancelled) return
         setOrder(o as AdminOrder)
 
-        // Resolución de nombres en paralelo
-        const ids = [...new Set(o.items.map((i) => i.id))]
+        // Los pedidos del servidor traen el nombre como snapshot; el catálogo solo resuelve los que no lo traen (demo).
+        const ids = [...new Set(o.items.filter((i) => !i.name).map((i) => i.id))]
+        if (ids.length === 0) return
         const products = await Promise.all(ids.map((id) => catalogRepo.getProduct(id)))
         if (cancelled) return
         const names: Record<string, string> = {}
@@ -174,15 +189,21 @@ export function OrderDetailPage() {
         })
         setProductNames(names)
       })
-      .catch(() => {
-        if (!cancelled) toast.error('No se pudo cargar el pedido')
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setOrder(null)
+        setLoadError({ notFound: isNotFound(err), message: errorMessage(err, 'No se pudo cargar el pedido') })
+        toast.error('No se pudo cargar el pedido')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
 
     return () => { cancelled = true }
-  }, [orderId, toast])
+  }, [orderId, toast, reloadToken])
+
+  // Un 409 significa que otro cambio ganó: se recarga el pedido vigente (los pesos sin guardar se descartan).
+  const reloadOrder = useCallback(() => setReloadToken((value) => value + 1), [])
 
   // Inicializar pesos locales al cargar el pedido
   useEffect(() => {
@@ -204,29 +225,58 @@ export function OrderDetailPage() {
   const allWeightsSet = variableItems.length === 0
     || variableItems.every((i) => (localWeights[i.id] ?? 0) > 0)
 
-  async function handleAdvance() {
-    if (!order) return
-    const next = TRANSITIONS[order.status]
-    if (!next) return
+  /** Pesos a enviar: el demo reescribe todos; el servidor solo recibe los que cambiaron (cada envío sube la versión). */
+  function weightsToSend(current: AdminOrder) {
+    return variableItems
+      .filter((i) => isDemoMode || localWeights[i.id] !== current.items.find((c) => c.id === i.id)?.kilosReal)
+      .map((i) => ({ itemId: i.id, kilos: localWeights[i.id] ?? 0 }))
+  }
 
+  async function handleSaveWeights() {
+    if (!order) return
+    const weights = weightsToSend(order)
+    if (weights.length === 0) return
+    setWeightsBusy(true)
+    try {
+      const updated = await orderRepo.setRealWeights(order.orderId, weights, by, order.version)
+      setOrder(updated as AdminOrder)
+      toast.success('Pesos guardados')
+    } catch (err) {
+      toast.error(errorMessage(err, 'No se pudieron guardar los pesos'))
+      if (isConflict(err)) reloadOrder()
+    } finally {
+      setWeightsBusy(false)
+    }
+  }
+
+  async function handleTransition(next: OrderStatus) {
+    if (!order) return
     setAdvanceBusy(true)
+    let current: AdminOrder = order
     try {
       // Si avanzamos a "ready" y hay items variables, guardar pesos primero
       if (order.status === 'preparing' && variableItems.length > 0) {
-        const weights = variableItems.map((i) => ({
-          itemId: i.id,
-          kilos: localWeights[i.id] ?? 0,
-        }))
-        await orderRepo.setRealWeights(order.orderId, weights, by)
+        const weights = weightsToSend(order)
+        if (weights.length > 0) {
+          const weighed = await orderRepo.setRealWeights(order.orderId, weights, by, order.version)
+          current = (weighed ?? order) as AdminOrder
+          setOrder(current)
+        }
       }
-      const updated = await orderRepo.updateStatus(order.orderId, next, by)
+      const updated = await orderRepo.updateStatus(order.orderId, next, by, current.version)
       setOrder(updated as AdminOrder)
       toast.success(`Estado cambiado a ${next}`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al actualizar estado')
+      toast.error(errorMessage(err, 'Error al actualizar estado'))
+      if (isConflict(err)) reloadOrder()
     } finally {
       setAdvanceBusy(false)
     }
+  }
+
+  function handleAdvance() {
+    const next = order ? TRANSITIONS[order.status] : undefined
+    if (next) void handleTransition(next)
   }
 
   if (loading) {
@@ -238,9 +288,21 @@ export function OrderDetailPage() {
   }
 
   if (!order) {
+    const retryable = loadError !== null && !loadError.notFound
     return (
       <div className="py-16 text-center">
-        <p className="text-gray-600 mb-4">Pedido no encontrado.</p>
+        <p role={retryable ? 'alert' : undefined} className="text-gray-600 mb-4">
+          {retryable ? loadError.message : 'Pedido no encontrado.'}
+        </p>
+        {retryable && (
+          <button
+            type="button"
+            onClick={reloadOrder}
+            className="mb-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition"
+          >
+            Reintentar
+          </button>
+        )}
         <Link to="/pedidos" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
           ← Volver a pedidos
         </Link>
@@ -258,9 +320,17 @@ export function OrderDetailPage() {
   const isPreparingWithVariables = order.status === 'preparing' && variableItems.length > 0
   const canAdvance = !isCancelled && !!nextStatus && (!isPreparingWithVariables || allWeightsSet)
 
+  const weightsEditable = isDemoMode ? !isCancelled && order.status !== 'delivered' : order.status === 'preparing'
+  const canMarkInDelivery = !isDemoMode && order.status === 'ready' && order.deliveryType === 'delivery'
+  const pendingWeights = !isDemoMode && order.status === 'preparing' && weightsToSend(order).length > 0
+  const itemNames: Record<string, string> = Object.fromEntries(
+    order.items.map((item) => [item.id, item.name ?? productNames[item.id] ?? item.id]),
+  )
+  const removedOriginals = (order.originalItems ?? []).filter((original) => !order.items.some((item) => item.id === original.id))
+
   const resolvedItems = order.items.map((item) => ({
     id: item.id,
-    name: productNames[item.id] ?? item.id,
+    name: itemNames[item.id],
     qty: item.qty,
     isVariable: Boolean(item.is_variable_weight),
     kilosRequested: item.kilosRequested,
@@ -271,6 +341,7 @@ export function OrderDetailPage() {
   const tabItems = [
     { value: 'detail', label: 'Detalle' },
     { value: 'picking', label: 'Lista de picking' },
+    ...(isDemoMode ? [] : [{ value: 'receipt', label: 'Comprobante' }]),
   ]
 
   return (
@@ -361,7 +432,12 @@ export function OrderDetailPage() {
                 {resolvedItems.map((item) => (
                   <li key={item.id} className="py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-sm text-gray-800 font-medium">{item.name}</span>
+                      <span className="text-sm text-gray-800 font-medium">
+                        {item.name}
+                        {order.items.find((candidate) => candidate.id === item.id)?.substitutedFor && (
+                          <span className="ml-2 text-xs font-normal text-indigo-700">Sustituto</span>
+                        )}
+                      </span>
                       <span className="text-sm text-gray-600 shrink-0">
                         {item.isVariable
                           ? `${currencyFormatter.format(item.priceAtMoment)}/kg`
@@ -378,7 +454,7 @@ export function OrderDetailPage() {
                           value={item.kilosReal ?? null}
                           suggested={item.kilosRequested}
                           onChange={(kg) => handleWeightChange(item.id, kg)}
-                          disabled={isCancelled || order.status === 'delivered'}
+                          disabled={!weightsEditable}
                         />
                         {(item.kilosReal ?? 0) > 0 && (
                           <p className="text-xs text-gray-500 mt-1">
@@ -390,6 +466,12 @@ export function OrderDetailPage() {
                   </li>
                 ))}
               </ul>
+              {removedOriginals.length > 0 && (
+                <p className="mt-3 text-xs text-gray-500">
+                  Quitado o sustituido respecto al pedido original:{' '}
+                  {removedOriginals.map((original) => original.name ?? original.id).join(', ')}
+                </p>
+              )}
               <p className="mt-3 text-right font-semibold text-gray-900">
                 {order.finalTotal != null ? 'Total final' : 'Total estimado'}: {currencyFormatter.format(order.finalTotal ?? order.estimatedTotal)}
               </p>
@@ -418,16 +500,53 @@ export function OrderDetailPage() {
                       {advanceBusy ? 'Guardando...' : TRANSITION_LABELS[order.status]}
                     </button>
                   )}
+                  {pendingWeights && (
+                    <button
+                      type="button"
+                      onClick={handleSaveWeights}
+                      disabled={weightsBusy || advanceBusy}
+                      className="px-4 py-2 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 text-sm font-medium rounded-lg transition"
+                    >
+                      {weightsBusy ? 'Guardando pesos...' : 'Guardar pesos'}
+                    </button>
+                  )}
+                  {canMarkInDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => void handleTransition('in_delivery')}
+                      disabled={advanceBusy}
+                      className="px-4 py-2 border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50 text-sm font-medium rounded-lg transition"
+                    >
+                      Marcar en camino
+                    </button>
+                  )}
                   {canCancel && (
                     <CancelSection
                       orderId={order.orderId}
                       by={by}
+                      version={order.version}
                       onCancelled={setOrder}
+                      onConflict={reloadOrder}
                     />
                   )}
                 </div>
               </section>
             )}
+
+            {!isDemoMode && !isCancelled && order.status === 'preparing' && (
+              <ItemChangesPanel
+                order={order}
+                names={itemNames}
+                onApplied={setOrder}
+                onConflict={reloadOrder}
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'receipt' && !isDemoMode && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <RealOrderReceipt key={`${order.orderId}-${order.version ?? 0}`} orderId={order.orderId} />
           </div>
         )}
 

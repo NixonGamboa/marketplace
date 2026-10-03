@@ -1,5 +1,6 @@
 import { staffProductDtoSchema, type StaffProductDto } from '../../../shared/contracts/catalog'
 import { PRODUCT_IMAGE_LIMITS } from '../../../shared/contracts/media'
+import { notifySessionExpired } from './http/sessionExpiry'
 
 const base64Of = (file: File): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader()
@@ -23,6 +24,7 @@ export async function uploadProductImageFile(id: string, version: number, file: 
       body: JSON.stringify({ imageBase64: await base64Of(file) }),
     })
     if (!response.ok) {
+      if (response.status === 401) notifySessionExpired()
       const messages: Record<number, string> = {
         400: 'Imagen inválida. Usa JPEG, PNG o WebP de hasta 3 MiB.',
         401: 'Tu sesión expiró. Vuelve a iniciar sesión.',
