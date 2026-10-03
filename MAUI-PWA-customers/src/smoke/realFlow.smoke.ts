@@ -231,9 +231,17 @@ describe.skipIf(!enabled)('flujo real de cliente', () => {
     const received = await mine.orders.listPage({ status: 'received', limit: 100 })
     expect(received.items.every((order) => order.status === 'received')).toBe(true)
 
-    const today = new Date().toISOString().slice(0, 10)
-    const day = await mine.orders.listPage({ from: today, to: today, limit: 100 })
-    expect(day.items.some((order) => order.orderId === state.orderId)).toBe(true)
+    const persisted = await mine.orders.getById(state.orderId!)
+    const createdAt = Date.parse(persisted.createdAt)
+    const from = new Date(createdAt - 1_000).toISOString()
+    const to = new Date(createdAt + 1_000).toISOString()
+    const window = await mine.orders.listPage({ q: state.orderId!, from, to, limit: 100 })
+    expect(window.items.some((order) => order.orderId === state.orderId)).toBe(true)
+    // El contrato incluye from y excluye to: el instante de creación como to queda fuera.
+    const beforeCreation = await mine.orders.listPage({
+      q: state.orderId!, from, to: new Date(createdAt).toISOString(), limit: 100,
+    })
+    expect(beforeCreation.items.some((order) => order.orderId === state.orderId)).toBe(false)
 
     const pagedA = await mine.orders.listPage({ limit: 1 })
     if (pagedA.nextCursor !== null) {
