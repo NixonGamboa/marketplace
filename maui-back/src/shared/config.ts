@@ -37,17 +37,18 @@ function databaseHost(host: string): string {
     : normalized
 }
 
-function declaredHost(value: string | undefined, key: string): string {
+export function declaredHost(value: string | undefined, key: string): string {
   if (!value || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.?$/i.test(value)) reject(key)
   return databaseHost(value)
 }
 
-function declaredDatabase(value: string | undefined, key: string): string {
+export function declaredDatabase(value: string | undefined, key: string): string {
   if (!value || value.trim() !== value || /[\/\u0000]/.test(value)) reject(key)
   return value
 }
 
-function databaseTarget(value: string | undefined): { host: string; database: string } {
+/** Destino normalizado (host sin pooler y base) de una URL de conexión, sin exponer credenciales. */
+export function databaseTarget(value: string | undefined): { host: string; database: string } {
   if (!value) reject('DATABASE_URL_REQUIRED')
   try {
     const url = new URL(value)
