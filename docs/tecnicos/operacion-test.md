@@ -32,8 +32,8 @@ El cliente emite `client_api_error` saneado (cliente, endpoint con IDs sustituid
 kind, status, requestId y duración). Cancelaciones voluntarias no generan ruido. El callback
 `onError` permite inspección controlada y el default escribe JSON en consola; un fallo del
 callback no cambia el resultado de la petición. No se envían logs del navegador a un servicio
-nuevo. La aplicación PWA debe incorporar el mismo cambio después de T-20; esa integración
-y el smoke de Preview son parte de la evidencia pendiente del bloque.
+nuevo. PWA y admin incorporan esta correlación en su cliente HTTP; el smoke de Preview
+identificado sigue siendo parte del cierre del bloque.
 
 ## Backup cifrado y catálogo público
 
