@@ -1,6 +1,6 @@
-import heroParque from './hero-parque.png'
-import heroSupermercadoAbarrotes from './hero-supermercado-abarrotes.png'
-import heroAlianza from './alianza.png'
+import heroParque from './hero-parque.webp'
+import heroSupermercadoAbarrotes from './hero-supermercado-abarrotes.webp'
+import heroAlianza from './alianza.webp'
 
 export { heroParque, heroSupermercadoAbarrotes, heroAlianza }
 

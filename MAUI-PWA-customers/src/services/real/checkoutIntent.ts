@@ -2,6 +2,8 @@
 // La misma huella (mismo pedido) reutiliza la clave aunque la página se recargue tras un timeout;
 // un pedido distinto genera una clave nueva. Sin esto, un reintento tras timeout podría duplicar el pedido.
 
+import { ApiError } from '../http/apiError'
+
 export interface StoredIntent {
   fingerprint: string
   key: string
@@ -62,7 +64,7 @@ const randomKey = (): string => `maui-${globalThis.crypto.randomUUID()}`
 
 export interface CheckoutIntents {
   /** Clave de la intención de este pedido: la pendiente si la huella coincide; si no, una nueva. */
-  keyFor(fingerprint: string): string
+  keyFor(fingerprint: string): Promise<string>
   /** La intención terminó (confirmada o rechazada de forma definitiva): la próxima será nueva. */
   settle(): void
 }
@@ -72,18 +74,43 @@ export const createCheckoutIntents = (
   newKey: () => string = randomKey,
 ): CheckoutIntents => {
   let memory: StoredIntent | null = null
+  let generation = 0
+  const digest = async (value: string): Promise<string> => {
+    if (!globalThis.crypto?.subtle) throw new ApiError({ kind: 'unavailable', message: 'La compra requiere una conexión segura (HTTPS).' })
+    const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+    return `sha256:${Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+  }
+  const stored = storage.read()
+  // La versión anterior guardaba el JSON del pedido. Retirarlo de inmediato, conservando su clave
+  // mientras se migra la huella: un timeout anterior no debe convertirse en otro pedido.
+  const legacyMarker = 'legacy-key-only'
+  const legacy = stored !== null && stored.fingerprint !== legacyMarker && !/^sha256:[a-f0-9]{64}$/.test(stored.fingerprint)
+  // Una recarga durante el digest conserva solo la clave, nunca el JSON. El servidor comprobará
+  // esa clave también si se intenta otro pedido: responderá conflicto en lugar de duplicar.
+  if (legacy) storage.write({ fingerprint: legacyMarker, key: stored.key })
+  const initialized = (async () => {
+    if (stored === null) return
+    const fingerprint = legacy ? await digest(stored.fingerprint) : stored.fingerprint
+    if (generation !== 0) return
+    memory = { fingerprint, key: stored.key }
+    if (legacy) storage.write(memory)
+  })().catch(() => { if (generation === 0 && stored) memory = { fingerprint: legacyMarker, key: stored.key } })
   return {
-    keyFor(fingerprint) {
+    async keyFor(rawFingerprint) {
+      await initialized
+      const fingerprint = await digest(rawFingerprint)
       const pending = memory ?? storage.read()
-      if (pending?.fingerprint === fingerprint) {
-        memory = pending
-        return pending.key
+      if (pending?.fingerprint === fingerprint || pending?.fingerprint === legacyMarker) {
+        memory = { fingerprint, key: pending.key }
+        storage.write(memory)
+        return memory.key
       }
       memory = { fingerprint, key: newKey() }
       storage.write(memory)
       return memory.key
     },
     settle() {
+      generation += 1
       memory = null
       storage.clear()
     },

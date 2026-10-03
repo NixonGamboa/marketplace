@@ -11,7 +11,7 @@ import { ApiError } from '@/services/http/apiError'
 const getCatalog = vi.hoisted(() => vi.fn())
 vi.mock('@/services/realCatalogService', () => ({ realCatalogService: { getCatalog, getStore: vi.fn() } }))
 
-import { useBusinessCategoryGroups, useCategories, useFeaturedProducts, useProducts } from './useCatalog'
+import { useBusinessCategoryGroups, useCatalogCachedAt, useCategories, useFeaturedProducts, useProducts } from './useCatalog'
 
 const product = (id: string, inStock = true) => ({
   id, name: id, price: 1000, unit: '1 u', imageUrl: '/x.png', categoryId: 'cat-a', inStock, is_variable_weight: false, currency: 'COP' as const,
@@ -44,6 +44,21 @@ describe('hooks de catálogo (modo real, servicio simulado)', () => {
     const { result } = renderHook(() => useProducts(), { wrapper: wrapper() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.data).toBeUndefined()
+  })
+
+  it('expone la antigüedad de la copia guardada por el service worker y la limpia al llegar datos frescos', async () => {
+    getCatalog
+      .mockImplementationOnce(async (options: { onServedFromCache?: (cachedAt: number) => void }) => {
+        options.onServedFromCache?.(1_790_000_000_000)
+        return catalog()
+      })
+      .mockResolvedValueOnce(catalog())
+    const { result } = renderHook(() => ({ products: useProducts(), cachedAt: useCatalogCachedAt() }), { wrapper: wrapper() })
+    await waitFor(() => expect(result.current.cachedAt).toBe(1_790_000_000_000))
+    expect(result.current.products.data).toHaveLength(6)
+
+    await result.current.products.refetch()
+    await waitFor(() => expect(result.current.cachedAt).toBeNull())
   })
 
   it('un refetch refleja cambios del backend (disponibilidad) en los destacados', async () => {
