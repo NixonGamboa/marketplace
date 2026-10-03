@@ -105,6 +105,8 @@ describe('OrderDetailPage (modo real, repositories simulados)', () => {
     mocks.updateStatus.mockResolvedValue({ ...weighed, status: 'ready', version: 5 })
     renderPage()
     await screen.findByRole('heading', { name: 'ord-1' })
+    // Los pesos locales se inicializan en un efecto posterior al primer render: el botón se habilita después.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Marcar como listo' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Marcar como listo' }))
     await waitFor(() => expect(mocks.updateStatus).toHaveBeenCalledWith('ord-1', 'ready', 'operador@maui.test', 4))
     expect(mocks.setRealWeights).not.toHaveBeenCalled()
