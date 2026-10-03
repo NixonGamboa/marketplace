@@ -1,6 +1,6 @@
 # Ambiente de test — preparación de entrega T-24
 
-Preparación técnica completa y validada el 2026-10-03. Las credenciales quedan reservadas por instrucción del usuario; no se entregan ni se publican en este documento. No se promueve Production.
+Entrega técnica completa y validada el 2026-10-03. Versión certificable congelada para la prueba del usuario. Las credenciales se entregan exclusivamente en un archivo local ignorado por Git; no se publican en este documento ni en PRs. No se promueve Production.
 
 ## Acceso y versión comprobada
 
@@ -9,6 +9,7 @@ Preparación técnica completa y validada el 2026-10-03. Las credenciales quedan
 | URL estable | [Abrir ambiente de test](https://marketplace-git-develop-infogamboatech-2785.vercel.app) |
 | PWA / admin / API | `/` · `/admin/` · `/api/` |
 | Código probado | `89a588a79f567949e077a5569f80d8350fa78233` |
+| Tag certificable | [`mvp-v1.0.0`](https://github.com/NixonGamboa/marketplace/tree/mvp-v1.0.0), publicado sobre el código probado |
 | Deployment probado | `dpl_AFEAUeW8k3mfzyxKqSNNvyk1GF2P` |
 | Build | `real`, generado 2026-10-03T15:23:52.235Z |
 | E2E finalizado | 2026-10-03T15:38:12.767Z |
@@ -17,6 +18,8 @@ Preparación técnica completa y validada el 2026-10-03. Las credenciales quedan
 | Protección | Vercel Deployment Protection activa |
 
 Consultar `/build-info.json` para el SHA actual. Un commit posterior de documentación cambia esa identificación sin cambiar el código probado; la integración documental exige CI verde y verificación de equivalencia del código. Acceso humano mediante la cuenta autorizada de Vercel; bypass de automatización restringido al host de test y mantenido en privado.
+
+Mientras el usuario prueba, no se fusiona código de aplicación a `develop`. Solo se incorporan cambios documentales sin modificar runtime, build, dependencias ni configuración. Cada defecto reportado se corrige en un PR independiente, requiere CI verde y una nueva corrida E2E completa contra API/Postgres reales, y se publica con el siguiente tag de parche (`mvp-v1.0.1`, `mvp-v1.0.2`, etc.). El tag `mvp-v1.0.0` no se mueve ni se sobrescribe. No se ejecutan resets ni seeds durante la prueba del usuario sin coordinar el momento, para conservar sus datos de prueba.
 
 ## Setup y configuración
 
@@ -102,11 +105,11 @@ node scripts/e2e-run.mjs full
 
 ## Límites y siguiente paso
 
-- Credenciales de test reservadas; su entrega por canal privado queda fuera de este encargo.
+- Credenciales de owner, operator y cliente entregadas en un archivo local ignorado por Git. La fuente privada `SEED_*` se conserva para futuros resets y seeds; ningún secreto forma parte del tag, de este documento o de los PRs.
 - El contacto usa enlaces `wa.me`; se verifica destino/texto sin enviar mensajes ni simular notificaciones automáticas.
 - 429/503 y timeout son fallos de transporte controlados; no acreditan una caída real de Postgres.
-- Cancelación del cliente sigue denegada; el personal autorizado sí puede cancelar. Cobertura limitada al casco urbano de Dolores, sin geocerca.
+- Cancelación del cliente: pendiente de decisión del usuario; sigue denegada y no se cambia sin respuesta. El personal autorizado sí puede cancelar. Cobertura limitada al casco urbano de Dolores, sin geocerca.
 - El campo de precio del admin puede pulirse al recibir foco; la interacción de teclado pasó. La caché offline no incluye imágenes Blob de otro origen. La medición de shell en 3G no mide la carga completa del catálogo.
 - Sin acuerdos, pruebas humanas, entrenamiento ni lanzamiento comercial. Production y sus datos/variables permanecen fuera del alcance.
 
-El siguiente paso es entregar acceso de test por canal privado cuando el usuario lo solicite. La evolución E-01 a E-08 se inicia solo con un nuevo encargo.
+El siguiente paso es la prueba del usuario sobre la versión certificable. Los defectos siguen el proceso de parches indicado arriba. La evolución E-01 a E-08 se inicia solo con un nuevo encargo.
