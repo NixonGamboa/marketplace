@@ -54,13 +54,13 @@ describe('caché de ejecución', () => {
   })
 
   describe('catálogo público', () => {
-    it('responde desde la red, la guarda sin credenciales y con una copia mínima', async () => {
+    it('conserva protección del mismo origen y guarda solo una copia pública mínima', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ products: [] }, { 'x-request-id': 'abc' }))
       const response = await handlePublicCatalog(CATALOG_KEY, 'application/json', ctx)
       await settle()
 
       expect(await response.json()).toEqual({ products: [] })
-      expect(fetchMock).toHaveBeenCalledWith(CATALOG_KEY, expect.objectContaining({ method: 'GET', credentials: 'omit', cache: 'no-store' }))
+      expect(fetchMock).toHaveBeenCalledWith(CATALOG_KEY, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
       const stored = caches.stores.get(PUBLIC_CATALOG_CACHE)!.get(CATALOG_KEY)!
       expect([...stored.headers.keys()].sort()).toEqual(['content-type', 'x-maui-cached-at'])
       expect(stored.headers.get('x-maui-cached-at')).toBe(String(NOW))
@@ -136,6 +136,19 @@ describe('caché de ejecución', () => {
       expect(caches.stores.get(PUBLIC_CATALOG_CACHE)!.size).toBe(0)
     })
 
+    it('guarda la respuesta pública real del backend (no-cache + Vary: Origin) y rechaza la restrictiva', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ v: 1 }, { 'cache-control': 'no-cache', pragma: 'no-cache', vary: 'Origin' }))
+      await handlePublicCatalog(CATALOG_KEY, null, ctx)
+      await settle()
+      expect(caches.stores.get(PUBLIC_CATALOG_CACHE)!.size).toBe(1)
+
+      caches.stores.get(PUBLIC_CATALOG_CACHE)!.clear()
+      fetchMock.mockResolvedValueOnce(jsonResponse({ v: 1 }, { 'cache-control': 'no-store, no-cache, max-age=0, must-revalidate', vary: 'Cookie, Origin' }))
+      await handlePublicCatalog(CATALOG_KEY, null, ctx)
+      await settle()
+      expect(caches.stores.get(PUBLIC_CATALOG_CACHE)!.size).toBe(0)
+    })
+
     it('no guarda errores ni respuestas que no sean 200', async () => {
       fetchMock.mockResolvedValueOnce(basic('{}', { status: 500, headers: { 'content-type': 'application/json' } }))
       await handlePublicCatalog(CATALOG_KEY, null, ctx)
@@ -169,7 +182,7 @@ describe('caché de ejecución', () => {
       const second = await handleStaticImage(IMAGE_KEY, ctx)
       expect(await second.text()).toBe('img')
       expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(fetchMock).toHaveBeenCalledWith(IMAGE_KEY, expect.objectContaining({ credentials: 'omit' }))
+      expect(fetchMock).toHaveBeenCalledWith(IMAGE_KEY, { method: 'GET', credentials: 'same-origin' })
     })
 
     it('no guarda respuestas no válidas ni demasiado grandes', async () => {

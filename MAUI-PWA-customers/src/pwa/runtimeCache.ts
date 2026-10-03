@@ -68,7 +68,9 @@ const timeoutAfter = (ms: number): { promise: Promise<null>; cancel(): void } =>
 
 /**
  * Catálogo público: red primero y copia guardada como respaldo (sin red, 5xx o red lenta).
- * La petición a la red se rehace sin credenciales: la respuesta no puede depender de la sesión, y
+ * Solo se consultan rutas públicas del mismo origen. Conservar sus cookies permite la protección
+ * del Preview; no reenviar Authorization ni cabeceras del llamador. La respuesta pública no depende
+ * de la sesión, rechaza señales privadas antes de almacenarse y
  * lo que se guarda es una copia mínima (cuerpo + tipo), nunca las cabeceras del servidor.
  */
 export const handlePublicCatalog = async (key: string, accept: string | null, ctx: RuntimeCacheContext): Promise<Response> => {
@@ -77,7 +79,7 @@ export const handlePublicCatalog = async (key: string, accept: string | null, ct
 
   const network = ctx.fetch(key, {
     method: 'GET',
-    credentials: 'omit',
+    credentials: 'same-origin',
     cache: 'no-store',
     headers: { Accept: accept ?? 'application/json' },
   }).then((response) => {
@@ -103,7 +105,7 @@ export const handleStaticImage = async (key: string, ctx: RuntimeCacheContext): 
   const cache = await ctx.caches.open(STATIC_IMAGE_CACHE)
   const cached = await readFresh(cache, key, STATIC_IMAGE_LIMITS, ctx.now())
   if (cached) return cached
-  const response = await ctx.fetch(key, { method: 'GET', credentials: 'omit' })
+  const response = await ctx.fetch(key, { method: 'GET', credentials: 'same-origin' })
   if (isStorableImageResponse(response)) {
     ctx.waitUntil(storeCopy(cache, key, response.clone(), STATIC_IMAGE_LIMITS, ctx).catch(() => undefined))
   }

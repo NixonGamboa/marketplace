@@ -97,7 +97,8 @@ const createNetwork = () => {
     if (network.mode === 'hang') return new Promise((_, reject) => setTimeout(() => reject(new TypeError('timeout')), 100))
     if (network.mode === 'error') return asBasic(new Response('{}', { status: 503, headers: { 'content-type': 'application/json' } }))
     if (url.pathname.startsWith('/api/')) {
-      const headers = { 'content-type': 'application/json', ...network.headers }
+      // Cabeceras reales de GET /api/catalog público (api/catalog.ts), sobrescribibles por escenario.
+      const headers = { 'content-type': 'application/json', 'cache-control': 'no-cache', pragma: 'no-cache', vary: 'Origin', ...network.headers }
       return asBasic(new Response(JSON.stringify({ path: url.pathname }), { status: 200, headers }))
     }
     const file = join(DIST, url.pathname === '/' ? 'index.html' : url.pathname)
@@ -279,7 +280,7 @@ check(network.log.length === 0, 'El worker hizo peticiones de red por rutas priv
 // Catálogo público: red primero, copia como respaldo, límites de TTL y entradas.
 const fromNetwork = await worker.fetchEvent({ url: '/api/catalog', headers: { Accept: 'application/json' } })
 check(fromNetwork.intercepted && fromNetwork.response.status === 200 && !fromNetwork.response.headers.has('x-maui-served-from-cache'), 'GET /api/catalog con red debe responder 200 desde la red')
-check(network.log.at(-1)?.credentials === 'omit', 'El worker debe pedir el catálogo público sin credenciales (sin sesión)')
+check(network.log.at(-1)?.credentials === 'same-origin', 'El catálogo conserva únicamente credenciales del mismo origen para la protección del Preview')
 const catalogStore = caches.stores.get(CATALOG_CACHE)
 check(catalogStore?.size === 1, 'La respuesta del catálogo público debe guardarse (1 entrada)')
 const storedCatalog = [...(catalogStore?.values() ?? [])][0]

@@ -93,6 +93,13 @@ describe('respuestas guardables', () => {
     expect(isStorablePublicResponse(json(headers))).toBe(false)
   })
 
+  it('con las cabeceras reales del backend: el catálogo público revalidable sí, la operación privada no', () => {
+    // GET público (api/catalog.ts): `Cache-Control: no-cache`, `Vary: Origin` y el `Pragma` heredado.
+    expect(isStorablePublicResponse(json({ 'cache-control': 'no-cache', pragma: 'no-cache', vary: 'Origin' }))).toBe(true)
+    // Cualquier otra operación (staff, errores, mutaciones) conserva el juego restrictivo de prepareAuthResponse.
+    expect(isStorablePublicResponse(json({ 'cache-control': 'no-store, no-cache, max-age=0, must-revalidate', pragma: 'no-cache', vary: 'Cookie, Origin' }))).toBe(false)
+  })
+
   it('las imágenes deben ser image/* básicas y no superar el máximo', () => {
     const image = (headers: HeadersInit) => basic('x', { status: 200, headers })
     expect(isStorableImageResponse(image({ 'content-type': 'image/webp', 'content-length': '1000' }))).toBe(true)
