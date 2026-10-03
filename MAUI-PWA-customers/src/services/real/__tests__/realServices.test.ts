@@ -21,6 +21,29 @@ import {
 
 const rejection = async (promise: Promise<unknown>): Promise<unknown> => promise.then(() => undefined, (error: unknown) => error)
 
+describe('catálogo real: copia del service worker', () => {
+  const served = { 'X-Maui-Served-From-Cache': '1', 'X-Maui-Cached-At': '1790000000000' }
+
+  it('informa el instante de guardado solo si el worker respondió con su copia', async () => {
+    const onServedFromCache = vi.fn()
+    const { client } = clientWith(json(publicCatalog(), 200, served), json(publicCatalog()), json(publicCatalog(), 200, { 'X-Maui-Cached-At': '1790000000000' }))
+    const service = createRealCatalogService(client)
+    await service.getCatalog({ onServedFromCache })
+    expect(onServedFromCache).toHaveBeenCalledExactlyOnceWith(1790000000000)
+
+    onServedFromCache.mockClear()
+    await service.getCatalog({ onServedFromCache })
+    await service.getCatalog({ onServedFromCache })
+    expect(onServedFromCache).not.toHaveBeenCalled()
+  })
+
+  it('sigue funcionando sin observador y no cambia la petición (misma credencial, sin caché del navegador)', async () => {
+    const { client, fetchImpl } = clientWith(json(publicCatalog(), 200, served))
+    expect((await createRealCatalogService(client).getCatalog()).products).toHaveLength(2)
+    expect(requestAt(fetchImpl)).toMatchObject({ url: '/api/catalog', method: 'GET', credentials: 'same-origin', cache: 'no-store' })
+  })
+})
+
 describe('auth real de cliente', () => {
   it('registra con el esquema estricto, abre sesión y mapea el perfil sin tokens', async () => {
     const { client, fetchImpl } = clientWith(json(customerSession(), 201))

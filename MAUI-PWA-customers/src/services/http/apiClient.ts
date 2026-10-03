@@ -21,6 +21,8 @@ export interface ApiRequest<T> {
   schema?: ResponseSchema<T>
   signal?: AbortSignal
   timeoutMs?: number
+  /** Cabeceras de una respuesta exitosa, antes de leer el cuerpo (p. ej. para saber si salió de la caché del worker). */
+  onResponseHeaders?: (headers: Headers) => void
 }
 
 export interface ApiClientOptions {
@@ -116,6 +118,7 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
           ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
         })
         if (!response.ok) throw await apiErrorFromResponse(response)
+        request.onResponseHeaders?.(response.headers)
         return await readSuccessBody(response, request.schema)
       } catch (error) {
         if (error instanceof ApiError) {

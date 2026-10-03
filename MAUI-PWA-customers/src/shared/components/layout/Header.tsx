@@ -4,9 +4,9 @@ import { Tag, ShoppingBag, Heart, UserRound, type LucideIcon } from 'lucide-reac
 import Icon from '../../components/ui/Icon'
 import ThemeToggle from '../ui/ThemeToggle'
 import { useAuthStore } from '@/stores/authStore'
-import logoIsotipo from '@/assets/logo/isotipo.png'
-import logoLogotipo from '@/assets/logo/logotipo.png'
-import logoImagotipo from '@/assets/logo/imagotipo.png'
+import logoIsotipo from '@/assets/logo/isotipo.webp'
+import logoLogotipo from '@/assets/logo/logotipo.webp'
+import logoImagotipo from '@/assets/logo/imagotipo.webp'
 
 function getInitial(name: string) {
   const trimmed = name.trim()

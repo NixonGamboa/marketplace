@@ -8,7 +8,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { PASSWORD_LIMITS, ACCOUNT_NAME_MAX_LENGTH } from '@shared/contracts'
 import { useAuthStore } from '@/stores/authStore'
 import { authErrorMessage, type AuthMode } from '../authErrorMessage'
-import logoMaui from '@/assets/logo/imagotipo.png'
+import logoMaui from '@/assets/logo/imagotipo.webp'
 import type { AuthRedirectState } from '../RequireSession'
 
 /** Colombia: 10 dígitos, primer dígito 3 (celular). */
