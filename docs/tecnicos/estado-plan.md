@@ -35,7 +35,7 @@ Estos criterios rigen T-18/T-22/T-24. Si se solicita selección editorial o admi
 
 ## Prioridad 0 — Reconciliación completada
 
-Base funcional incorporada en develop: T-03a. Evidencia integrada y CI posterior: [PR #1](https://github.com/NixonGamboa/marketplace/pull/1). Las apps incorporan servicios reales en T-17/T-18; el build unificado conserva modo demo hasta T-23.
+Base funcional incorporada en develop: T-03a. Evidencia integrada y CI posterior: [PR #1](https://github.com/NixonGamboa/marketplace/pull/1). Las apps incorporan servicios reales en T-17/T-18; el build de entrega real está integrado en T-23; demo conserva un script aparte.
 
 La historia original está preservada en el tag remoto `archive/checkout-contacto-pesos-whatsapp-20261001`; ramas fusionadas, worktrees temporales y stash integrado retirados. Se conserva la entrega independiente `feature/ajustes-presentacion-leche-y-miel` (`b95a0f2`), pendiente de integración. Política única: [Gitflow](orquestacion-ia.md#gitflow-y-separación-de-entregas).
 
@@ -120,8 +120,8 @@ La historia original está preservada en el tag remoto `archive/checkout-contact
 | ID / prioridad | Implementación y estado | Depende de | Criterio de cierre |
 |---|---|---|---|
 | T-22 / P0 | E2E automatizado y fallos controlados — hecho: [PR #27](https://github.com/NixonGamboa/marketplace/pull/27), CI y Chrome/Preview/Postgres23/23 aprobados | T-03a, T-03b, T-15 a T-21 | Dos contextos independientes cliente/admin usando API y BD reales. Compra seed → recepción admin → pesos/sustitución → total final → entrega/cancelación → histórico/audit/comprobante. Incluir permisos/sesiones, cierre/agotado, manipulación de precios, doble submit, timeout tras persistir, 3G/offline y recuperación; comprobar destino/texto de enlaces sin enviar WhatsApp. Pruebas ejecutadas por herramientas/agentes, sin reclutar usuarios |
-| T-23 / P0 | Build real y despliegue de test — en curso: feature/build-real-test, builds real/demo aprobados; Preview/CI final pendientes | T-01, T-02, T-03a, T-03b, T-15, T-16, T-22 | Quitar `--mode demo` forzado del flujo de entrega unificado; ambas apps en servicios reales y API en mismo host. Desplegar versión identificable, aplicar migraciones y seed en recursos de test; comprobar fixtures/cuentas y rutas profundas. URL accesible al usuario con acceso adecuado al entorno; documentar configuración y modo de restaurar seed |
-| T-24 / P0 | Comprobar y entregar el ambiente de test — pendiente | T-23 | Repetir smoke/E2E contra la URL desplegada, no solo local; validar persistencia tras recarga/nueva sesión, edición catálogo visible en PWA, flujo completo, comprobante y enlaces de contacto. Entregar URL, versión, comandos de setup/seed/reset, acceso de cuentas de test por canal adecuado y resultados de pruebas. Cerrar sin gateway externo, acuerdos ni validaciones humanas |
+| T-23 / P0 | Build real y despliegue de test — hecho: [PR #31](https://github.com/NixonGamboa/marketplace/pull/31), CI y Preview real aprobados | T-01, T-02, T-03a, T-03b, T-15, T-16, T-22 | Quitar `--mode demo` forzado del flujo de entrega unificado; ambas apps en servicios reales y API en mismo host. Desplegar versión identificable, aplicar migraciones y seed en recursos de test; comprobar fixtures/cuentas y rutas profundas. URL accesible al usuario con acceso adecuado al entorno; documentar configuración y modo de restaurar seed |
+| T-24 / P0 | Comprobar y entregar el ambiente de test — preparación completa: [entrega técnica](entrega-test.md); URL real y E2E23/23, credenciales reservadas | T-23 | Repetir smoke/E2E contra la URL desplegada, no solo local; validar persistencia tras recarga/nueva sesión, edición catálogo visible en PWA, flujo completo, comprobante y enlaces de contacto. Entregar URL, versión, comandos de setup/seed/reset, acceso de cuentas de test por canal adecuado y resultados de pruebas. Cerrar sin gateway externo, acuerdos ni validaciones humanas |
 
 ### Evolución técnica posterior — separada del entregable de test
 
@@ -162,7 +162,7 @@ flowchart TD
 
 **Ruta crítica:** T-04/T-05 → T-06 → T-07/T-08 → T-10 → T-11/T-12 → T-16 → T-17/T-18 → T-19 → T-22 → T-23 → T-24. T-01/T-02 habilitan la infraestructura; T-09/T-13/T-14 y T-15/T-20/T-21 convergen antes de E2E/entrega. T-14 reutiliza contacto por enlaces y datos de pedido; no necesita credenciales WhatsApp. La mensajería automática solo se considera en E-07.
 
-T-01 a T-13 están cerrados en servidor y T-14 tiene servicios/componentes reales validados; sus PRs están en [Evidencia de bloques cerrados](#evidencia-de-bloques-cerrados). T-16/T-17/T-18 están incorporados y validados con API/Postgres real. T-19 completa seguimiento entre sesiones; T-15 y T-20/T-21 convergen antes de T-22/T-23/T-24.
+Los bloques T-01 a T-23 están incorporados y validados; sus PRs están en [Evidencia de bloques cerrados](#evidencia-de-bloques-cerrados). T-24 completa preparación y QA final con credenciales reservadas.
 
 ## Divergencias de partida y resolución del contrato (T-04)
 
@@ -187,13 +187,13 @@ La tabla conserva el diagnóstico previo al incremento `a577111`. DTOs, enums, p
 | Sesiones y autorización de pedidos consumidas por apps reales | T-05/T-06/T-17/T-18 | [PR #3](https://github.com/NixonGamboa/marketplace/pull/3); consumidores reales T-17/T-18 |
 | Autoridad de creación e idempotencia resueltas en servidor | T-10/T-12/T-18 | [PR #8](https://github.com/NixonGamboa/marketplace/pull/8); cliente real T-18 incorporado; transiciones atómicas [PR #18](https://github.com/NixonGamboa/marketplace/pull/18) |
 | Atomicidad de estados y catálogo hecha; regresión integral pendiente | T-12/T-15 | [PR #18](https://github.com/NixonGamboa/marketplace/pull/18); ampliar pruebas integrales en T-15 |
-| Apps conectadas; seguimiento entre dispositivos y build real pendientes | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
+| Apps conectadas; seguimiento y build real incorporados | T-17/T-18/T-19/T-23 | Flag por sí solo no conecta el sistema |
 | Seed servidor reproducible y reset acotado comprobados | T-15 | [PR #28](https://github.com/NixonGamboa/marketplace/pull/28) |
 | T-16 | [PR #24](https://github.com/NixonGamboa/marketplace/pull/24); fixtures consumidos por API real |
 | Upload de catálogo hecho en servidor; auth solo Preview/develop | T-09, T-17, E-08 | [PR #10](https://github.com/NixonGamboa/marketplace/pull/10), [cierre PR #11](https://github.com/NixonGamboa/marketplace/pull/11); UI real T-17, R2 en primera versión estable |
 | Contacto actual debe usar datos persistentes y teléfonos correctos | T-08/T-14/T-17/T-18 | `wa.me` existente es suficiente; no depende de Evolution API ni envío automatizado |
-| Gates automatizados en CI; E2E de negocio pendiente | T-22/T-23 | T-03b hecho: Actions ejecuta tipos explícitos, lint, tests y drift antes del build; no acredita el ciclo de negocio |
-| Integración Postgres y E2E de negocio incompletos | T-15/T-22/T-24 | Migración/lectura legacy y smoke reales comprobados; no sustituyen fixtures, permisos, idempotencia/concurrencia ni ciclo completo |
+| Gates automatizados y E2E de negocio aprobados | T-22/T-23 | T-03b hecho: Actions ejecuta tipos explícitos, lint, tests y drift antes del build; no acredita el ciclo de negocio |
+| Integración Postgres y E2E de negocio aprobados | T-15/T-22/T-24 | Migración/lectura legacy y smoke reales comprobados; no sustituyen fixtures, permisos, idempotencia/concurrencia ni ciclo completo |
 
 El hosting comercial y sus condiciones corresponden a una salida productiva posterior; no son un gate de este entregable de test. Mantener las restricciones registradas en el ADR y verificar que el uso efectivo y las cuotas del ambiente de test son compatibles, sin contratar ni cambiar de proveedor por anticipación.
 
@@ -236,9 +236,11 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 | T-20 | [PR #29](https://github.com/NixonGamboa/marketplace/pull/29) |
 | T-21 | [PR #30](https://github.com/NixonGamboa/marketplace/pull/30) |
 | T-22 | [PR #27](https://github.com/NixonGamboa/marketplace/pull/27) |
+| T-23 | [PR #31](https://github.com/NixonGamboa/marketplace/pull/31) |
+| T-24 (preparación) | [Documento de entrega](entrega-test.md) |
 | Publicador de reportes | [PR #6](https://github.com/NixonGamboa/marketplace/pull/6), [corrección PR #7](https://github.com/NixonGamboa/marketplace/pull/7) |
 
-**Límites vigentes:** servicios y UI reales incorporados en T-17/T-18; build unificado demo hasta T-23. Test tiene tienda/catálogo/cuentas/pedidos de seed reproducible T-16. Corte de entrega configurable; seed conserva la configuración existente de tienda. Catálogo completo y listado de pedidos con paginación del servidor. T-11 aplica autorización al listado en servidor; consumo real incorporado en T-17/T-18. Cancelación customer sigue denegada; la cancelación de personal, transiciones, pesos y atomicidad están hechos en servidor (T-12). No se añade límite IP con headers no verificados. T-12/T-14 solo se cierran contra API/Postgres reales.
+**Límites vigentes:** servicios y UI reales incorporados en T-17/T-18; build de entrega real T-23; demo en script aparte. Test tiene tienda/catálogo/cuentas/pedidos de seed reproducible T-16. Corte de entrega configurable; seed conserva la configuración existente de tienda. Catálogo completo y listado de pedidos con paginación del servidor. T-11 aplica autorización al listado en servidor; consumo real incorporado en T-17/T-18. Cancelación customer sigue denegada; la cancelación de personal, transiciones, pesos y atomicidad están hechos en servidor (T-12). No se añade límite IP con headers no verificados. T-12/T-14 solo se cierran contra API/Postgres reales.
 
 ## Seguimiento vigente
 
@@ -254,16 +256,20 @@ Los snapshots de creación contienen los datos personales del pedido; una anonim
 
 ### Auditoría posterior T-13 y cobertura T-15 — 2026-10-03
 
-[PR #28](https://github.com/NixonGamboa/marketplace/pull/28): revisión posterior Claude Sonnet/high, corrección de `currency` en auditoría y regresión; contratos serializados entre apps, migraciones y carreras CAS. Smoke contra Preview real/Neon: 5/5 escenarios, ocho peticiones por carrera y cuota 20/24; cleanup independiente preservó el pedido previo. El runner se corrige para cerrar sesiones también ante login parcial. Hallazgo de diagnóstico de auditoría pasa a T-21; el fallback opcional a actor system, orden temporal de commits y UI owner/API operator se conservan como límites conocidos, sin cambiar permisos.
+[PR #28](https://github.com/NixonGamboa/marketplace/pull/28). Revisión posterior Claude registrada como excepción autorizada. Límites aceptados de auditoría: actor system opcional, orden temporal de commits y lectura UI owner/API operator.
 
 ### Caché y privacidad T-20 — 2026-10-03
 
-[PR #29](https://github.com/NixonGamboa/marketplace/pull/29): revisión crítica cruzada Codex/Claude aprobada; headers de GET públicos separados de respuestas privadas y huella de intención SHA-256 sin datos personales. Chrome real contra Preview/Neon SHA6bfa17b:18/18, dos clientes sucesivos, caché pública efectiva, privado sin caché, offline con antigüedad, recuperación y API fuera de SPA; dos sesiones cerradas. Shell en3G2965ms (no equivale al tiempo de catálogo completo). CI local1164backend/270PWA/224admin ybuild aprobados; precache587,3KiB/SW22,2KiB. Avisos visuales preexistentes y Blob cross-origin sin caché quedan como límites; buildunificado real se completa en T-23.
+[PR #29](https://github.com/NixonGamboa/marketplace/pull/29). Shell3G no equivale a catálogo completo; Blob de otro origen queda sin caché offline.
 
 ### Observabilidad y recuperación T-21 — 2026-10-03
 
-[PR #30](https://github.com/NixonGamboa/marketplace/pull/30): implementación Codex, revisión cruzada Claude Sonnet/high y corrección del observador aislado para no alterar un pedido confirmado. PWA/admin/API correlacionan requestId y errores sin datos personales ni driver/SQL; logs, métricas básicas y guía operativa. Restore real de las nueve tablas/schema/ledger del backup AES-256-GCM a un clon temporal de dev: huella idéntica, dev intacto y clon borrado. Blob no forma parte del backup Postgres. Headers y logs reales correlacionados/saneados en Preview SHA41c2c118; CI aprobado e integrado.
+[PR #30](https://github.com/NixonGamboa/marketplace/pull/30). Backup Postgres excluye imágenes Blob; clave privada fuera del repositorio.
 
 ### E2E real T-22 — 2026-10-03
 
-[PR #27](https://github.com/NixonGamboa/marketplace/pull/27): segunda corrida completa en Chrome/Preview con API y Neon reales, 23/23. Compra, pesos, entrega, cancelación/sustitución, permisos, precio autoritativo, doble envío, timeout/reintento, sesiones, offline/3G y edición de catálogo. Primera corrida20/23; corregidas aserción SHA, interacción de precio y desconexión transitoria del runner. Reset/reseed antes de cada full; SQL independiente conserva pedido previo/ledger, fixtures restaurados y sesiones cerradas. Fallos429/503 son de transporte controlados; no prueban caída real de Postgres. Repetición sobre URL final en T-24.
+[PR #27](https://github.com/NixonGamboa/marketplace/pull/27). Repetición final y límites de fallos controlados en [entrega de test](entrega-test.md).
+
+### Entrega técnica en test — 2026-10-03
+
+[PR #31](https://github.com/NixonGamboa/marketplace/pull/31) y [documento de entrega](entrega-test.md): URL estable de develop, build real identificado y E2E final23/23; seed limpio después de retirar filas propias. Credenciales reservadas por instrucción del usuario. Límites técnicos y resultados por escenario en el documento; evolución posterior solo bajo nuevo encargo.
