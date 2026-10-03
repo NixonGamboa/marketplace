@@ -16,6 +16,7 @@ export type EnvironmentGuardCode =
   | 'RESET_TARGET_NOT_DECLARED'
   | 'RESET_TARGET_NOT_ALLOWED'
   | 'RESET_TARGET_DATABASE_MISMATCH'
+  | 'RESET_TARGET_HOST_MISMATCH'
   | 'DATABASE_IDENTITY_MISMATCH'
   | `CONFIG_${string}`
 
@@ -28,6 +29,8 @@ export class EnvironmentGuardError extends DomainError {
 
 /** Único destino de reset admitido: rama `dev`, base `maui`. La rama no viaja en la conexión: ver `assertResetAllowed`. */
 export const ALLOWED_RESET_TARGETS: readonly string[] = ['dev/maui']
+/** Endpoint actual y único de la rama dev; el pooler se normaliza en databaseTarget. */
+export const RESET_DATABASE_HOST = 'ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech'
 
 /** Variables libpq que redirigirían un cliente: el seed solo usa `DATABASE_URL` validada. */
 const AMBIENT_OVERRIDES = ['PGHOST', 'PGHOSTADDR', 'PGPORT', 'PGDATABASE', 'PGSERVICE', 'PGSERVICEFILE', 'PGOPTIONS'] as const
@@ -70,8 +73,7 @@ export const assertSeedAllowed = (env: NodeJS.ProcessEnv): DatabaseTarget => {
  * Reset de fixtures: además del seed exige `APP_ENV=test` (no `local`) y declarar el destino exacto
  * `RESET_TARGET=dev/maui`, que debe coincidir con la base de la conexión. `loadConfig` ya obliga a que
  * host y base sean los de test declarados (`TEST_DATABASE_HOST`/`TEST_DATABASE_NAME`) y distintos de
- * Production. La rama `dev` se acredita por ese host declarado: la cadena de conexión no la contiene, y la
- * confirmación ligada al preflight muestra el host exacto para revisarlo antes de ejecutar.
+ * Production. Además fija el endpoint conocido de dev: declarar otro host como test no lo autoriza.
  */
 export const assertResetAllowed = (env: NodeJS.ProcessEnv): DatabaseTarget => {
   if (env.APP_ENV !== 'test') throw new EnvironmentGuardError('APP_ENV_NOT_TEST')
@@ -85,6 +87,7 @@ export const assertResetAllowed = (env: NodeJS.ProcessEnv): DatabaseTarget => {
   if (!ALLOWED_RESET_TARGETS.includes(declared)) throw new EnvironmentGuardError('RESET_TARGET_NOT_ALLOWED')
   const [, database] = declared.split('/')
   if (actual.database !== database) throw new EnvironmentGuardError('RESET_TARGET_DATABASE_MISMATCH')
+  if (actual.host !== RESET_DATABASE_HOST) throw new EnvironmentGuardError('RESET_TARGET_HOST_MISMATCH')
 
   return actual
 }

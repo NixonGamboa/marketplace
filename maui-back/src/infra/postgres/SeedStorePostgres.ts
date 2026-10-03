@@ -5,17 +5,16 @@ import type {
   AccountRow,
   CategoryRow,
   CreationRow,
-  FixtureCounts,
   FixtureScope,
   OrderRow,
   ProductRow,
-  ResetBlocker,
   ResetMeasure,
   SeedEraser,
   SeedInspector,
   SeedSchemaStatus,
 } from '../../usecases/seed/ports.js'
 import type { Db } from './client.js'
+import { ResetRejectedError } from '../../usecases/seed/resetFixtures.js'
 import {
   auditEventsTable,
   authAccountsTable,
@@ -48,8 +47,8 @@ const toNumber = (value: string | number | undefined): number => Number(value ??
 
 /**
  * Lecturas del preflight y borrado acotado de fixtures sobre Postgres (T-16). Solo consulta por IDs
- * e identidades del dataset: nunca recorre ni modifica el resto de la base. El borrado usa
- * `db.batch` (una transacción en Neon HTTP) y respeta el orden de claves foráneas.
+ * e identidades del dataset y sus dependientes. El borrado usa `db.batch` (una transacción
+ * en Neon HTTP), bloquea escrituras y verifica el snapshot antes de cualquier efecto.
  */
 export class SeedStorePostgres implements SeedInspector, SeedEraser {
   constructor(private readonly db: Db) {}
@@ -137,46 +136,62 @@ export class SeedStorePostgres implements SeedInspector, SeedEraser {
 
   async measure(scope: FixtureScope): Promise<ResetMeasure> {
     const conditions = this.conditions(scope)
-    const count = async (table: PgTable, where: SQL | undefined): Promise<number> => {
-      const [row] = await this.db.select({ n: sql<string>`count(*)::text` }).from(table).where(where)
-      return toNumber(row?.n)
-    }
-    const toDelete: FixtureCounts = {
-      auditEvents: await count(auditEventsTable, conditions.audit),
-      orders: await count(ordersTable, conditions.ownOrders),
-      orderClaims: await count(orderCreationsTable, conditions.ownClaims),
-      sessions: await count(authSessionsTable, conditions.ownSessions),
-      accounts: await count(authAccountsTable, conditions.ownAccounts),
-      rateLimits: await count(authRateLimitsTable, conditions.rateLimits),
-      products: await count(catalogProductsTable, conditions.products),
-      categories: await count(catalogCategoriesTable, conditions.categories),
-      store: scope.includeStore ? await count(storesTable, eq(storesTable.id, scope.storeId)) : 0,
-    }
+    const count = (table: PgTable, where: SQL | undefined): SQL =>
+      sql`(select count(*) from ${table} where ${where ?? sql`true`})`
+    const toDelete = sql`jsonb_build_object(
+      'auditEvents', ${count(auditEventsTable, conditions.audit)},
+      'orders', ${count(ordersTable, conditions.ownOrders)},
+      'orderClaims', ${count(orderCreationsTable, conditions.ownClaims)},
+      'sessions', ${count(authSessionsTable, conditions.ownSessions)},
+      'accounts', ${count(authAccountsTable, conditions.ownAccounts)},
+      'rateLimits', ${count(authRateLimitsTable, conditions.rateLimits)},
+      'products', ${count(catalogProductsTable, conditions.products)},
+      'categories', ${count(catalogCategoriesTable, conditions.categories)},
+      'store', ${scope.includeStore ? count(storesTable, eq(storesTable.id, scope.storeId)) : sql`0`})`
     const customerIds = scope.accounts.filter(account => account.role === 'customer').map(account => account.id)
-    const retainedCustomerOrders = await count(ordersTable, and(
+    const retainedCustomerOrders = count(ordersTable, and(
       inArray(ordersTable.customerId, customerIds), notInArray(ordersTable.id, [...scope.orderIds])))
 
-    const candidates: ResetBlocker[] = [
-      { kind: 'foreign_order_with_fixture_id', count: await count(ordersTable, and(inArray(ordersTable.id, [...scope.orderIds]), sql`not (${conditions.ownOrders})`)) },
-      { kind: 'foreign_product_with_fixture_id', count: await count(catalogProductsTable, and(inArray(catalogProductsTable.id, [...scope.productIds]), ne(catalogProductsTable.storeId, scope.storeId))) },
-      { kind: 'foreign_category_with_fixture_id', count: await count(catalogCategoriesTable, and(inArray(catalogCategoriesTable.id, [...scope.categoryIds]), ne(catalogCategoriesTable.storeId, scope.storeId))) },
-      { kind: 'foreign_account_with_fixture_id', count: await count(authAccountsTable, and(inArray(authAccountsTable.id, scope.accounts.map(account => account.id)), sql`not (${conditions.ownAccounts})`)) },
-      { kind: 'foreign_product_in_fixture_category', count: await count(catalogProductsTable, and(
+    const candidates: { kind: string; count: SQL }[] = [
+      { kind: 'retained_customer_orders', count: retainedCustomerOrders },
+      { kind: 'foreign_order_with_fixture_id', count: count(ordersTable, and(inArray(ordersTable.id, [...scope.orderIds]), sql`not (${conditions.ownOrders})`)) },
+      { kind: 'foreign_product_with_fixture_id', count: count(catalogProductsTable, and(inArray(catalogProductsTable.id, [...scope.productIds]), ne(catalogProductsTable.storeId, scope.storeId))) },
+      { kind: 'foreign_category_with_fixture_id', count: count(catalogCategoriesTable, and(inArray(catalogCategoriesTable.id, [...scope.categoryIds]), ne(catalogCategoriesTable.storeId, scope.storeId))) },
+      { kind: 'foreign_account_with_fixture_id', count: count(authAccountsTable, and(inArray(authAccountsTable.id, scope.accounts.map(account => account.id)), sql`not (${conditions.ownAccounts})`)) },
+      { kind: 'foreign_product_in_fixture_category', count: count(catalogProductsTable, and(
         eq(catalogProductsTable.storeId, scope.storeId), inArray(catalogProductsTable.categoryId, [...scope.categoryIds]),
         notInArray(catalogProductsTable.id, [...scope.productIds]))) },
     ]
     if (scope.includeStore) {
-      const foreignInStore = (await count(catalogCategoriesTable, and(eq(catalogCategoriesTable.storeId, scope.storeId), notInArray(catalogCategoriesTable.id, [...scope.categoryIds]))))
-        + (await count(catalogProductsTable, and(eq(catalogProductsTable.storeId, scope.storeId), notInArray(catalogProductsTable.id, [...scope.productIds]))))
-        + (await count(authAccountsTable, and(eq(authAccountsTable.storeId, scope.storeId), notInArray(authAccountsTable.id, scope.accounts.map(account => account.id)))))
+      const foreignInStore = sql`(
+        ${count(catalogCategoriesTable, and(eq(catalogCategoriesTable.storeId, scope.storeId), notInArray(catalogCategoriesTable.id, [...scope.categoryIds])))}
+        + ${count(catalogProductsTable, and(eq(catalogProductsTable.storeId, scope.storeId), notInArray(catalogProductsTable.id, [...scope.productIds])))}
+        + ${count(authAccountsTable, and(eq(authAccountsTable.storeId, scope.storeId), sql`not (${conditions.ownAccounts})`))}
+        + ${count(ordersTable, and(eq(ordersTable.storeId, scope.storeId), sql`not (${conditions.ownOrders})`))}
+        + ${count(orderCreationsTable, and(eq(orderCreationsTable.storeId, scope.storeId), sql`not (${conditions.ownClaims})`))}
+        + ${count(auditEventsTable, and(eq(auditEventsTable.storeId, scope.storeId), sql`not (${conditions.audit})`))})`
       candidates.push({ kind: 'store_has_foreign_dependents', count: foreignInStore })
     }
-    return { toDelete, retainedCustomerOrders, blockers: candidates.filter(blocker => blocker.count > 0) }
+    // Una sentencia: conteos, bloqueos y contenido comparten el mismo snapshot MVCC.
+    const blockers = sql`(select coalesce(jsonb_agg(jsonb_build_object('kind', kind, 'count', n) order by ordinal), '[]'::jsonb)
+      from (values ${sql.join(candidates.map((candidate, index) => sql`(${index}, ${candidate.kind}::text, ${candidate.count})`), sql`, `)}) b(ordinal, kind, n)
+      where n > 0)`
+    const result = await this.db.execute<{ measure: ResetMeasure }>(sql`select jsonb_build_object(
+      'toDelete', ${toDelete}, 'retainedCustomerOrders', ${retainedCustomerOrders},
+      'blockers', ${blockers}, 'stateFingerprint', ${this.stateFingerprint(scope)}) as measure`)
+    const measure = result.rows[0]?.measure
+    if (!measure) throw new Error('No se pudo medir el estado del reset')
+    return measure
   }
 
-  async erase(scope: FixtureScope): Promise<void> {
+  async erase(scope: FixtureScope, expectedFingerprint: string): Promise<void> {
     const conditions = this.conditions(scope)
     const statements: BatchItem<'pg'>[] = [
+      // Orden fijo; SHARE ROW EXCLUSIVE impide INSERT/UPDATE/DELETE hasta commit o rollback.
+      this.db.execute(sql`lock table audit_events, auth_accounts, auth_rate_limits, auth_sessions,
+        catalog_categories, catalog_products, order_creations, orders, stores in share row exclusive mode`),
+      // El divisor depende del snapshot: no permite constant folding y aborta toda la transacción.
+      this.db.execute(sql`select 1 / case when ${this.stateFingerprint(scope)} = ${expectedFingerprint} then 1 else 0 end as reset_snapshot_guard`),
       this.db.delete(auditEventsTable).where(conditions.audit),
       // Los claims de idempotencia caen en cascada con su pedido.
       this.db.delete(ordersTable).where(conditions.ownOrders),
@@ -188,7 +203,40 @@ export class SeedStorePostgres implements SeedInspector, SeedEraser {
       ...(scope.includeStore ? [this.db.delete(storesTable).where(eq(storesTable.id, scope.storeId))] : []),
     ]
     const [first, ...rest] = statements
-    if (first) await this.db.batch([first, ...rest])
+    try {
+      if (first) await this.db.batch([first, ...rest])
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '22012') {
+        throw new ResetRejectedError('STATE_CHANGED')
+      }
+      throw error
+    }
+  }
+
+  /** Huella server-side: ninguna fila, PII ni credencial sale de Postgres. */
+  private stateFingerprint(scope: FixtureScope): SQL {
+    const accountIds = scope.accounts.map(account => account.id)
+    const customerIds = scope.accounts.filter(account => account.role === 'customer').map(account => account.id)
+    const accounts = or(
+      inArray(authAccountsTable.id, accountIds), eq(authAccountsTable.storeId, scope.storeId),
+      inArray(authAccountsTable.email, scope.accounts.flatMap(account => account.email ? [account.email] : [])),
+      inArray(authAccountsTable.phone, scope.accounts.flatMap(account => account.phone ? [account.phone] : [])),
+    )
+    const relevant: readonly [string, PgTable, SQL | undefined][] = [
+      ['store', storesTable, eq(storesTable.id, scope.storeId)],
+      ['categories', catalogCategoriesTable, or(eq(catalogCategoriesTable.storeId, scope.storeId), inArray(catalogCategoriesTable.id, [...scope.categoryIds]))],
+      ['products', catalogProductsTable, or(eq(catalogProductsTable.storeId, scope.storeId), inArray(catalogProductsTable.id, [...scope.productIds]), inArray(catalogProductsTable.categoryId, [...scope.categoryIds]))],
+      ['accounts', authAccountsTable, accounts],
+      ['sessions', authSessionsTable, sql`${authSessionsTable.accountId} in (select ${authAccountsTable.id} from ${authAccountsTable} where ${accounts})`],
+      ['rateLimits', authRateLimitsTable, inArray(authRateLimitsTable.bucket, [...scope.rateLimitBuckets])],
+      ['orders', ordersTable, or(eq(ordersTable.storeId, scope.storeId), inArray(ordersTable.id, [...scope.orderIds]), inArray(ordersTable.customerId, customerIds))],
+      ['claims', orderCreationsTable, or(eq(orderCreationsTable.storeId, scope.storeId), inArray(orderCreationsTable.orderId, [...scope.orderIds]), inArray(orderCreationsTable.customerId, customerIds))],
+      ['audit', auditEventsTable, or(eq(auditEventsTable.storeId, scope.storeId), this.conditions(scope).audit)],
+    ]
+    const rows = relevant.map(([name, table, where]) => sql`${name}::text,
+      (select coalesce(jsonb_agg(row_data order by row_data::text), '[]'::jsonb)
+        from (select to_jsonb(${table}) as row_data from ${table} where ${where ?? sql`true`}) snapshot_rows)`)
+    return sql`encode(sha256(convert_to(jsonb_build_object(${sql.join(rows, sql`, `)})::text, 'UTF8')), 'hex')`
   }
 
   /** Condiciones de alcance: por ID Y por identidad/tienda esperadas, nunca solo por ID. */

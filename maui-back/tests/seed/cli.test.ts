@@ -6,7 +6,7 @@ import { countRows, startSeedWorld, testCredentials, type SeedWorld } from './se
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
 
-const TEST_HOST = 'ep-dev-branch-123.us-east-2.aws.neon.tech'
+const TEST_HOST = 'ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech'
 const CONNECTION = `postgresql://usuario:contrasena-de-conexion-privada@${TEST_HOST}/maui?sslmode=require`
 
 /** Reporta la base declarada (`maui`): PGlite siempre informa `postgres`. */
@@ -102,6 +102,7 @@ describe('runCli', () => {
       [['reset'], envFor({ APP_ENV: 'local' })],
       [['reset'], envFor({ RESET_TARGET: undefined })],
       [['reset'], envFor({ PGHOST: 'otro' })],
+      [['reset'], envFor({ TEST_DATABASE_HOST: 'otro.example', DATABASE_URL: 'postgresql://u:p@otro.example/maui' })],
     ] as const) {
       const output = capture()
       expect(await runCli(argv, env, output.io, { connect })).toBe(1)

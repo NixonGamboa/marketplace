@@ -8,7 +8,7 @@ import type { FixtureScope, ResetMeasure, SeedEraser, SeedInspector } from './po
 import { assertDatabaseIdentity, type DatabaseTarget } from './resetGuard.js'
 
 export class ResetRejectedError extends DomainError {
-  constructor(public readonly reason: 'SCHEMA_MISSING' | 'BLOCKERS' | 'CONFIRMATION_REQUIRED' | 'CONFIRMATION_MISMATCH') {
+  constructor(public readonly reason: 'SCHEMA_MISSING' | 'BLOCKERS' | 'CONFIRMATION_REQUIRED' | 'CONFIRMATION_MISMATCH' | 'STATE_CHANGED') {
     super(`Reset de fixtures rechazado: ${reason}`, 'RESET_REJECTED')
     this.name = 'ResetRejectedError'
   }
@@ -94,6 +94,6 @@ export const runReset = async (deps: ResetDeps, options: ResetOptions = {}): Pro
   if (!options.confirm) throw new ResetRejectedError('CONFIRMATION_REQUIRED')
   if (options.confirm !== base.confirmationToken) throw new ResetRejectedError('CONFIRMATION_MISMATCH')
 
-  await deps.eraser.erase(scope)
+  await deps.eraser.erase(scope, measure.stateFingerprint)
   return { mode: 'executed', ...base, remaining: await deps.eraser.measure(scope) }
 }

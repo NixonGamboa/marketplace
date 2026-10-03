@@ -33,8 +33,8 @@ export async function startEmbeddedPostgres(): Promise<EmbeddedPostgres> {
   neonConfig.fetchFunction = async (_url: unknown, init: RequestInit): Promise<Response> => {
     if (typeof init.body !== 'string') throw new Error('Body SQL inesperado')
     const request = requestSchema.parse(JSON.parse(init.body))
-    const execute = async (query: z.infer<typeof querySchema>) => {
-      const result = await pg.query<unknown[]>(query.query, query.params, { rowMode: 'array' })
+    const execute = async (query: z.infer<typeof querySchema>, client: Pick<PGlite, 'query'> = pg) => {
+      const result = await client.query<unknown[]>(query.query, query.params, { rowMode: 'array' })
       const rows = result.rows.map(row => row.map(value => {
         if (value === null) return null
         if (value instanceof Date) return value.toISOString()
@@ -46,7 +46,11 @@ export async function startEmbeddedPostgres(): Promise<EmbeddedPostgres> {
     }
     try {
       const body = 'queries' in request
-        ? { results: await Promise.all(request.queries.map(execute)) }
+        ? { results: await pg.transaction(async tx => {
+          const results = []
+          for (const query of request.queries) results.push(await execute(query, tx))
+          return results
+        }) }
         : await execute(request)
       return new Response(JSON.stringify(body), { status: 200 })
     } catch (error) {

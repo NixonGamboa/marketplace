@@ -91,8 +91,10 @@ export interface ResetBlocker {
 }
 
 export interface ResetMeasure {
+  /** SHA-256 opaco del contenido completo relevante; no expone filas, PII ni hashes de contraseña. */
+  stateFingerprint: string
   toDelete: FixtureCounts
-  /** Pedidos de clientes de test que no son del dataset: se conservan (quedan sin cuenta hasta resembrar). */
+  /** Pedidos ajenos de clientes fixture: bloquean el reset para preservar su cuenta e historia. */
   retainedCustomerOrders: number
   /** Filas ajenas que impiden borrar de forma segura; con alguna, el reset no se ejecuta. */
   blockers: ResetBlocker[]
@@ -100,6 +102,6 @@ export interface ResetMeasure {
 
 export interface SeedEraser {
   measure(scope: FixtureScope): Promise<ResetMeasure>
-  /** Borrado ordenado y atómico (una transacción) de lo medido. */
-  erase(scope: FixtureScope): Promise<void>
+  /** Bloquea escrituras, verifica la huella dentro de la transacción y borra solo si sigue vigente. */
+  erase(scope: FixtureScope, expectedFingerprint: string): Promise<void>
 }

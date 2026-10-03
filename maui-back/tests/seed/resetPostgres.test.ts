@@ -105,7 +105,7 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
     }
   })
 
-  it('borra sesiones de las cuentas de test y sus cuotas, y deja los pedidos propios de esos clientes', async () => {
+  it('los pedidos manuales de clientes fixture bloquean el reset y conservan su cuenta y sesión', async () => {
     const world = await seededWorldWithBystanders()
     try {
       const [ana] = SEED_CUSTOMERS
@@ -118,13 +118,84 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
       const dry = await runReset(resetDeps(world))
       expect(dry.measure.toDelete.sessions).toBe(1)
       expect(dry.measure.retainedCustomerOrders).toBe(1)
-      await runReset(resetDeps(world), { execute: true, confirm: dry.confirmationToken })
-      expect(await countRows(world, 'auth_sessions')).toBe(0)
-      expect(await countRows(world, 'auth_rate_limits')).toBe(0)
+      const before = await dumpSeededState(world)
+      expect(await rejection(runReset(resetDeps(world), { execute: true, confirm: dry.confirmationToken }))).toMatchObject({ reason: 'BLOCKERS' })
+      expect(await dumpSeededState(world)).toEqual(before)
+      expect(await countRows(world, 'auth_accounts')).toBe(4)
+      expect(await countRows(world, 'auth_sessions')).toBe(1)
+      expect(await countRows(world, 'auth_rate_limits')).toBe(2)
       expect((await world.embedded.pg.query(`select id from orders where id = 'pedido-manual-de-ana'`)).rows).toHaveLength(1)
     } finally {
       await world.close()
     }
+  })
+
+  it.each([
+    ['producto', "update catalog_products set name = name || ' editado' where id = 'arroz-1kg'"],
+    ['pedido', "update orders set customer_name = customer_name || ' editado' where id = 'pedido-test-received'"],
+    ['configuración', "update stores set name = name || ' editada' where id = 'leche-y-miel'"],
+    ['cuenta', "update auth_accounts set name = name || ' editada' where id = 'acc_seed_owner'"],
+  ])('editar contenido de %s sin cambiar cantidades invalida el token', async (_entity, mutation) => {
+    const world = await seededWorldWithBystanders()
+    try {
+      const dry = await runReset(resetDeps(world))
+      // El ID real del pedido proviene del dataset, no de una suposición del test.
+      await world.embedded.pg.query(mutation.replace('pedido-test-received', SEED_ORDERS[0]!.id))
+      const updated = await runReset(resetDeps(world))
+      expect(updated.measure.toDelete).toEqual(dry.measure.toDelete)
+      expect(updated.measure.stateFingerprint).not.toBe(dry.measure.stateFingerprint)
+      expect(await rejection(runReset(resetDeps(world), { execute: true, confirm: dry.confirmationToken })))
+        .toMatchObject({ reason: 'CONFIRMATION_MISMATCH' })
+      expect(await countRows(world, 'orders')).toBe(SEED_ORDERS.length + 1)
+    } finally { await world.close() }
+  })
+
+  it.each([
+    ['edición de producto', "update catalog_products set price = price + 1 where id = 'arroz-1kg'"],
+    ['sesión nueva', "insert into auth_sessions (id, account_id, created_at, expires_at) values ('ses_carrera', 'acc_seed_owner', now(), now() + interval '1 day')"],
+    ['cuenta ajena nueva', `insert into auth_accounts
+      select (jsonb_populate_record(null::auth_accounts, to_jsonb(a) || '{"id":"acc_carrera","email":"carrera@seed.maui.invalid"}'::jsonb)).*
+      from auth_accounts a where id = 'acc_seed_owner'`],
+    ['pedido nuevo', `insert into orders
+      select (jsonb_populate_record(null::orders, to_jsonb(o) || '{"id":"ord_carrera"}'::jsonb)).*
+      from orders o where id = 'legacy-order-1'`],
+    ['producto ajeno nuevo', `insert into catalog_products
+      select (jsonb_populate_record(null::catalog_products, to_jsonb(p) || '{"id":"prod_carrera"}'::jsonb)).*
+      from catalog_products p where id = 'arroz-1kg'`],
+  ])('%s justo antes del batch aborta el guard transaccional sin borrar', async (_change, mutation) => {
+    const world = await seededWorldWithBystanders()
+    try {
+      const dry = await runReset(resetDeps(world))
+      let afterMutation: Record<string, unknown[]> | undefined
+      const eraser = {
+        measure: world.store.measure.bind(world.store),
+        erase: async (...args: Parameters<typeof world.store.erase>) => {
+          await world.embedded.pg.query(mutation)
+          afterMutation = await dumpSeededState(world)
+          await world.store.erase(...args)
+        },
+      }
+      const error = await rejection(runReset({ ...resetDeps(world), eraser }, { execute: true, confirm: dry.confirmationToken }))
+      expect(error).toMatchObject({ code: 'RESET_REJECTED', reason: 'STATE_CHANGED' })
+      expect(JSON.stringify(error)).not.toMatch(/postgresql|password_hash|select|catalog_products/i)
+      expect(await dumpSeededState(world)).toEqual(afterMutation)
+      expect(await countRows(world, 'orders')).toBeGreaterThanOrEqual(SEED_ORDERS.length + 1)
+      if (_change === 'sesión nueva') expect(await countRows(world, 'auth_sessions')).toBe(1)
+    } finally { await world.close() }
+  })
+
+  it('un fallo posterior a los primeros deletes revierte el batch completo', async () => {
+    const world = await seededWorldWithBystanders()
+    try {
+      await world.embedded.pg.exec(`create function reject_fixture_delete() returns trigger language plpgsql as $$
+        begin raise exception 'borrado rechazado por prueba'; end $$;
+        create trigger reject_fixture_delete before delete on catalog_categories
+        for each row execute function reject_fixture_delete()`)
+      const before = await dumpSeededState(world)
+      const dry = await runReset(resetDeps(world))
+      expect(await rejection(runReset(resetDeps(world), { execute: true, confirm: dry.confirmationToken }))).not.toBeNull()
+      expect(await dumpSeededState(world)).toEqual(before)
+    } finally { await world.close() }
   })
 
   it('un cambio entre el dry-run y la ejecución invalida el token', async () => {
@@ -179,15 +250,28 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
   it('con includeStore borra también la tienda y su historial, salvo que haya dependientes ajenos', async () => {
     const world = await seededWorldWithBystanders()
     try {
+      await world.embedded.pg.query('delete from orders where id = $1', [LEGACY_ORDER])
       const dry = await runReset(resetDeps(world), { includeStore: true })
       expect(dry.measure.toDelete.store).toBe(1)
       await runReset(resetDeps(world), { includeStore: true, execute: true, confirm: dry.confirmationToken })
       expect((await world.embedded.pg.query('select id from stores order by id')).rows).toEqual([{ id: 'tienda-ajena' }])
       expect((await world.embedded.pg.query(`select id from audit_events where store_id = $1`, [SEED_STORE])).rows).toEqual([])
-      expect((await world.embedded.pg.query('select id from orders')).rows).toEqual([{ id: LEGACY_ORDER }])
+      expect((await world.embedded.pg.query('select id from orders')).rows).toEqual([])
     } finally {
       await world.close()
     }
+  })
+
+  it('includeStore con un pedido legacy de la tienda se rechaza sin borrar', async () => {
+    const world = await seededWorldWithBystanders()
+    try {
+      const before = await dumpSeededState(world)
+      const dry = await runReset(resetDeps(world), { includeStore: true })
+      expect(dry.measure.blockers).toContainEqual({ kind: 'store_has_foreign_dependents', count: 1 })
+      expect(await rejection(runReset(resetDeps(world), { includeStore: true, execute: true, confirm: dry.confirmationToken })))
+        .toMatchObject({ reason: 'BLOCKERS' })
+      expect(await dumpSeededState(world)).toEqual(before)
+    } finally { await world.close() }
   })
 
   it('includeStore con cuentas de la tienda que no son fixtures se rechaza', async () => {
@@ -197,7 +281,7 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
         `insert into auth_accounts (id, role, name, email, store_id, password_hash, status, created_at, updated_at)
          values ('acc_otro_operario', 'operator', 'Otro', 'otro@tienda.example.com', $1, 'hash', 'active', now(), now())`, [SEED_STORE])
       const dry = await runReset(resetDeps(world), { includeStore: true })
-      expect(dry.measure.blockers).toEqual([{ kind: 'store_has_foreign_dependents', count: 1 }])
+      expect(dry.measure.blockers).toEqual([{ kind: 'store_has_foreign_dependents', count: 2 }])
       expect(await rejection(runReset(resetDeps(world), { includeStore: true, execute: true, confirm: dry.confirmationToken })))
         .toMatchObject({ reason: 'BLOCKERS' })
     } finally {

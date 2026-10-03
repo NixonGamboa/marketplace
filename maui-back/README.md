@@ -63,16 +63,24 @@ de auditoría: `system` para tienda/catálogo, el cliente al crear y las cuentas
 **Reset (solo fixtures, nunca la base completa).** Solo código, sin ejecución automática. Guards previos
 a cualquier conexión: `APP_ENV=test` (ni `local` ni `NODE_ENV`), `DB_DRIVER=postgres` explícito,
 `VERCEL_ENV` distinto de production, sin overrides ambientales (`PGHOST`, `PGDATABASE`…), `RESET_TARGET=dev/maui`
-igual a la base de la conexión, host/base iguales a los de test declarados y distintos de Production
+igual a la base de la conexión, endpoint fijo `ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech`
+(incluido su pooler normalizado), host/base iguales a los de test declarados y distintos de Production
 (`loadConfig`), y la base que reporta el servidor (`current_database()`) igual a la declarada. El CLI solo
 admite `--execute`, `--confirm`, `--include-store` (no hay forma de elegir entorno, host ni base). Borra solo
 filas con ID **e** identidad/tienda del dataset (pedidos y claims, cuentas y sesiones, cuotas de pedidos,
 productos, categorías e historial de esas entidades); conserva pedidos legacy, otras tiendas, la
 configuración de la tienda (salvo `--include-store`) y el ledger. Una fila ajena con ID del dataset o un
-producto ajeno en una categoría de fixture **bloquea** el reset. La confirmación liga destino (host/base),
-versión del dataset, alcance y filas medidas: cualquier cambio entre dry-run y ejecución la invalida.
-Restaurar = `reset:test` + `seed:test`. La rama `dev` no viaja en la cadena de conexión: se acredita por
-el host declarado en `TEST_DATABASE_HOST`, que el dry-run imprime para revisarlo antes de confirmar.
+producto ajeno en una categoría de fixture **bloquea** el reset. También bloquean los pedidos manuales
+de clientes fixture: se conservan su cuenta y acceso a la historia. `--include-store` se rechaza si
+quedan pedidos, claims, cuentas, catálogo o historial ajenos vinculados a la tienda.
+La confirmación liga destino (host/base), versión del dataset, alcance y una huella SHA-256 del
+contenido completo relevante. Conteos, bloqueos y huella se leen en una sola sentencia PostgreSQL;
+editar contenido sin cambiar cantidades invalida el token. El batch transaccional toma bloqueos
+`SHARE ROW EXCLUSIVE` sobre las tablas afectadas y vuelve a verificar la huella antes de borrar:
+si el estado cambió después del preflight, aborta con `STATE_CHANGED` sin efectos parciales.
+La huella es opaca; no salen filas, datos personales ni hashes de contraseña. Los bloqueos impiden
+escrituras durante el reset. Restaurar = `reset:test` + `seed:test`. La rama `dev` se acredita por
+el endpoint fijo del guard; declarar otro `TEST_DATABASE_HOST` no autoriza el reset.
 
 **Smoke.** Solo lecturas y logins (sin escribir ni pedir por el reloj real): exige que `/api/health`
 declare `environment: test`, y comprueba roles, alcance por cuenta, catálogo, pedidos del dataset (los
@@ -81,8 +89,9 @@ editados por el personal no se evalúan), auditoría con actor y 403 de cliente.
 **Pruebas.** `tests/seed/`: PGlite con todas las migraciones y los adapters de producción (dos
 siembras, huellas, ediciones preservadas, conflictos sin escritura, reproducibilidad, reset/guards/token),
 CLI con la composición real y los handlers HTTP con scrypt/JWT/sesiones (roles, auth, estados, pesos,
-precios, audit). No acreditan el smoke cloud: PGlite serializa conexiones y ejecuta `db.batch` en orden
-sin transacción; la atomicidad del borrado y la concurrencia se comprueban en Neon.
+precios, audit). El transporte PGlite ejecuta `db.batch` en orden dentro de una transacción real:
+se verifican el guard antes de borrar y el rollback ante un fallo posterior. Estas pruebas no
+acreditan el smoke cloud ni contención entre conexiones independientes en Neon.
 
 ## Auditoría comercial persistente (T-13)
 

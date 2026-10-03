@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EnvironmentGuardError, assertDatabaseIdentity, assertResetAllowed, assertSeedAllowed } from '../../src/usecases/seed/resetGuard.js'
 
-const TEST_HOST = 'ep-dev-branch-123.us-east-2.aws.neon.tech'
+const TEST_HOST = 'ep-tiny-feather-aug4p4jh.c-10.us-east-1.aws.neon.tech'
 const PROD_HOST = 'ep-prod-branch-456.us-east-2.aws.neon.tech'
 const PASSWORD = 'clave-secreta-de-prueba'
 
@@ -38,7 +38,7 @@ describe('guard del reset (assertResetAllowed)', () => {
   })
 
   it('el pooler de Neon del mismo endpoint es el mismo destino', () => {
-    const pooler = TEST_HOST.replace('-123.', '-123-pooler.')
+    const pooler = TEST_HOST.replace('aug4p4jh.', 'aug4p4jh-pooler.')
     expect(assertResetAllowed(validEnv({ DATABASE_URL: `postgresql://u:${PASSWORD}@${pooler}/maui` })).host).toBe(TEST_HOST)
   })
 
@@ -70,6 +70,13 @@ describe('guard del reset (assertResetAllowed)', () => {
   it('rechaza una base declarada distinta de la de RESET_TARGET aunque el host sea el de test', () => {
     const env = validEnv({ TEST_DATABASE_NAME: 'otra', DATABASE_URL: `postgresql://u:${PASSWORD}@${TEST_HOST}/otra` })
     expect(reasonOf(() => assertResetAllowed(env))).toBe('RESET_TARGET_DATABASE_MISMATCH')
+  })
+
+  it('declarar un host arbitrario como test no acredita la rama dev', () => {
+    const host = 'ep-otro.us-east-1.aws.neon.tech'
+    expect(reasonOf(() => assertResetAllowed(validEnv({
+      DATABASE_URL: `postgresql://u:${PASSWORD}@${host}/maui`, TEST_DATABASE_HOST: host,
+    })))).toBe('RESET_TARGET_HOST_MISMATCH')
   })
 })
 
