@@ -121,7 +121,7 @@ La historia original está preservada en el tag remoto `archive/checkout-contact
 |---|---|---|---|
 | T-22 / P0 | E2E automatizado y fallos controlados — hecho: [PR #27](https://github.com/NixonGamboa/marketplace/pull/27), CI y Chrome/Preview/Postgres23/23 aprobados | T-03a, T-03b, T-15 a T-21 | Dos contextos independientes cliente/admin usando API y BD reales. Compra seed → recepción admin → pesos/sustitución → total final → entrega/cancelación → histórico/audit/comprobante. Incluir permisos/sesiones, cierre/agotado, manipulación de precios, doble submit, timeout tras persistir, 3G/offline y recuperación; comprobar destino/texto de enlaces sin enviar WhatsApp. Pruebas ejecutadas por herramientas/agentes, sin reclutar usuarios |
 | T-23 / P0 | Build real y despliegue de test — hecho: [PR #31](https://github.com/NixonGamboa/marketplace/pull/31), CI y Preview real aprobados | T-01, T-02, T-03a, T-03b, T-15, T-16, T-22 | Quitar `--mode demo` forzado del flujo de entrega unificado; ambas apps en servicios reales y API en mismo host. Desplegar versión identificable, aplicar migraciones y seed en recursos de test; comprobar fixtures/cuentas y rutas profundas. URL accesible al usuario con acceso adecuado al entorno; documentar configuración y modo de restaurar seed |
-| T-24 / P0 | Comprobar y entregar el ambiente de test — preparación completa: [entrega técnica](entrega-test.md); URL real y E2E23/23, credenciales reservadas | T-23 | Repetir smoke/E2E contra la URL desplegada, no solo local; validar persistencia tras recarga/nueva sesión, edición catálogo visible en PWA, flujo completo, comprobante y enlaces de contacto. Entregar URL, versión, comandos de setup/seed/reset, acceso de cuentas de test por canal adecuado y resultados de pruebas. Cerrar sin gateway externo, acuerdos ni validaciones humanas |
+| T-24 / P0 | Comprobar y entregar el ambiente de test — hecho: [entrega técnica](entrega-test.md); mvp-v1.0.0, URL real, E2E23/23 y credenciales entregadas en archivo local ignorado | T-23 | Repetir smoke/E2E contra la URL desplegada, no solo local; validar persistencia tras recarga/nueva sesión, edición catálogo visible en PWA, flujo completo, comprobante y enlaces de contacto. Entregar URL, versión, comandos de setup/seed/reset, acceso de cuentas de test por canal adecuado y resultados de pruebas. Cerrar sin gateway externo, acuerdos ni validaciones humanas |
 
 ### Evolución técnica posterior — separada del entregable de test
 
@@ -162,7 +162,7 @@ flowchart TD
 
 **Ruta crítica:** T-04/T-05 → T-06 → T-07/T-08 → T-10 → T-11/T-12 → T-16 → T-17/T-18 → T-19 → T-22 → T-23 → T-24. T-01/T-02 habilitan la infraestructura; T-09/T-13/T-14 y T-15/T-20/T-21 convergen antes de E2E/entrega. T-14 reutiliza contacto por enlaces y datos de pedido; no necesita credenciales WhatsApp. La mensajería automática solo se considera en E-07.
 
-Los bloques T-01 a T-23 están incorporados y validados; sus PRs están en [Evidencia de bloques cerrados](#evidencia-de-bloques-cerrados). T-24 completa preparación y QA final con credenciales reservadas.
+Los bloques T-01 a T-24 están incorporados y validados; sus PRs están en [Evidencia de bloques cerrados](#evidencia-de-bloques-cerrados). T-24 incluye QA final23/23 y entrega de credenciales en archivo local ignorado; la versión certificable es mvp-v1.0.0.
 
 ## Divergencias de partida y resolución del contrato (T-04)
 
@@ -237,14 +237,14 @@ Las Functions son stateless: no usar arrays en memoria como BD compartida. Persi
 | T-21 | [PR #30](https://github.com/NixonGamboa/marketplace/pull/30) |
 | T-22 | [PR #27](https://github.com/NixonGamboa/marketplace/pull/27) |
 | T-23 | [PR #31](https://github.com/NixonGamboa/marketplace/pull/31) |
-| T-24 (preparación) | [Documento de entrega](entrega-test.md) |
+| T-24 | [Documento de entrega](entrega-test.md) |
 | Publicador de reportes | [PR #6](https://github.com/NixonGamboa/marketplace/pull/6), [corrección PR #7](https://github.com/NixonGamboa/marketplace/pull/7) |
 
 **Límites vigentes:** servicios y UI reales incorporados en T-17/T-18; build de entrega real T-23; demo en script aparte. Test tiene tienda/catálogo/cuentas/pedidos de seed reproducible T-16. Corte de entrega configurable; seed conserva la configuración existente de tienda. Catálogo completo y listado de pedidos con paginación del servidor. T-11 aplica autorización al listado en servidor; consumo real incorporado en T-17/T-18. Cancelación customer sigue denegada; la cancelación de personal, transiciones, pesos y atomicidad están hechos en servidor (T-12). No se añade límite IP con headers no verificados. T-12/T-14 solo se cierran contra API/Postgres reales.
 
 ## Seguimiento vigente
 
-Encargo nocturno 2026-10-03: reset/reseed permanente limitado a Neon dev/maui con guard T-16; restauración T-21 en rama temporal desde dev y borrado posterior; T-23 conserva build:demo y cambia entrega unificada a real; URL de test = Preview estable de develop sin dominio propio. T-24 se prepara completo sin entregar credenciales. Reset antes de cada corrida E2E completa. No Production ni cambios de plan/compras/auth sin intervención. Revisión posterior T-13 por Claude; revisión inicial de mismo proveedor aceptada como excepción por el usuario.
+Encargo nocturno 2026-10-03: reset/reseed permanente limitado a Neon dev/maui con guard T-16; restauración T-21 en rama temporal desde dev y borrado posterior; T-23 conserva build:demo y cambia entrega unificada a real; URL de test = Preview estable de develop sin dominio propio. T-24 completo: credenciales entregadas en archivo local ignorado por Git, según autorización posterior del usuario. Reset antes de cada corrida E2E completa. No Production ni cambios de plan/compras/auth sin intervención. Revisión posterior T-13 por Claude; revisión inicial de mismo proveedor aceptada como excepción por el usuario.
 
 T-12 cerrado en servidor: [PR #18](https://github.com/NixonGamboa/marketplace/pull/18). Adapters T-17/T-18 incorporados mediante [PR #16](https://github.com/NixonGamboa/marketplace/pull/16) y [PR #17](https://github.com/NixonGamboa/marketplace/pull/17), con demo conservada y CI aprobado. Su conexión UI y validación API/Postgres están en [PR #23](https://github.com/NixonGamboa/marketplace/pull/23) y [PR #25](https://github.com/NixonGamboa/marketplace/pull/25); el seed está integrado en T-16.
 
@@ -272,4 +272,8 @@ Los snapshots de creación contienen los datos personales del pedido; una anonim
 
 ### Entrega técnica en test — 2026-10-03
 
-[PR #31](https://github.com/NixonGamboa/marketplace/pull/31) y [documento de entrega](entrega-test.md): URL estable de develop, build real identificado y E2E final23/23; seed limpio después de retirar filas propias. Credenciales reservadas por instrucción del usuario. Límites técnicos y resultados por escenario en el documento; evolución posterior solo bajo nuevo encargo.
+[PR #31](https://github.com/NixonGamboa/marketplace/pull/31) y [documento de entrega](entrega-test.md): URL estable de develop, build real identificado y E2E final23/23; seed limpio después de retirar filas propias. Credenciales entregadas en archivo local ignorado por Git según autorización posterior del usuario. Límites técnicos y resultados por escenario en el documento; evolución posterior solo bajo nuevo encargo.
+
+### Versión certificable — 2026-10-03
+
+Tag publicado `mvp-v1.0.0` sobre `89a588a79f567949e077a5569f80d8350fa78233`, con E2E real23/23. URL y deployment probado en [entrega de test](entrega-test.md). Código congelado mientras el usuario prueba; documentación puede integrarse sin modificar código/configuración. Cada defecto usa un PR independiente, un E2E completo nuevo y el siguiente tag de parche. Cancelación customer pendiente de decisión explícita; continúa denegada. Acceso de test entregado solo en archivo local ignorado; fuente privada SEED_* conservada para futuros resets/seeds.

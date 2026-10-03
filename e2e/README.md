@@ -12,6 +12,12 @@ Runner Playwright que usa el **Chrome instalado** (`channel: 'chrome'`, o `E2E_C
 
 ## Condiciones de ejecución
 
+### Quién genera el ready y dónde lo guarda
+
+`scripts/e2e-ready.mjs` **no genera archivos**: exporta `parseReady` (lectura y validación) y `readyStamp` (huella del contenido). No hay un comando `npm run e2e:ready`. El orquestador genera el ready después de comprobar el deployment real y el reset/seed, y lo guarda en **`<raíz del checkout>/orquestacion-local/night-cloud-ready.json`**, fuera de Git. En el lote T-22/T-24 lo publicó el helper local privado `.claude/orquestacion/night-health.mjs`; su ruta de salida apuntaba al checkout aislado de T-22, ya retirado al cerrar el lote. No reutilizar ese helper sin adaptar y verificar el destino.
+
+`scripts/e2e-run.mjs` lee esa ruta por defecto; `E2E_READY_FILE` permite indicar otra ruta explícita. El ready contiene URL/origen, SHA, deployment, modo real y confirmación fechada del reset/seed; no contiene contraseñas ni bypass. Publicarlo no ejecuta un reset: ambas verificaciones deben haberse completado antes. `check` no lo consume; `smoke` y `full` registran su consumo en `orquestacion-local/e2e-consumed.json`. Un archivo archivado o consumido no autoriza una nueva corrida con escrituras.
+
 - `check`, `smoke` y `full` exigen `orquestacion-local/night-cloud-ready.json` (lo publica root con el Preview identificado, en modo real y con el seed limpio). El launcher toma de ahí `BASE_URL`/`AUTH_ORIGIN` y el SHA. `smoke` y `full` **consumen** cada ready una sola vez: otra corrida con escrituras requiere reset y ready nuevos. `full` requiere T-20/T-21 integrados y confirmados por root.
 - Credenciales y bypass solo por entorno, nunca impresos: `SMOKE_CUSTOMER_PHONE`, `SMOKE_CUSTOMER_PASSWORD`, `SMOKE_STAFF_EMAIL`, `SMOKE_STAFF_PASSWORD`; `SMOKE_OWNER_EMAIL`/`SMOKE_OWNER_PASSWORD` si el personal no es owner; `SMOKE_OPERATOR_EMAIL`/`SMOKE_OPERATOR_PASSWORD` para los permisos negativos del operator (sin ellos queda un hallazgo); `SMOKE_BYPASS_TOKEN` (o `SMOKE_VERCEL_BYPASS`) para Previews protegidos (solo se envía al hostname del Preview).
 - Solo Previews `*.vercel.app` (o loopback sin bypass para desarrollo local).
