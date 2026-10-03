@@ -14,6 +14,10 @@ import { useFeaturedProducts, useCategories, useBusinessCategoryGroups } from '@
 import { useAddToCart, useCart } from '@/hooks'
 import ProductCard from '../components/ProductCard'
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton'
+import { CatalogError } from '../components/CatalogError'
+import { useCheckoutRules } from '@/features/checkout/storeRules'
+import { isDemoMode } from '@/config/mode'
+import { formatPrice } from '@/shared/utils/formatPrice'
 
 // ── Registro de íconos (UI-only: resuelve iconName → LucideIcon) ──────────────
 const BCAT_ICON_REGISTRY: Record<string, LucideIcon> = {
@@ -38,9 +42,15 @@ export default function Home() {
   const addToCart = useAddToCart()
   const { items } = useCart()
   const [activeBusinessCategory, setActiveBusinessCategory] = useState('mercado')
-  const { data: featured, isLoading } = useFeaturedProducts()
+  const { data: featured, isLoading, isError, refetch } = useFeaturedProducts()
   const { data: categories = [] } = useCategories()
   const { data: bCatGroups = [] } = useBusinessCategoryGroups()
+
+  // El umbral de envío gratis lo define la tienda: en modo real se muestra el del servidor (o nada si no hay).
+  const rules = useCheckoutRules()
+  const freeShippingLabel = isDemoMode()
+    ? '$30.000'
+    : rules.shipping?.freeThreshold != null ? formatPrice(rules.shipping.freeThreshold) : null
 
   const cartProductIds = useMemo(() => new Set(items.map((i) => i.productId)), [items])
 
@@ -73,7 +83,7 @@ export default function Home() {
         </nav>
 
         {/* Promo envío gratis */}
-        <div className="rounded-2xl overflow-hidden shadow-brand-sm relative aspect-square">
+        {freeShippingLabel && <div className="rounded-2xl overflow-hidden shadow-brand-sm relative aspect-square">
           <img
             src={promoEnvioGratis}
             alt=""
@@ -84,9 +94,9 @@ export default function Home() {
           <div className="relative z-10 p-4 flex flex-col">
             <p className="text-[15px] font-bold text-brand-primary leading-tight">Envío gratis</p>
             <p className="text-[11px] text-brand-muted mt-1 leading-snug">En compras superiores a</p>
-            <p className="text-[26px] font-extrabold text-brand-primary mt-0.5 leading-none">$30.000</p>
+            <p className="text-[26px] font-extrabold text-brand-primary mt-0.5 leading-none">{freeShippingLabel}</p>
           </div>
-        </div>
+        </div>}
       </aside>
 
       {/* ── Contenido principal ──────────────────────────────────────────────── */}
@@ -109,7 +119,7 @@ export default function Home() {
           <div className="relative z-10 px-4 h-full flex flex-col justify-center">
             <p className="text-[13px] font-bold text-brand-primary leading-tight">Envío gratis</p>
             <p className="text-[11px] text-brand-muted leading-snug">
-              En compras superiores a <span className="font-bold text-brand-primary">$30.000</span>
+              En compras superiores a <span className="font-bold text-brand-primary">{freeShippingLabel}</span>
             </p>
           </div>
         </div>
@@ -190,6 +200,8 @@ export default function Home() {
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
+          ) : isError ? (
+            <CatalogError onRetry={() => void refetch()} />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3">
               {/* MAUI Plus — siempre primer slot */}

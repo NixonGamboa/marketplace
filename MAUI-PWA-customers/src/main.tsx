@@ -2,23 +2,15 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { useUIStore } from './stores/uiStore'
+import { queryClient } from './shared/queryClient'
 
 registerSW({
   onNeedRefresh() {
     useUIStore.getState().setUpdateAvailable(true)
-  },
-})
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 min
-      retry: 1,
-    },
   },
 })
 

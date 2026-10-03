@@ -9,13 +9,18 @@
   TASK-014 · AC-1 · AC-2 · AC-3 · AC-4
 */
 
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, MapPin, Clock, AlertCircle } from 'lucide-react'
 
 import { orderService } from '../../services/index'
 import { MERCHANT_NAME, WA_MESSAGES, TIME_SLOT_LABELS_ORDER } from '../../config/app'
-import { merchantWhatsAppUrl, useMerchantWhatsApp } from '../../shared/hooks/useMerchantWhatsApp'
+import { merchantWhatsAppUrl } from '../../shared/hooks/useMerchantWhatsApp'
+import { useStoreContactPhone } from '../../shared/hooks/useStoreContactPhone'
+import { isDemoMode } from '../../config/mode'
+import { ApiError } from '../../services/http/apiError'
+import { RealOrderReceipt } from './RealOrderReceipt'
 import OrderTimeline from './OrderTimeline'
 
 import type { OrderStatus } from '../../types/orderService'
@@ -81,9 +86,10 @@ function OrderDetailSkeleton() {
 interface ErrorStateProps {
   orderId?: string
   message: string
+  onRetry?: () => void
 }
 
-function ErrorState({ orderId, message }: ErrorStateProps) {
+function ErrorState({ orderId, message, onRetry }: ErrorStateProps) {
   return (
     <main className="min-h-screen bg-brand-bg flex flex-col items-center justify-center px-6 text-center gap-4">
       <AlertCircle
@@ -95,6 +101,15 @@ function ErrorState({ orderId, message }: ErrorStateProps) {
         {orderId ? `Pedido ${orderId}` : 'Pedido no encontrado'}
       </h1>
       <p className="text-brand-muted text-sm max-w-xs">{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center justify-center rounded-xl border border-brand-border px-6 py-3 text-sm font-semibold text-brand-dark hover:bg-gray-50 transition-colors"
+        >
+          Reintentar
+        </button>
+      )}
       <Link
         to="/"
         className="mt-2 inline-flex items-center justify-center rounded-xl bg-brand-primary px-6 py-3 text-sm font-semibold text-white shadow-brand-sm hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary transition-colors"
@@ -108,12 +123,13 @@ function ErrorState({ orderId, message }: ErrorStateProps) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function OrderDetailPage() {
-  const merchantPhone = useMerchantWhatsApp()
+  const merchantPhone = useStoreContactPhone()
+  const [showReceipt, setShowReceipt] = useState(false)
   // AC-1 — useParams
   const { orderId } = useParams<{ orderId: string }>()
 
   // AC-1 — useQuery with refetchInterval 5000
-  const { data: order, isLoading, error } = useQuery({
+  const { data: order, isLoading, error, refetch } = useQuery({
     queryKey:                   ['order', orderId],
     queryFn:                    () => orderService.getById(orderId!),
     enabled:                    !!orderId,
@@ -136,15 +152,19 @@ export default function OrderDetailPage() {
   }
 
   // ── AC-4: Error / not found ───────────────────────────────────────────────
-  if (error || !order) {
+  // Un fallo del sondeo con datos ya cargados no tapa el pedido: solo se avisa (abajo). Un pedido ajeno
+  // responde 404 igual que uno inexistente: no se revela si existe.
+  if (!order) {
+    const notFound = error instanceof ApiError && error.kind === 'not_found'
     return (
       <ErrorState
         orderId={orderId}
         message={
-          error
+          error && !notFound
             ? 'No pudimos cargar tu pedido. Verifica tu conexión e intenta de nuevo.'
             : 'No encontramos un pedido con ese identificador.'
         }
+        {...(error && !notFound ? { onRetry: () => void refetch() } : {})}
       />
     )
   }
@@ -182,6 +202,12 @@ export default function OrderDetailPage() {
           <time dateTime={order.createdAt}>{formatDate(order.createdAt)}</time>
         </p>
       </header>
+
+      {error && (
+        <p role="status" className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          No pudimos actualizar el estado. Mostramos lo último que supimos; reintentaremos automáticamente.
+        </p>
+      )}
 
       {/* ── Payment notice ─────────────────────────────────────────────────── */}
       {/* AC-2 — mensaje pago efectivo */}
@@ -275,6 +301,25 @@ export default function OrderDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Comprobante real (T-14): resumen y contacto leídos del servidor; solo en modo real. */}
+      {!isDemoMode() && (
+        <section aria-label="Comprobante" className="mb-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-3 shadow-card">
+          <button
+            type="button"
+            onClick={() => setShowReceipt((value) => !value)}
+            aria-expanded={showReceipt}
+            className="text-sm font-semibold text-brand-primary"
+          >
+            {showReceipt ? 'Ocultar comprobante' : 'Ver comprobante'}
+          </button>
+          {showReceipt && (
+            <div className="mt-3 text-sm text-brand-dark">
+              <RealOrderReceipt key={`${order.orderId}-${order.updatedAt ?? ''}`} orderId={order.orderId} />
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── AC-3: WhatsApp CTA ─────────────────────────────────────────────── */}
       {/* Fixed to bottom thumb zone for mobile ergonomics (ui-rules.md) */}

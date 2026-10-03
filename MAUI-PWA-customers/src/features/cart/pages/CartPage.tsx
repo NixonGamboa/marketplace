@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import { ShoppingCart } from 'lucide-react'
 import { useCart } from '@/hooks'
+import { useCartAvailability } from '@/hooks/useCartAvailability'
 import { CartItemRow } from '../components/CartItemRow'
 import { formatPrice } from '@/shared/utils/formatPrice'
 
 export default function CartPage() {
   const navigate = useNavigate()
   const { items, removeItem, updateQuantity, updateKilos, total } = useCart()
+  const availability = useCartAvailability()
+  const blocked = availability.unavailable.length > 0 || availability.failed
 
   if (items.length === 0) {
     return (
@@ -66,14 +69,32 @@ export default function CartPage() {
         </div>
       </div>
 
+      {availability.unavailable.length > 0 && (
+        <div role="alert" className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Ya no podemos entregar estos productos:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {availability.unavailable.map((item) => <li key={item.productId}>{item.name}</li>)}
+          </ul>
+          <p className="mt-1 text-xs">Quítalos de tu canasta para continuar con el pedido.</p>
+        </div>
+      )}
+      {availability.failed && (
+        <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span>No pudimos comprobar la disponibilidad de tus productos.</span>
+          <button type="button" onClick={availability.retry} className="shrink-0 font-semibold underline">Reintentar</button>
+        </div>
+      )}
+
       {/* CTA principal */}
       <button
         onClick={() => navigate('/checkout')}
+        disabled={blocked}
         className={[
           'mt-5 w-full h-14 rounded-2xl font-bold text-base text-white',
           'bg-brand-primary hover:bg-brand-primary-dark active:scale-[0.99]',
           'transition-all shadow-brand-md',
           'flex items-center justify-center gap-3',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
         ].join(' ')}
       >
         <ShoppingCart size={20} aria-hidden="true" />

@@ -26,15 +26,18 @@ import {
 
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useCartAvailability } from '@/hooks/useCartAvailability'
 import { orderService } from '@/services'
 import { checkoutErrorMessage } from '@/services/checkoutErrorMessage'
+import { ApiError } from '@/services/http/apiError'
 import type { OrderPayload } from '@/types/orderService'
 
 import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
-import { TIME_SLOT_LABELS } from '@/config/app'
+import { isDemoMode } from '@/config/mode'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
-import { calculateShipping } from './shipping'
+import { calculateShipping, type ShippingQuote, type ShippingRules } from './shipping'
+import { closedMessage, useCheckoutRules, type CheckoutRules } from './storeRules'
 import { formatPrice } from '@/shared/utils/formatPrice'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,9 +58,32 @@ function formatPhone(raw: string | undefined): string {
   return raw
 }
 
-function getCheckoutShipping(subtotal: number, deliveryMode: 'delivery' | 'pickup' | null) {
-  const quote = calculateShipping(subtotal)
+/** Vista previa del envío; el servidor recalcula con sus reglas. Sin reglas (real sin cargar) no se inventa un costo. */
+function getCheckoutShipping(subtotal: number, deliveryMode: 'delivery' | 'pickup' | null, rules: ShippingRules | null): ShippingQuote {
+  const quote = calculateShipping(subtotal, rules ?? { cost: 0, freeThreshold: null })
   return deliveryMode === 'pickup' ? { ...quote, cost: 0, isFree: true } : quote
+}
+
+/**
+ * Motivo por el que no se puede confirmar ahora según las reglas conocidas de la tienda; `null` si
+ * nada lo impide. El servidor revalida: esto solo evita enviar lo que ya sabemos que rechazará.
+ */
+function blockingReason(
+  rules: CheckoutRules,
+  mode: 'delivery' | 'pickup' | null,
+  slot: string | null,
+  unavailable: readonly { name: string }[],
+): string | null {
+  if (unavailable.length > 0) return `Ya no podemos entregar: ${unavailable.map((item) => item.name).join(', ')}. Quítalos de tu canasta.`
+  if (rules.status === 'loading') return 'Cargando las reglas de la tienda…'
+  if (rules.status === 'error') return 'No pudimos cargar las reglas de la tienda.'
+  if (!rules.isOpen) return closedMessage(rules.closedReason)
+  if (mode === 'delivery' && !rules.acceptsDelivery) return 'El domicilio no está disponible ahora. Puedes recoger en tienda.'
+  if (mode === 'pickup' && !rules.acceptsPickup) return 'La recogida no está disponible ahora.'
+  if (mode === 'pickup' && slot && !rules.slots.some((option) => option.value === slot)) {
+    return 'La franja que elegiste ya no está disponible. Elige otra.'
+  }
+  return null
 }
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
@@ -141,15 +167,16 @@ function CheckoutStepper({ step, onStepClick }: CheckoutStepperProps) {
 
 interface StepResumenProps {
   animClass: string
+  rules: CheckoutRules
 }
 
-function StepResumen({ animClass }: StepResumenProps) {
+function StepResumen({ animClass, rules }: StepResumenProps) {
   const cartItems = useCartStore((s) => s.items)
   const cartTotal = useCartStore((s) => s.total)
   const deliveryMode = useCheckoutStore((s) => s.deliveryMode)
   const [expanded, setExpanded] = useState(false)
 
-  const shipping = getCheckoutShipping(cartTotal, deliveryMode)
+  const shipping = getCheckoutShipping(cartTotal, deliveryMode, rules.shipping)
   const totalWithShipping = cartTotal + shipping.cost
 
   return (
@@ -259,7 +286,7 @@ function StepResumen({ animClass }: StepResumenProps) {
 
 // ─── Step 1: Entrega ──────────────────────────────────────────────────────────
 
-function StepEntrega({ animClass }: { animClass: string }) {
+function StepEntrega({ animClass, rules }: { animClass: string; rules: CheckoutRules }) {
   const customerPhone = useCheckoutStore((s) => s.customerPhone)
   const setCustomerPhone = useCheckoutStore((s) => s.setCustomerPhone)
   const [localNote,     setLocalNote]     = useState('')
@@ -276,7 +303,7 @@ function StepEntrega({ animClass }: { animClass: string }) {
 
       {/* DeliverySelector */}
       <div className="rounded-2xl border border-brand-border bg-white p-5 shadow-card">
-        <DeliverySelector />
+        <DeliverySelector rules={rules} />
       </div>
 
       {/* Celular de contacto para este pedido */}
@@ -395,9 +422,11 @@ interface StepPagoProps {
   animClass: string
   submitError: string | null
   isSubmitting: boolean
+  rules: CheckoutRules
+  blocked: string | null
 }
 
-function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
+function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: StepPagoProps) {
   const cartTotal      = useCartStore((s) => s.total)
   const customerPhone  = useCheckoutStore((s) => s.customerPhone)
   const deliveryMode   = useCheckoutStore((s) => s.deliveryMode)
@@ -405,14 +434,14 @@ function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
   const lat            = useCheckoutStore((s) => s.lat)
   const timeSlot       = useCheckoutStore((s) => s.timeSlot)
 
-  const shipping = getCheckoutShipping(cartTotal, deliveryMode)
+  const shipping = getCheckoutShipping(cartTotal, deliveryMode, rules.shipping)
   const totalWithShipping = cartTotal + shipping.cost
 
   const deliverySummary =
     deliveryMode === 'delivery'
       ? `Entregamos en: ${address?.trim() || (lat !== null ? 'ubicación actual enviada' : '')}`
       : deliveryMode === 'pickup' && timeSlot
-        ? `Recoges en tienda — ${TIME_SLOT_LABELS[timeSlot]}`
+        ? `Recoges en tienda — ${rules.slotLabel(timeSlot)}`
         : 'Entrega pendiente'
 
   return (
@@ -492,6 +521,17 @@ function StepPago({ animClass, submitError, isSubmitting }: StepPagoProps) {
         </p>
       </div>
 
+      {blocked && (
+        <div role="alert" className="flex items-start justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+          <p className="text-xs font-medium text-amber-800">{blocked}</p>
+          {(rules.status === 'error' || !rules.isOpen) && (
+            <button type="button" onClick={rules.refetch} className="shrink-0 text-xs font-semibold text-amber-900 underline">
+              Actualizar
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Error de envío (también visible aquí para feedback en paso 2) */}
       {submitError && !isSubmitting && (
         <div
@@ -528,6 +568,8 @@ export default function CheckoutPage() {
   const clearCart       = useCartStore((s) => s.clearCart)
 
   const user            = useAuthStore((s) => s.user)
+  const rules           = useCheckoutRules()
+  const availability    = useCartAvailability()
 
   const checkout        = useCheckoutStore()
   const isCheckoutReady = useIsCheckoutReady()
@@ -564,13 +606,14 @@ export default function CheckoutPage() {
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const isSubmitting = checkout.isSubmitting
+  const blocked = blockingReason(rules, checkout.deliveryMode, checkout.timeSlot, availability.unavailable)
 
   const isCtaDisabled =
     step === 0
       ? false                                        // always enabled on step 0
       : step === 1
-        ? !isStep1Ready                              // delivery readiness
-        : !isCheckoutReady || isSubmitting
+        ? !isStep1Ready || blocked !== null          // delivery readiness + reglas de la tienda
+        : !isCheckoutReady || isSubmitting || blocked !== null
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
@@ -599,6 +642,13 @@ export default function CheckoutPage() {
     setSubmitError(null)
     checkout.setSubmitting(true)
 
+    // En modo real la identidad es la sesión del servidor; sin ella no se envía nada (la ruta ya redirige al ingreso).
+    if (!isDemoMode() && !user) {
+      setSubmitError(checkoutErrorMessage(new ApiError({ kind: 'unauthenticated', status: 401, message: '' })))
+      checkout.setSubmitting(false)
+      return
+    }
+
     const payload: OrderPayload = {
       userId: user?.id ?? 'anonymous',
       items: mapCartItemsToOrderItems(cartItems),
@@ -612,7 +662,7 @@ export default function CheckoutPage() {
       },
       customerName: user?.name ?? 'Cliente',
       customerPhone,
-      shippingCost: getCheckoutShipping(cartTotal, checkout.deliveryMode).cost,
+      shippingCost: getCheckoutShipping(cartTotal, checkout.deliveryMode, rules.shipping).cost,
     }
 
     try {
@@ -676,13 +726,15 @@ export default function CheckoutPage() {
       <main className="mx-auto max-w-lg px-4 pb-44 pt-5 overflow-x-hidden">
         {/* key triggers re-mount (and animation) on every step change */}
         <div key={animKey} className="will-change-transform">
-          {step === 0 && <StepResumen animClass={animClass} />}
-          {step === 1 && <StepEntrega animClass={animClass} />}
+          {step === 0 && <StepResumen animClass={animClass} rules={rules} />}
+          {step === 1 && <StepEntrega animClass={animClass} rules={rules} />}
           {step === 2 && (
             <StepPago
               animClass={animClass}
               submitError={submitError}
               isSubmitting={isSubmitting}
+              rules={rules}
+              blocked={blocked}
             />
           )}
         </div>
@@ -700,7 +752,7 @@ export default function CheckoutPage() {
                 Total estimado
               </span>
               <span className="tabular-nums text-xl font-bold text-brand-primary leading-tight mt-0.5">
-                  {formatPrice(cartTotal + getCheckoutShipping(cartTotal, checkout.deliveryMode).cost)}
+                  {formatPrice(cartTotal + getCheckoutShipping(cartTotal, checkout.deliveryMode, rules.shipping).cost)}
               </span>
             </div>
 

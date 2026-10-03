@@ -13,17 +13,16 @@ import { useId, useState } from 'react'
 import { Package, Truck, MapPin, Loader2, ChevronRight } from 'lucide-react'
 import { useCheckoutStore } from './checkoutStore'
 import type { DeliveryMode, TimeSlot } from './checkoutStore'
-import { TIME_SLOT_OPTIONS, PICKUP_SUBTEXT } from '@/config/app'
-
-/**
- * Nota informativa: no hay verificación geográfica automática (GPS opcional, sin geocerca).
- * El servidor la publica en `delivery.coverageNote` de GET /api/store; T-18 la tomará de ahí.
- */
-const COVERAGE_NOTE = 'Solo hay cobertura en el casco urbano de Dolores'
+import type { CheckoutRules } from './storeRules'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DeliverySelector() {
+/**
+ * La nota de cobertura es solo informativa (sin verificación geográfica, GPS opcional): en modo real
+ * viene del servidor (`delivery.coverageNote`). Las franjas y la disponibilidad de recogida/domicilio
+ * también salen de `rules`, nunca de constantes locales fuera del demo.
+ */
+export default function DeliverySelector({ rules }: { rules: CheckoutRules }) {
   const baseId = useId()
 
   const deliveryMode  = useCheckoutStore((s) => s.deliveryMode)
@@ -125,11 +124,13 @@ export default function DeliverySelector() {
     ? hasAddress || hasCoordinates
       ? null // multi-line subtext rendered separately
       : 'Envía tu ubicación o escribe una dirección'
-    : 'Te lo llevamos hasta tu casa'
+    : rules.acceptsDelivery
+      ? 'Te lo llevamos hasta tu casa'
+      : 'No disponible ahora; puedes recoger en tienda'
 
   const pickupSubtext = isPickup
     ? timeSlot
-      ? PICKUP_SUBTEXT[timeSlot]
+      ? rules.pickupSubtext(timeSlot)
       : 'Elige cuándo quieres recogerlo'
     : 'Pasa por tu pedido cuando quieras'
 
@@ -157,10 +158,11 @@ export default function DeliverySelector() {
           onClick={handleDeliveryClick}
           role="radio"
           aria-checked={isDelivery}
+          disabled={!rules.acceptsDelivery}
           className={[
             'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
             'focus-visible:outline-none focus-visible:bg-brand-primary/5',
-            'bg-white hover:bg-gray-50',
+            'bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50',
           ].join(' ')}
         >
           {/* Radio visual */}
@@ -225,9 +227,9 @@ export default function DeliverySelector() {
           />
         </button>
 
-        {isDelivery && (
+        {isDelivery && rules.coverageNote && (
           <p className="bg-white pb-2 pl-24 pr-4 text-[11px] leading-snug text-brand-muted">
-            {COVERAGE_NOTE}
+            {rules.coverageNote}
           </p>
         )}
 
@@ -330,10 +332,11 @@ export default function DeliverySelector() {
           onClick={handlePickupClick}
           role="radio"
           aria-checked={isPickup}
+          disabled={!rules.acceptsPickup}
           className={[
             'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
             'focus-visible:outline-none focus-visible:bg-brand-primary/5',
-            'bg-white hover:bg-gray-50',
+            'bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50',
           ].join(' ')}
         >
           {/* Radio visual */}
@@ -389,9 +392,14 @@ export default function DeliverySelector() {
               ¿A qué hora lo recoges?
             </p>
 
-            {TIME_SLOT_OPTIONS.map((option, idx) => {
+            {rules.slots.length === 0 && (
+              <p role="status" className="px-4 pb-3 text-xs text-brand-muted">
+                Ya no hay franjas disponibles para hoy.
+              </p>
+            )}
+            {rules.slots.map((option, idx) => {
               const isChecked = timeSlot === option.value
-              const isLast = idx === TIME_SLOT_OPTIONS.length - 1
+              const isLast = idx === rules.slots.length - 1
 
               return (
                 <div key={option.value}>
