@@ -1,7 +1,8 @@
+/// <reference types="node" />
 // Smoke E2E REAL (con escrituras) de los servicios de la PWA contra un Preview/test con T-16 integrado.
 // NO se ejecuta en `npm test` ni en CI: exige `SMOKE_REAL_FLOW=1` y cuentas por canal privado.
 //
-//   SMOKE_BASE_URL=https://<preview>.vercel.app SMOKE_REAL_FLOW=1 \
+//   SMOKE_BASE_URL=https://<preview>.vercel.app SMOKE_AUTH_ORIGIN=https://<develop>.vercel.app SMOKE_REAL_FLOW=1 \
 //   SMOKE_CUSTOMER_PHONE=… SMOKE_CUSTOMER_PASSWORD=… \
 //   SMOKE_OTHER_CUSTOMER_PHONE=… SMOKE_OTHER_CUSTOMER_PASSWORD=… \
 //   npm --prefix MAUI-PWA-customers run smoke:preview
@@ -13,8 +14,10 @@
 // Cierre real de T-18: este smoke verde + evidencia de la API/Postgres de test (no los tests con mocks).
 // El contexto del PERSONAL (admin) se ejercita en el smoke equivalente de maui-admin-front.
 
-import { describe, expect, it } from 'vitest'
-import { authSessionResponseSchema } from '@shared/contracts'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { orderConfirmationSchema, authSessionResponseSchema } from '@shared/contracts'
 import { createApiClient, type ApiClient } from '../services/http/apiClient'
 import { ApiError } from '../services/http/apiError'
 import { createRealAuthService } from '../services/realAuthService'
@@ -26,6 +29,7 @@ import { createCheckoutIntents, type IntentStorage, type StoredIntent } from '..
 const env = import.meta.env as Record<string, string | undefined>
 const baseUrl = (env.SMOKE_BASE_URL ?? '').replace(/\/+$/, '')
 const enabled = env.SMOKE_REAL_FLOW === '1'
+const authOrigin = env.SMOKE_AUTH_ORIGIN ?? ''
 const credentials = {
   phone: env.SMOKE_CUSTOMER_PHONE,
   password: env.SMOKE_CUSTOMER_PASSWORD,
@@ -34,15 +38,84 @@ const credentials = {
 }
 const complete = Object.values(credentials).every((value) => value !== undefined && value !== '')
 
+// Checkpoint local para limpieza del orquestador: sin cuerpos, cuentas ni secretos.
+const checkpointUrl = new URL('../../../orquestacion-local/smoke-runtime.json', import.meta.url)
+const runtime: { block: string; phase: string; orders: { key: string; orderId?: string }[]; sessionsClosed?: boolean } = {
+  block: 'T-18', phase: 'prepared', orders: [],
+}
+let guardReady = false
+const saveCheckpoint = (phase: string) => {
+  runtime.phase = phase
+  mkdirSync(fileURLToPath(new URL('.', checkpointUrl)), { recursive: true })
+  writeFileSync(fileURLToPath(checkpointUrl), JSON.stringify(runtime, null, 2))
+}
+const cleanHttpsOrigin = (value: string, label: string) => {
+  let url: URL
+  try { url = new URL(value) } catch { throw new Error(label + ' requiere un origen HTTPS') }
+  if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error(label + ' requiere un origen HTTPS limpio, sin ruta ni credenciales')
+  }
+  return url.origin
+}
+const validateDestination = async () => {
+  if (!complete) throw new Error('El smoke habilitado requiere todas sus credenciales')
+  cleanHttpsOrigin(baseUrl, 'SMOKE_BASE_URL')
+  cleanHttpsOrigin(authOrigin, 'SMOKE_AUTH_ORIGIN')
+  const headers = new Headers()
+  if (env.SMOKE_VERCEL_BYPASS) headers.set('x-vercel-protection-bypass', env.SMOKE_VERCEL_BYPASS)
+  const response = await fetch(new URL('/api/health', baseUrl), { headers, redirect: 'error', signal: AbortSignal.timeout(30_000) })
+  if (!response.ok) throw new Error('El destino no acredita salud de test')
+  const health: unknown = await response.json()
+  expect(health).toMatchObject({ status: 'ok', environment: 'test', database: 'connected' })
+  if (existsSync(fileURLToPath(checkpointUrl))) {
+    const previous: unknown = JSON.parse(readFileSync(fileURLToPath(checkpointUrl), 'utf8'))
+    if (typeof previous !== 'object' || previous === null || !('block' in previous) || previous.block !== runtime.block ||
+      !('orders' in previous) || !Array.isArray(previous.orders)) throw new Error('Checkpoint local inválido')
+    for (const record of previous.orders as unknown[]) {
+      if (typeof record !== 'object' || record === null || !('key' in record) || typeof record.key !== 'string' ||
+        ('orderId' in record && typeof record.orderId !== 'string')) throw new Error('Checkpoint local inválido')
+      runtime.orders.push({ key: record.key, ...('orderId' in record ? { orderId: record.orderId as string } : {}) })
+    }
+  }
+  saveCheckpoint('validated')
+  guardReady = true
+}
+
 /** Contexto aislado: su cookie jar no se comparte con el otro (equivale a dos navegadores). */
-const createContext = (): ApiClient => {
+const createContext = () => {
   const jar = new Map<string, string>()
+  let loseNextOrderResponse = false
+  const submittedKeys: string[] = []
   const fetchImpl: typeof fetch = async (input, init) => {
     const headers = new Headers(init?.headers)
-    headers.set('Origin', baseUrl)
+    headers.set('Origin', authOrigin)
     if (env.SMOKE_VERCEL_BYPASS) headers.set('x-vercel-protection-bypass', env.SMOKE_VERCEL_BYPASS)
     if (jar.size > 0) headers.set('Cookie', [...jar].map(([name, value]) => `${name}=${value}`).join('; '))
-    const response = await fetch(new URL(String(input), baseUrl), { ...init, headers })
+    const url = new URL(String(input), baseUrl)
+    const createsOrder = init?.method === 'POST' && url.pathname === '/api/orders'
+    const key = createsOrder ? headers.get('Idempotency-Key') : null
+    if (createsOrder) {
+      if (!key) throw new Error('Crear un pedido requiere Idempotency-Key')
+      submittedKeys.push(key)
+      if (!runtime.orders.some((order) => order.key === key)) runtime.orders.push({ key })
+      saveCheckpoint('creating')
+    }
+    const response = await fetch(url, { ...init, headers, redirect: 'error' })
+    if (createsOrder && (response.status === 201 || response.status === 200)) {
+      const confirmation = orderConfirmationSchema.parse(await response.clone().json())
+      const record = runtime.orders.find((order) => order.key === key && order.orderId === undefined)
+      if (record) record.orderId = confirmation.orderId
+      else if (!runtime.orders.some((order) => order.key === key && order.orderId === confirmation.orderId)) {
+        runtime.orders.push({ key: key!, orderId: confirmation.orderId })
+      }
+      saveCheckpoint('created')
+      if (loseNextOrderResponse) {
+        loseNextOrderResponse = false
+        await response.arrayBuffer()
+        // La API y Postgres ya confirmaron; solo se pierde la entrega al cliente.
+        throw new Error('Respuesta de creación perdida por el transporte del smoke')
+      }
+    }
     for (const cookie of response.headers.getSetCookie()) {
       const [pair] = cookie.split(';')
       const separator = pair.indexOf('=')
@@ -53,7 +126,14 @@ const createContext = (): ApiClient => {
     }
     return response
   }
-  return createApiClient({ baseUrl: '/api', fetchImpl, timeoutMs: 30_000 })
+  const client = createApiClient({ baseUrl: '/api', fetchImpl, timeoutMs: 30_000 })
+  return {
+    client, submittedKeys,
+    loseNextOrderResponse: () => { loseNextOrderResponse = true },
+    close: async () => {
+      if (jar.size > 0) await client.request({ method: 'POST', path: '/auth/logout' })
+    },
+  }
 }
 
 const memoryIntents = (): IntentStorage => {
@@ -78,9 +158,19 @@ const failureOf = async (promise: Promise<unknown>): Promise<ApiError> => {
   return error as ApiError
 }
 
-describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real de cliente en ${baseUrl}`, () => {
-  const mine = servicesFor(createContext())
-  const other = servicesFor(createContext())
+describe.skipIf(!enabled)('flujo real de cliente', () => {
+  const mineCtx = createContext()
+  const otherCtx = createContext()
+  const mine = servicesFor(mineCtx.client)
+  const other = servicesFor(otherCtx.client)
+  beforeAll(validateDestination)
+  afterAll(async () => {
+    if (!guardReady) return
+    const results = await Promise.allSettled([mineCtx.close(), otherCtx.close()])
+    runtime.sessionsClosed = results.every((result) => result.status === 'fulfilled')
+    saveCheckpoint('finished')
+    expect(runtime.sessionsClosed, 'todas las sesiones propias deben cerrarse').toBe(true)
+  })
   const state: { userId?: string; productId?: string; variableId?: string; orderId?: string } = {}
 
   it('inicia sesión en los dos contextos con cuentas distintas y lee el catálogo y la tienda reales', async () => {
@@ -101,10 +191,7 @@ describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real de cliente 
     expect(store.availability.isOpen, 'la tienda de test debe estar abierta para crear el pedido').toBe(true)
   })
 
-  it('crea el pedido con identidad y teléfono reales; reintentar con la misma intención no lo duplica', async () => {
-    const store = await mine.catalog.getStore()
-    const slot = store.availability.availableTimeSlots[0]
-    expect(slot, 'debe haber una franja disponible hoy').toBeDefined()
+  it('doble envío concurrente y pérdida de respuesta real conservan la intención sin duplicar', async () => {
     const payload = {
       userId: state.userId!,
       items: [
@@ -113,16 +200,28 @@ describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real de cliente 
       ],
       substitutionPreference: 'similar' as const,
       deliveryType: 'pickup' as const,
-      deliveryData: { timeSlot: slot! },
+      deliveryData: {},
       customerName: 'Smoke T-18',
       customerPhone: credentials.phone!,
       shippingCost: 0,
     }
-    const first = await mine.orders.submit(payload)
-    const repeated = await mine.orders.submit(payload)
-    expect(repeated.orderId).toBe(first.orderId)
-    expect(first.status).toBe('received')
-    state.orderId = first.orderId
+    const before = mineCtx.submittedKeys.length
+    mineCtx.loseNextOrderResponse()
+    const attempts = await Promise.allSettled([mine.orders.submit(payload), mine.orders.submit(payload)])
+    expect(attempts.every((result) => result.status === 'rejected' && result.reason instanceof ApiError && result.reason.kind === 'network')).toBe(true)
+    expect(mineCtx.submittedKeys.length - before, 'el doble clic solo envía una creación').toBe(1)
+    const lostKey = mineCtx.submittedKeys[before]!
+    const persistedId = runtime.orders.find((order) => order.key === lostKey)?.orderId
+    expect(persistedId, 'la respuesta perdida ya confirmó la escritura real').toBeDefined()
+    const [repeated, concurrent] = await Promise.all([mine.orders.submit(payload), mine.orders.submit(payload)])
+    expect(concurrent.orderId).toBe(repeated.orderId)
+    expect(mineCtx.submittedKeys.length - before).toBe(2)
+    expect(mineCtx.submittedKeys[before + 1]).toBe(lostKey)
+    expect(repeated.orderId).toBe(persistedId)
+    expect(repeated.status).toBe('received')
+    state.orderId = repeated.orderId
+    const page = await mine.orders.listPage({ q: repeated.orderId, limit: 100 })
+    expect(page.items.filter((order) => order.orderId === repeated.orderId)).toHaveLength(1)
   })
 
   it('el historial filtra y pagina en el servidor (q, status, from, to)', async () => {
@@ -158,11 +257,11 @@ describe.skipIf(!enabled || !complete || baseUrl === '')(`flujo real de cliente 
   })
 
   it('sin sesión no hay datos privados y el logout invalida la cookie', async () => {
-    const anonymous = servicesFor(createContext())
+    const anonymous = servicesFor(createContext().client)
     expect((await failureOf(anonymous.orders.listPage())).kind).toBe('unauthenticated')
     await mine.auth.logout()
     expect((await failureOf(mine.orders.getById(state.orderId!))).kind).toBe('unauthenticated')
-    const raw = await createContext().request({ path: '/auth/session', schema: authSessionResponseSchema }).then(() => 'ok', (e: unknown) => (e as ApiError).kind)
+    const raw = await createContext().client.request({ path: '/auth/session', schema: authSessionResponseSchema }).then(() => 'ok', (e: unknown) => (e as ApiError).kind)
     expect(raw).toBe('unauthenticated')
   })
 })
