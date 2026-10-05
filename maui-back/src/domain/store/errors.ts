@@ -1,14 +1,12 @@
 import { DomainError } from '../../shared/errors.js'
 
 export const STORE_RULE_CODES = [
-  'STORE_CLOSED',
   'DELIVERY_UNAVAILABLE',
-  'DELIVERY_CUTOFF_PASSED',
   'TIME_SLOT_UNAVAILABLE',
 ] as const
 export type StoreRuleCode = (typeof STORE_RULE_CODES)[number]
 
-/** Pedido que la tienda no puede recibir ahora (cierre, corte, franja o domicilio desactivado). */
+/** Pedido que la tienda no puede recibir: domicilio deshabilitado o franja incompatible con la fecha de procesamiento. */
 export class StoreRuleError extends DomainError {
   constructor(
     public readonly rule: StoreRuleCode,

@@ -7,6 +7,8 @@ import { useEffect, useState } from 'react'
 import type { Category, Product } from '@/types/catalog'
 import { catalogRepo } from '@/services'
 import { Modal } from '@/ui/Modal'
+import { FieldError } from '@/ui/FieldError'
+import { fieldErrorId, invalidInputClass } from '@/ui/fieldStyles'
 import { PriceInput } from '@/ui/PriceInput'
 import { useToast } from '@/ui/Toast'
 import { uploadProductImageFile } from '@/services/productImageService'
@@ -30,6 +32,29 @@ function slugify(name: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+}
+
+type ValidatedField = 'name' | 'categoryId' | 'price'
+type DraftErrors = Partial<Record<ValidatedField, string>>
+
+const FIELD_ORDER: readonly ValidatedField[] = ['name', 'categoryId', 'price']
+const FIELD_IDS: Record<ValidatedField, string> = { name: 'prod-name', categoryId: 'prod-cat', price: 'prod-price' }
+
+function validateDraft(draft: Product): DraftErrors {
+  const errors: DraftErrors = {}
+  if (!draft.name.trim()) errors.name = 'El nombre es obligatorio'
+  if (!draft.categoryId) errors.categoryId = 'Elige una categoría'
+  if (draft.price < 0) errors.price = 'El precio no puede ser negativo'
+  return errors
+}
+
+/** Atributos de accesibilidad y estilo de un campo validado. */
+function fieldProps(id: string, error: string | undefined) {
+  return {
+    'aria-invalid': error !== undefined,
+    'aria-describedby': error ? fieldErrorId(id) : undefined,
+    className: `w-full text-sm border rounded-lg px-3 py-2 ${error ? invalidInputClass : 'border-gray-300'}`,
+  }
 }
 
 function emptyDraft(categoryId: string): Product {
@@ -57,6 +82,9 @@ export function ProductFormModal({
   const [draft, setDraft] = useState<Product>(() => initial ?? emptyDraft(categories[0]?.id ?? ''))
   const [busy, setBusy] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [attempted, setAttempted] = useState(false)
+  // Los errores aparecen al intentar guardar y se retiran solos al corregir el campo.
+  const errors = attempted ? validateDraft(draft) : {}
   const isEditing = !!initial
   const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false'
   const hasServerVersion = initial !== undefined && 'version' in initial &&
@@ -66,6 +94,7 @@ export function ProductFormModal({
     if (open) {
       setDraft(initial ?? emptyDraft(categories[0]?.id ?? ''))
       setImageFile(null)
+      setAttempted(false)
     }
   }, [open, initial, categories])
 
@@ -74,16 +103,10 @@ export function ProductFormModal({
   }
 
   async function handleSave() {
-    if (!draft.name.trim()) {
-      toast.error('El nombre es obligatorio')
-      return
-    }
-    if (draft.price < 0) {
-      toast.error('El precio no puede ser negativo')
-      return
-    }
-    if (!draft.categoryId) {
-      toast.error('Elige una categoría')
+    setAttempted(true)
+    const firstInvalid = FIELD_ORDER.find((field) => validateDraft(draft)[field])
+    if (firstInvalid) {
+      document.getElementById(FIELD_IDS[firstInvalid])?.focus()
       return
     }
     const finalDraft: Product = {
@@ -124,20 +147,20 @@ export function ProductFormModal({
     >
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Nombre" id="prod-name">
+          <Field label="Nombre" id="prod-name" error={errors.name}>
             <input
               id="prod-name"
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2"
+              {...fieldProps('prod-name', errors.name)}
             />
           </Field>
-          <Field label="Categoría" id="prod-cat">
+          <Field label="Categoría" id="prod-cat" error={errors.categoryId}>
             <select
               id="prod-cat"
               value={draft.categoryId}
               onChange={(e) => patch({ categoryId: e.target.value })}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2"
+              {...fieldProps('prod-cat', errors.categoryId)}
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -152,6 +175,7 @@ export function ProductFormModal({
             label={draft.is_variable_weight ? 'Precio por kg' : 'Precio'}
             value={draft.price}
             onChange={(v) => patch({ price: v })}
+            error={errors.price}
           />
           <Field label="Unidad de venta" id="prod-unit" hint="Ej: '1 L', '500 g', '$/kg' para peso variable">
             <input
@@ -237,11 +261,13 @@ function Field({
   label,
   id,
   hint,
+  error,
   children,
 }: {
   label: string
   id: string
   hint?: string
+  error?: string
   children: React.ReactNode
 }) {
   return (
@@ -250,6 +276,7 @@ function Field({
         {label}
       </label>
       {children}
+      <FieldError id={id} message={error} />
       {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
     </div>
   )

@@ -62,6 +62,34 @@ describe('HistoricoPage (modo real, fuente simulada)', () => {
     expect(mocks.loadPage).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'cancelled', q: 'Ana' }), undefined, expect.anything())
   })
 
+  it('un rango invertido marca los campos de fecha, no consulta y se recupera al corregirlo', async () => {
+    mocks.loadPage.mockResolvedValue({ items: [], nextCursor: null })
+    render(<MemoryRouter><HistoricoPage /></MemoryRouter>)
+    await screen.findByText(/Sin pedidos|No hay pedidos/i)
+    const calls = mocks.loadPage.mock.calls.length
+    const from = screen.getByLabelText('Desde')
+    const to = screen.getByLabelText('Hasta')
+    fireEvent.change(from, { target: { value: '2026-10-10' } })
+    fireEvent.change(to, { target: { value: '2026-10-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    for (const field of [from, to]) {
+      expect(field).toHaveAttribute('aria-invalid', 'true')
+      expect(field).toHaveAttribute('aria-describedby', 'hist-range-error')
+    }
+    expect(document.getElementById('hist-range-error')).toHaveTextContent('«Desde» no puede ser posterior a «Hasta»')
+    expect(from).toHaveFocus()
+    expect(mocks.loadPage).toHaveBeenCalledTimes(calls)
+
+    fireEvent.change(to, { target: { value: '2026-10-12' } })
+    expect(from).toHaveAttribute('aria-invalid', 'false')
+    expect(to).toHaveAttribute('aria-invalid', 'false')
+    expect(document.getElementById('hist-range-error')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledTimes(calls + 1))
+    expect(mocks.loadPage).toHaveBeenLastCalledWith(expect.objectContaining({ from: '2026-10-10', to: '2026-10-12' }), undefined, expect.anything())
+  })
+
   it('pagina con «Cargar más» usando el cursor', async () => {
     mocks.loadPage.mockResolvedValueOnce({ items: [order('ord-1')], nextCursor: 'cur1' })
       .mockResolvedValueOnce({ items: [order('ord-2')], nextCursor: null })

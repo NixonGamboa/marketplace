@@ -132,6 +132,54 @@ describe('OrderDetailPage real (servicio simulado)', () => {
     </QueryClientProvider>,
   )
 
+  describe('aviso de procesamiento (PM-03)', () => {
+    const scheduled = { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' } as const
+    const unscheduled = { kind: 'unscheduled', reason: 'override_closed' } as const
+
+    it('recogida con franja: muestra la fecha fijada por el servidor, aparte del aviso, sin «esta mañana»', async () => {
+      mocks.getById.mockResolvedValue(order('ord-1', { deliveryData: { timeSlot: 'morning' }, timeSlotDate: '2026-10-07', processingNotice: scheduled }))
+      renderDetail()
+      expect(await screen.findByText('Franja de recogida: por la mañana · miércoles, 7 de octubre')).toBeInTheDocument()
+      expect(screen.getByText(/Comenzaremos a procesarlo el martes, 6 de octubre/)).toBeInTheDocument()
+      expect(screen.queryByText(/esta mañana|esta tarde/i)).toBeNull()
+    })
+
+    it('recogida con franja sin fecha registrada (pedido anterior): solo la franja', async () => {
+      mocks.getById.mockResolvedValue(order('ord-1', { deliveryData: { timeSlot: 'afternoon' } }))
+      renderDetail()
+      expect(await screen.findByText('Franja de recogida: por la tarde')).toBeInTheDocument()
+    })
+
+    it('pedido recibido fuera de atención: muestra el aviso persistido con la próxima apertura', async () => {
+      mocks.getById.mockResolvedValue(order('ord-1', { processingNotice: scheduled }))
+      renderDetail()
+      const notice = await screen.findByText(/¡Recibimos tu pedido!/)
+      expect(notice).toHaveTextContent('Comenzaremos a procesarlo el martes, 6 de octubre a las 8:00 a. m.')
+      expect(notice).not.toHaveTextContent(/entreg|recog/i)
+      expect(notice.closest('[role="status"]')).not.toBeNull()
+    })
+
+    it('cierre sin reapertura conocida: aviso sin hora inventada', async () => {
+      mocks.getById.mockResolvedValue(order('ord-1', { processingNotice: unscheduled }))
+      renderDetail()
+      const notice = await screen.findByText(/¡Recibimos tu pedido!/)
+      expect(notice).toHaveTextContent('Lo procesaremos cuando retomemos la atención.')
+      expect(notice).not.toHaveTextContent(/\d:\d\d/)
+    })
+
+    it('sin aviso (recibido atendiendo) o con el pedido ya en proceso no se muestra', async () => {
+      mocks.getById.mockResolvedValue(order('ord-1'))
+      const first = renderDetail()
+      expect(await screen.findByText(/estado received/)).toBeInTheDocument()
+      expect(screen.queryByText(/¡Recibimos tu pedido!/)).toBeNull()
+      first.unmount()
+      mocks.getById.mockResolvedValue(order('ord-1', { status: 'confirmed', processingNotice: scheduled }))
+      renderDetail()
+      expect(await screen.findByText(/estado confirmed/)).toBeInTheDocument()
+      expect(screen.queryByText(/¡Recibimos tu pedido!/)).toBeNull()
+    })
+  })
+
   it('el contacto sale del servidor, no del almacenamiento local', async () => {
     window.localStorage.setItem('maui-admin-merchant', JSON.stringify({ mch_lechemiel: { whatsapp: '3009998888' } }))
     mocks.getById.mockResolvedValue(order('ord-1'))

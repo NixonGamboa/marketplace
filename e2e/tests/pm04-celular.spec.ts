@@ -19,7 +19,6 @@ test.describe.serial('celular local en checkout @completo', () => {
   let runtime: RuntimeRecord
   let owner: OwnerApi
   let fixtures: TechnicalFixtures
-  let restoreStore: () => Promise<void> = async () => undefined
   let customer: Actor
   let fixed: ProductDto
 
@@ -32,7 +31,7 @@ test.describe.serial('celular local en checkout @completo', () => {
     owner = await openOwnerApi(playwright, dest, credentials)
     fixtures = new TechnicalFixtures(owner, runtime)
     await fixtures.restore()
-    restoreStore = await owner.ensureStoreOpen(runtime)
+    await owner.restoreInterruptedOverride(runtime)
     customer = await openActor(browser, dest, 'cliente', runtime)
     saveRuntime(runtime, 'started')
   })
@@ -41,7 +40,7 @@ test.describe.serial('celular local en checkout @completo', () => {
     if (!runtime) return
     const logout = customer?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) })
     const results = await Promise.allSettled([
-      (async () => { await restoreStore(); await fixtures?.restore(); await owner?.close() })(), Promise.resolve(logout),
+      (async () => { await owner?.restoreInterruptedOverride(runtime); await fixtures?.restore(); await owner?.close() })(), Promise.resolve(logout),
     ])
     runtime.sessionsClosed = results.every((result) => result.status === 'fulfilled')
     saveRuntime(runtime, 'finished')

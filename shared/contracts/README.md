@@ -7,7 +7,7 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | Contrato | Uso |
 |---|---|
 | `createOrderRequestSchema` | POST `/api/orders`, entrada estricta sin campos de resultado ni contexto interno |
-| `orderConfirmationSchema` | Respuesta de creación: ID, `received` y estimación |
+| `orderConfirmationSchema` | Respuesta de creación: ID, `received`, estimación y `processingNotice` si se recibió fuera de atención |
 | `orderDtoSchema` | Lecturas cliente/admin, salida explícita sin `storeId` ni campos internos |
 | `listOrdersQuerySchema` / `orderListResponseSchema` | GET `/api/orders` (T-11): query estricta (`q`, `status`, `from` inclusivo, `to` exclusivo, `limit` 1–100, `cursor` opaco) y `{items: OrderDto[], nextCursor}`; el alcance lo fija la sesión |
 | `updateOrderStatusRequestSchema` | PATCH `/api/orders/:id/status` (T-12): `status`, `expectedVersion` y `reason` obligatorio solo al cancelar (5–500) |
@@ -18,6 +18,17 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | `create/updateProductRequestSchema`, `create/updateCategoryRequestSchema` | CRUD estricto del owner; `null` borra opcionales en PATCH |
 | `storeDtoSchema` | Configuración pública de tienda con `availability` calculada por el servidor |
 | `updateStoreSettingsRequestSchema` | PATCH parcial del owner; `timeZone`, tienda y fechas no editables |
+
+Recepción permanente (PM-03): el horario, el día sin atención y el cierre manual no impiden registrar
+pedidos; solo un domicilio deshabilitado en la configuración se rechaza. Si el pedido se recibe fuera de
+atención (o es un domicilio posterior al corte), el servidor fija `processingNotice` al persistirlo:
+`scheduled` con la próxima apertura (`startsAt`, ISO UTC, calculada en `America/Bogota`) o `unscheduled`
+sin hora. Indica cuándo se empieza a procesar, no la entrega o recogida. Se guarda en el snapshot de
+creación (`order_creations.snapshot`), sin migración, y sale en la confirmación, el detalle y el comprobante.
+`availability.timeSlotsDate` (opcional) es la fecha local de `availableTimeSlots`: hoy, la próxima fecha con
+atención con una franja compatible (se recorre el ciclo semanal) si hoy no queda ninguna vigente, o ausente si no hay
+fecha conocida o no hay franjas. `timeSlotDate` (opcional en la confirmación y en el pedido) es esa fecha fijada por
+el servidor para la franja elegida: independiente de `processingNotice`, inmutable y nunca enviada por el cliente.
 
 IDs opacos no autorizan acceso. Estados comunes: `received`, `confirmed`,
 `preparing`, `ready`, `in_delivery`, `delivered`, `cancelled`. El paso en camino es
