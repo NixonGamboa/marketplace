@@ -27,6 +27,32 @@ describe('selector de sustituciones', () => {
     expect(screen.getByRole('button', { name: /Quitar el producto/ })).toHaveFocus()
   })
 
+  it('enfoca la opción actual al abrir para operar con teclado', () => {
+    render(<SubstitutionSelector />)
+    openOptions()
+    expect(screen.getByRole('radio', { name: /Avisarme antes de cambiar/ })).toHaveFocus()
+  })
+
+  it('las flechas mueven la selección sin cerrar el menú; el click sintético del navegador se ignora', () => {
+    render(<SubstitutionSelector />)
+    openOptions()
+    const current = screen.getByRole('radio', { name: /Avisarme antes de cambiar/ })
+    fireEvent.keyDown(current, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('radio', { name: /Quitar el producto/ }))
+    fireEvent.keyUp(current, { key: 'ArrowDown' })
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument()
+    expect(useCheckoutStore.getState().substitutionPref).toBe('remove')
+  })
+
+  it('Space confirma la opción enfocada, cierra y recupera el foco', () => {
+    render(<SubstitutionSelector />)
+    openOptions()
+    fireEvent.keyDown(screen.getByRole('radio', { name: /Avisarme antes de cambiar/ }), { key: ' ' })
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(useCheckoutStore.getState().substitutionPref).toBe('call_me')
+    expect(screen.getByRole('button', { name: /Cambiar/ })).toHaveFocus()
+  })
+
   it('permite confirmar la selección con Enter y recuperar el foco', () => {
     render(<SubstitutionSelector />)
     openOptions()

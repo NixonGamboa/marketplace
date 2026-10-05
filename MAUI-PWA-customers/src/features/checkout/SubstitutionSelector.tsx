@@ -43,10 +43,15 @@ export function SubstitutionSelector() {
 
   const [expanded, setExpanded] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const groupRef = useRef<HTMLDivElement>(null)
   const restoreFocus = useRef(false)
+  // Las flechas mueven la selección sin confirmar; el navegador emite además un click sintético.
+  const arrowNavigation = useRef(false)
 
   useEffect(() => {
-    if (!expanded && restoreFocus.current) {
+    if (expanded) {
+      groupRef.current?.querySelector<HTMLInputElement>('input:checked')?.focus()
+    } else if (restoreFocus.current) {
       triggerRef.current?.focus()
       restoreFocus.current = false
     }
@@ -61,6 +66,21 @@ export function SubstitutionSelector() {
     restoreFocus.current = true
     setSubstitutionPref(value)
     setExpanded(false)
+  }
+
+  function handleRadioClick(value: SubstitutionPref) {
+    if (arrowNavigation.current) return
+    handlePick(value)
+  }
+
+  function handleRadioKeyDown(event: React.KeyboardEvent<HTMLInputElement>, value: SubstitutionPref) {
+    // Space sobre la opción ya marcada no genera click en el navegador: se confirma explícitamente.
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handlePick(value)
+    } else if (event.key.startsWith('Arrow')) {
+      arrowNavigation.current = true
+    }
   }
 
   return (
@@ -140,6 +160,7 @@ export function SubstitutionSelector() {
         {expanded && (
           <div
             id="substitution-options"
+            ref={groupRef}
             role="radiogroup"
             aria-labelledby={headingId}
             className="animate-slide-in-top overflow-hidden"
@@ -164,14 +185,10 @@ export function SubstitutionSelector() {
                       name="substitution-preference"
                       value={value}
                       checked={isSelected}
-                      onChange={() => handlePick(value)}
-                      onClick={() => { if (isSelected) handlePick(value) }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          handlePick(value)
-                        }
-                      }}
+                      onChange={() => setSubstitutionPref(value)}
+                      onClick={() => handleRadioClick(value)}
+                      onKeyDown={(event) => handleRadioKeyDown(event, value)}
+                      onKeyUp={() => { arrowNavigation.current = false }}
                       className="sr-only"
                     />
 
