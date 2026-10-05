@@ -32,7 +32,7 @@ import { checkoutErrorMessage } from '@/services/checkoutErrorMessage'
 import { ApiError } from '@/services/http/apiError'
 import type { OrderPayload } from '@/types/orderService'
 
-import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
+import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, localCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
 import { isDemoMode } from '@/config/mode'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
@@ -368,11 +368,11 @@ function StepEntrega({ animClass, rules, blocked }: { animClass: string; rules: 
               <input
                 id="checkout-customer-phone"
                 type="tel"
-                inputMode="tel"
-                autoComplete="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
                 required
-                value={customerPhone ?? ''}
-                onChange={(event) => setCustomerPhone(event.target.value)}
+                value={localCustomerPhone(customerPhone)}
+                onChange={(event) => setCustomerPhone(localCustomerPhone(event.target.value))}
                 onBlur={() => setPhoneTouched(true)}
                 aria-invalid={phoneError !== null}
                 aria-describedby={phoneError ? 'checkout-customer-phone-error' : 'checkout-customer-phone-help'}
@@ -632,7 +632,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (customerPhone === null && user?.phone) {
-      setCustomerPhone(user.phone)
+      setCustomerPhone(localCustomerPhone(user.phone))
     }
   }, [customerPhone, setCustomerPhone, user?.phone])
 
