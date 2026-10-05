@@ -57,7 +57,7 @@ describe('modo demo', () => {
 
   it('las reglas del checkout son las constantes locales y RequireSession no interpone nada', async () => {
     const { DEMO_CHECKOUT_RULES } = await import('@/features/checkout/storeRules')
-    expect(DEMO_CHECKOUT_RULES).toMatchObject({ status: 'ready', isOpen: true, shipping: { cost: 3000, freeThreshold: 30000 } })
+    expect(DEMO_CHECKOUT_RULES).toMatchObject({ status: 'ready', acceptsPickup: true, acceptsDelivery: true, shipping: { cost: 3000, freeThreshold: 30000 } })
     const { RequireSession } = await import('@/features/auth/RequireSession')
     const { useAuthStore } = await import('@/stores/authStore')
     useAuthStore.setState({ user: null, isAuthenticated: false })

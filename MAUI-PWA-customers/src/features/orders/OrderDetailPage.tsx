@@ -12,10 +12,11 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle, MapPin, Clock, AlertCircle } from 'lucide-react'
+import { MessageCircle, MapPin, Clock, AlertCircle, Moon } from 'lucide-react'
+import { describeTimeSlot, processingNoticeMessage } from '@shared/receipts'
 
 import { orderService } from '../../services/index'
-import { MERCHANT_NAME, WA_MESSAGES, TIME_SLOT_LABELS_ORDER } from '../../config/app'
+import { MERCHANT_NAME, WA_MESSAGES } from '../../config/app'
 import { merchantWhatsAppUrl } from '../../shared/hooks/useMerchantWhatsApp'
 import { useStoreContactPhone } from '../../shared/hooks/useStoreContactPhone'
 import { isDemoMode } from '../../config/mode'
@@ -223,6 +224,18 @@ export default function OrderDetailPage() {
         </p>
       )}
 
+      {/* Pedido recibido fuera de atención: el aviso sale del snapshot persistido por el servidor (PM-03).
+          Solo mientras sigue «recibido»; informa el inicio del procesamiento, no la entrega ni la recogida. */}
+      {order.status === 'received' && order.processingNotice && (
+        <div
+          role="status"
+          className="mb-3 flex items-start gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary-light px-4 py-3"
+        >
+          <Moon size={18} aria-hidden className="mt-0.5 shrink-0 text-brand-primary" />
+          <p className="text-sm font-medium text-brand-dark">{processingNoticeMessage(order.processingNotice)}</p>
+        </div>
+      )}
+
       {/* ── Payment notice ─────────────────────────────────────────────────── */}
       {/* AC-2 — mensaje pago efectivo */}
       <div
@@ -284,7 +297,7 @@ export default function OrderDetailPage() {
               </p>
               {order.deliveryData.timeSlot && (
                 <p className="mt-0.5 text-xs text-brand-muted">
-                  {TIME_SLOT_LABELS_ORDER[order.deliveryData.timeSlot]}
+                  Franja de recogida: {describeTimeSlot(order.deliveryData.timeSlot, order.timeSlotDate)}
                 </p>
               )}
             </div>

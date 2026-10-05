@@ -18,6 +18,12 @@ describe('componente de comprobante real', () => {
     expect(screen.queryByRole('link')).toBeNull()
     expect(load).toHaveBeenCalledTimes(2)
   })
+  it('muestra el aviso de procesamiento del comprobante junto al resto de filas', async () => {
+    const notice = '¡Recibimos tu pedido! En este momento estamos descansando para darte un mejor servicio. Lo procesaremos cuando retomemos la atención.'
+    const load = vi.fn().mockResolvedValue({ ...result, receipt: { ...result.receipt, rows: ['Pedido pedido', notice] } })
+    render(<RealOrderReceipt orderId="pedido" service={{ load }} />)
+    expect(await screen.findByText(notice)).toBeInTheDocument()
+  })
   it('ignora respuestas de un pedido anterior al cambiar ID', async () => {
     let finish: (value: ReceiptResult) => void = () => {}
     const first = new Promise<ReceiptResult>((resolve) => { finish = resolve })

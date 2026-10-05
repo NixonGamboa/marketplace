@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { initializeOrderCatalog } from './creationFixture.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { orderDtoSchema } from '../../../shared/contracts/index.js'
+import { orderConfirmationSchema, orderDtoSchema } from '../../../shared/contracts/index.js'
 import { SESSION_TTL_SECONDS } from '../../src/domain/auth/policy.js'
 import { ORDER_CREATE_POLICY } from '../../src/domain/orders/orderAccess.js'
 import type { AuthRepositoryMemory } from '../../src/infra/memory/AuthRepositoryMemory.js'
@@ -251,6 +251,36 @@ describe('T-10: idempotencia y precios por HTTP con sesión real', () => {
     expect(bodyOf(conflict)).toMatchObject({ error: 'IDEMPOTENCY_KEY_REUSED' })
   })
 
+  it('PM-03: con la tienda cerrada se registra el pedido (201), la respuesta y el detalle llevan el mismo aviso', async () => {
+    const actor = await registerCustomer('Cerrada HTTP', '3009800005')
+    const { getRepositories } = await import('../../src/infra/factory.js')
+    const { getAuthRuntime } = await import('../../src/infra/auth/factory.js')
+    const { updateStoreSettings } = await import('../../src/usecases/store/updateStoreSettings.js')
+    const { store } = await getRepositories()
+    const deps = { store, clock: (await getAuthRuntime()).deps.clock }
+    const owner = { id: world.owner.id, role: 'owner' as const, storeId: 'leche-y-miel' }
+    const original = (await store.findSettings('leche-y-miel'))!.scheduleOverride
+    await updateStoreSettings(deps, owner, { scheduleOverride: 'closed' })
+    try {
+      const before = await storedOrderCount()
+      const key = randomUUID()
+      const res = await call('create', createReq({ cookie: actor.cookie, body: orderBody(actor), headers: { 'idempotency-key': key } }))
+      expect(statusOf(res)).toBe(201)
+      const confirmation = orderConfirmationSchema.parse(bodyOf(res))
+      expect(confirmation).toMatchObject({ status: 'received', processingNotice: { kind: 'unscheduled', reason: 'override_closed' } })
+      expect(await storedOrderCount()).toBe(before + 1)
+      const detail = await call('detail', detailReq({ cookie: actor.cookie, id: confirmation.orderId }))
+      expect(statusOf(detail)).toBe(200)
+      expect(orderDtoSchema.parse(bodyOf(detail)).processingNotice).toEqual(confirmation.processingNotice)
+      // Reintento con la tienda ya reabierta: mismo pedido y mismo aviso original.
+      await updateStoreSettings(deps, owner, { scheduleOverride: 'open' })
+      const retry = await call('create', createReq({ cookie: actor.cookie, body: orderBody(actor), headers: { 'idempotency-key': key } }))
+      expect(bodyOf(retry)).toEqual(bodyOf(res))
+    } finally {
+      await updateStoreSettings(deps, owner, { scheduleOverride: original })
+    }
+  })
+
   it('fallo de persistencia de la creación: 503 genérico sin SQL ni datos y sin pedido guardado', async () => {
     const actor = await registerCustomer('Caída HTTP', '3009800004')
     const { getRepositories } = await import('../../src/infra/factory.js')
@@ -297,9 +327,16 @@ describe('creación: actor y tienda desde la sesión', () => {
     expect(await storedOrderCount()).toBe(before)
   })
 
+  it('la fecha de la franja la fija el servidor: tampoco se admite dentro de deliveryData', async () => {
+    const before = await storedOrderCount()
+    const body = { ...orderBody(world.customerA), deliveryData: { timeSlot: 'asap', timeSlotDate: '2030-01-01' } }
+    expect(statusOf(await call('create', createReq({ cookie: world.customerA.cookie, body })))).toBe(400)
+    expect(await storedOrderCount()).toBe(before)
+  })
+
   it('storeId, customerId o status en el body se rechazan (400) sin persistir', async () => {
     const before = await storedOrderCount()
-    for (const extra of [{ storeId: 'otra-tienda' }, { customerId: world.customerB.id }, { status: 'delivered' }]) {
+    for (const extra of [{ storeId: 'otra-tienda' }, { customerId: world.customerB.id }, { status: 'delivered' }, { timeSlotDate: '2030-01-01' }]) {
       const res = await call('create', createReq({ cookie: world.customerA.cookie, body: { ...orderBody(world.customerA), ...extra } }))
       expect(statusOf(res)).toBe(400)
     }

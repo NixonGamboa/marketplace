@@ -202,7 +202,7 @@ describe('GET/PATCH tienda', () => {
       storeId: 'leche-y-miel',
       contactPhone: null,
       delivery: { shippingCost: 3000, freeShippingThreshold: 30000, coverageNote: 'Solo hay cobertura en el casco urbano de Dolores' },
-      availability: { localTime: '17:30', isOpen: true, acceptsPickup: true, acceptsDelivery: false, availableTimeSlots: ['asap'] },
+      availability: { localTime: '17:30', isOpen: true, acceptsPickup: true, acceptsDelivery: true, availableTimeSlots: ['asap'] },
     })
   })
 
@@ -224,7 +224,7 @@ describe('GET/PATCH tienda', () => {
     expect(storeDtoSchema.parse(bodyOf(res))).toMatchObject({
       scheduleOverride: 'closed',
       contactPhone: '573101234567',
-      availability: { isOpen: false, closedReason: 'override_closed', acceptsPickup: false },
+      availability: { isOpen: false, closedReason: 'override_closed', acceptsPickup: true, availableTimeSlots: ['morning', 'afternoon', 'asap'] },
     })
     const publicView = storeDtoSchema.parse(bodyOf(await storeReq()))
     expect(publicView.availability.isOpen).toBe(false)

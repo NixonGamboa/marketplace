@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sharedProducts } from '../../../shared/catalog/index.js'
 import { ENTITY_ID_PATTERN, canTransition, createOrderRequestSchema, isTerminalOrderStatus } from '../../../shared/contracts/index.js'
-import { assertOrderPlacementAllowed } from '../../src/domain/store/storeRules.js'
+import { resolveOrderReception } from '../../src/domain/store/storeRules.js'
 import {
   SEED_CUSTOMERS, SEED_ORDERS, SEED_STAFF, SEED_STORE, SEED_STORE_SETTINGS, expectedStatusAfter, finalStatusOf, orderRequestFor, seedCustomerOf,
   seedOrderKey, stepInstant,
@@ -29,9 +29,11 @@ describe('dataset de seed (T-16)', () => {
 
   it('los pedidos caen dentro del horario y antes del corte de la tienda de test, sin cambiar reglas', () => {
     for (const spec of SEED_ORDERS) {
-      expect(() => assertOrderPlacementAllowed(SEED_STORE_SETTINGS, {
+      const reception = resolveOrderReception(SEED_STORE_SETTINGS, {
         deliveryType: spec.request.deliveryType, timeSlot: spec.request.deliveryData.timeSlot,
-      }, new Date(spec.createdAt)), spec.id).not.toThrow()
+      }, new Date(spec.createdAt))
+      // Se reciben atendiendo: sin aviso de procesamiento diferido.
+      expect(reception.processingNotice, spec.id).toBeUndefined()
     }
     // Las reglas siguen siendo las de T-08: cobertura urbana fijada y contacto del negocio sin inventar.
     expect(SEED_STORE_SETTINGS.contactPhone).toBeNull()

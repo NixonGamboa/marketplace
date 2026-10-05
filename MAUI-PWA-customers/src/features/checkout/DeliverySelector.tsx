@@ -126,7 +126,7 @@ export default function DeliverySelector({ rules }: { rules: CheckoutRules }) {
       : 'Envía tu ubicación o escribe una dirección'
     : rules.acceptsDelivery
       ? 'Te lo llevamos hasta tu casa'
-      : 'No disponible ahora; puedes recoger en tienda'
+      : 'Domicilio no disponible; puedes recoger en tienda'
 
   const pickupSubtext = isPickup
     ? timeSlot
@@ -392,9 +392,12 @@ export default function DeliverySelector({ rules }: { rules: CheckoutRules }) {
               ¿A qué hora lo recoges?
             </p>
 
+            {rules.slotsDay && (
+              <p className="px-4 pb-2 text-xs text-brand-muted">Franjas para {rules.slotsDay}.</p>
+            )}
             {rules.slots.length === 0 && (
               <p role="status" className="px-4 pb-3 text-xs text-brand-muted">
-                Ya no hay franjas disponibles para hoy.
+                {rules.slotsEmptyNote ?? 'No hay franjas de recogida disponibles por ahora.'}
               </p>
             )}
             {rules.slots.map((option, idx) => {

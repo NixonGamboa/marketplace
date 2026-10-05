@@ -25,7 +25,7 @@ const compareDesc = (a: OrderListPosition, b: OrderListPosition): number =>
 
 /** Un cambio de ciclo de vida solo aporta campos mutables; el resto se conserva de la fila guardada. */
 const keepImmutable = (stored: Order, next: Order): Order => {
-  const { customerPhone: _phone, shippingCost: _shipping, ...mutable } = next
+  const { customerPhone: _phone, shippingCost: _shipping, processingNotice: _notice, timeSlotDate: _slotDate, ...mutable } = next
   return {
     ...mutable,
     id: stored.id, storeId: stored.storeId, customerId: stored.customerId, customerName: stored.customerName,
@@ -34,6 +34,8 @@ const keepImmutable = (stored: Order, next: Order): Order => {
     createdAt: stored.createdAt,
     ...(stored.customerPhone !== undefined ? { customerPhone: stored.customerPhone } : {}),
     ...(stored.shippingCost !== undefined ? { shippingCost: stored.shippingCost } : {}),
+    ...(stored.processingNotice !== undefined ? { processingNotice: stored.processingNotice } : {}),
+    ...(stored.timeSlotDate !== undefined ? { timeSlotDate: stored.timeSlotDate } : {}),
   }
 }
 

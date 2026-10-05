@@ -76,6 +76,19 @@ const setWeight = (value: string) => {
 describe('OrderDetailPage (modo real, repositories simulados)', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
+  it('muestra al personal la franja de recogida con la fecha fijada por el servidor, sin confundirla con la apertura', async () => {
+    mocks.getById.mockResolvedValue(order({ status: 'received', deliveryData: { timeSlot: 'morning' }, timeSlotDate: '2026-10-07' }))
+    renderPage()
+    expect(await screen.findByText('Franja de recogida: por la mañana · miércoles, 7 de octubre')).toBeInTheDocument()
+    expect(screen.queryByText(/hoy|esta mañana/i)).toBeNull()
+  })
+
+  it('pedido sin fecha de franja (anterior o cierre manual): solo la franja, sin inventar fecha', async () => {
+    mocks.getById.mockResolvedValue(order({ status: 'received', deliveryData: { timeSlot: 'afternoon' } }))
+    renderPage()
+    expect(await screen.findByText('Franja de recogida: por la tarde')).toBeInTheDocument()
+  })
+
   it('usa el nombre del pedido y no consulta el catálogo cuando ya viene en el snapshot', async () => {
     mocks.getById.mockResolvedValue(order())
     renderPage()
