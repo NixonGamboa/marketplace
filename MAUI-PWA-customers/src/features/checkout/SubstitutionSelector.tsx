@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Phone, RefreshCw, Sparkles, X, Shield } from 'lucide-react'
 import type { SubstitutionPref } from '../../types/orderService'
 import { useCheckoutStore } from './checkoutStore'
@@ -42,6 +42,15 @@ export function SubstitutionSelector() {
   const setSubstitutionPref = useCheckoutStore((s) => s.setSubstitutionPref)
 
   const [expanded, setExpanded] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const restoreFocus = useRef(false)
+
+  useEffect(() => {
+    if (!expanded && restoreFocus.current) {
+      triggerRef.current?.focus()
+      restoreFocus.current = false
+    }
+  }, [expanded])
 
   const selected = OPTIONS.find((o) => o.value === substitutionPref) ?? OPTIONS[0]
   const SelectedIcon = selected.Icon
@@ -49,6 +58,7 @@ export function SubstitutionSelector() {
   const headingId = 'substitution-heading'
 
   function handlePick(value: SubstitutionPref) {
+    restoreFocus.current = true
     setSubstitutionPref(value)
     setExpanded(false)
   }
@@ -81,6 +91,7 @@ export function SubstitutionSelector() {
         {/* ── Vista colapsada: opción actual + chevron ─────────────────────── */}
         {!expanded && (
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => setExpanded(true)}
             aria-expanded={false}
@@ -154,6 +165,13 @@ export function SubstitutionSelector() {
                       value={value}
                       checked={isSelected}
                       onChange={() => handlePick(value)}
+                      onClick={() => { if (isSelected) handlePick(value) }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          handlePick(value)
+                        }
+                      }}
                       className="sr-only"
                     />
 

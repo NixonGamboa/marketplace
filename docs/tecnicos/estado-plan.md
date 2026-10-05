@@ -1,11 +1,24 @@
 # MAUI — Plan de implementación directa y entrega en test
 
-> **Fuente única del estado global.** Actualización: **2026-10-03**.
+> **Fuente única del estado global.** Actualización: **2026-10-05**.
 > **Método:** implementaciones directas con Codex y Claude Code. SDD deja de ser requisito del proyecto.
 > **Entregable:** ambiente de test desplegado con seed reproducible y flujo funcional equivalente al de producción.
 > **Stack inicial:** Vercel Functions + Neon Postgres + Drizzle. Destino de escala: AWS Lambda.
 
 ## Alcance y definición de entrega
+
+### Segunda fase: primera barrida de la prueba manual — 2026-10-05
+
+Encargo del usuario en la sesión `01a10dd3-cff3-7c33-abe4-6a6287ab2b31`, con referencia al registro local `hallazgos-prueba-manual-20261004.md`. El registro original conserva los hallazgos y la decisión de recepción permanente; esta sección registra ejecución y evidencia. Un PR por defecto, E2E completo nuevo y tag consecutivo al certificar; `mvp-v1.0.0` permanece inmutable. La propuesta PM-P01 de política global de teléfonos no amplía este lote.
+
+| ID | Estado y responsabilidad | Evidencia y límite |
+|---|---|---|
+| PM-03 | En curso; Claude Sonnet/high en `feature/pm03-recepcion-permanente`; Codex revisa contratos/regla temporal antes de integrar. | Recepción a cualquier hora y aviso de procesamiento tras persistir, conforme a la decisión del usuario. Sin cambios cloud todavía. |
+| PM-01 | En curso; Claude Sonnet/medium en `feature/pm01-validacion-formularios`. | Auditoría y feedback junto a campos de PWA/admin, sin cambiar reglas de auth ni política global de teléfonos. |
+| PM-02 | Implementado localmente por Codex en `feature/pm02-selector-sustituciones`; pendiente de certificación. | Tres regresiones aprobadas: opción actual, opción distinta y Enter con recuperación de foco. Typecheck y lint PWA aprobados. Falta CI y E2E completo real. |
+| PM-04 | Pendiente de implementación; Codex. | Presentación local de 10 dígitos en checkout, conservación de normalización internacional. |
+
+Checkouts aislados, sin escrituras concurrentes sobre los mismos archivos. El checkout inicial tenía únicamente el registro de hallazgos sin versionar; se conserva. Reset/reseed de `dev/maui` pendiente de coordinar con el usuario para proteger datos de su prueba. No declarar ningún defecto certificado con evidencia histórica 23/23 o servicios simulados.
 
 Las dos listas separan lo ya construido de las implementaciones pendientes. El seed puede reutilizar el catálogo y los datos de los mocks actuales, pero se carga en la BD de test y se consume mediante la API real. PWA y admin usan los mismos contratos, autenticación, permisos, cálculos y transiciones que se usarán en producción.
 
