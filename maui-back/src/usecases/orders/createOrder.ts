@@ -12,7 +12,7 @@ import { ORDER_CREATE_BUCKET_SCOPE, ORDER_CREATE_POLICY, assertCanCreateOrder, t
 import { IdempotencyConflictError, type StoredOrderCreation } from '../../domain/orders/orderCreation.js'
 import type { OrdersRepository } from '../../domain/orders/OrdersRepository.js'
 import type { StoreRepository } from '../../domain/store/StoreRepository.js'
-import { assertOrderPlacementAllowed, quoteShipping } from '../../domain/store/storeRules.js'
+import { quoteShipping, resolveOrderReception } from '../../domain/store/storeRules.js'
 import type { Clock } from '../../shared/clock.js'
 import { ConflictError, ValidationError } from '../../shared/errors.js'
 import { newId } from '../../shared/ids.js'
@@ -87,7 +87,8 @@ export const createOrder = async (
       return snapshot.data
     })
     const now = deps.clock.nowIso()
-    assertOrderPlacementAllowed(settings, { deliveryType: data.deliveryType, timeSlot: data.deliveryData.timeSlot }, new Date(now))
+    // Recibir no depende del horario: solo fija el aviso de procesamiento (rechaza domicilio deshabilitado o franja incompatible).
+    const { processingNotice, timeSlotDate } = resolveOrderReception(settings, { deliveryType: data.deliveryType, timeSlot: data.deliveryData.timeSlot }, new Date(now))
     const subtotal = calculateOrderTotals(items, 0).estimatedTotal
     const { shippingCost } = quoteShipping(settings.delivery, data.deliveryType, subtotal)
     const estimatedTotal = subtotal + shippingCost
@@ -98,6 +99,8 @@ export const createOrder = async (
       status: OrderStatus.RECEIVED, deliveryType: data.deliveryType, deliveryData: data.deliveryData,
       substitutionPreference: data.substitutionPreference, shippingCost, estimatedTotal,
       createdAt: now, updatedAt: now, version: 1,
+      ...(processingNotice !== undefined ? { processingNotice } : {}),
+      ...(timeSlotDate !== undefined ? { timeSlotDate } : {}),
     }
     const result = await deps.orders.createIdempotently({
       ...identity, order, fingerprint, storeVersion: settings.version,

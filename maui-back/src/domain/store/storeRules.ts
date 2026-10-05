@@ -1,107 +1,148 @@
 import {
   minutesOfDay,
-  type DayHoursDto,
   type DeliverySettingsDto,
   type DeliveryType,
-  type ScheduleOverride,
+  type OrderProcessingDeferralReason,
+  type OrderProcessingNoticeDto,
   type StoreAvailabilityDto,
-  type StoreClosedReason,
   type StoreSettingsDto,
   type TimeSlot,
-  type TimeSlotConfigDto,
 } from '../../../../shared/contracts/index.js'
 import { StoreRuleError } from './errors.js'
-import { localMomentIn } from './storeCalendar.js'
+import { localMomentIn, type LocalMoment } from './storeCalendar.js'
+import { attendedOpenings, closedReasonOf, enabledSlots, slotsAvailableAt, type NextOpening } from './storeSchedule.js'
 
 type AvailabilitySettings = Pick<
   StoreSettingsDto,
   'timeZone' | 'weeklySchedule' | 'scheduleOverride' | 'delivery' | 'timeSlots'
 >
 
-const closedReasonOf = (
-  override: ScheduleOverride,
-  day: DayHoursDto,
-  minutes: number,
-): StoreClosedReason | undefined => {
-  if (override === 'closed') return 'override_closed'
-  if (override === 'open') return undefined
-  if (day.closed) return 'day_closed'
-  if (minutes < minutesOfDay(day.open)) return 'before_opening'
-  if (minutes >= minutesOfDay(day.close)) return 'after_closing'
-  return undefined
+/**
+ * Cuándo se procesará un pedido recibido ahora y qué franjas son compatibles con esa fecha.
+ * Recepción y atención son independientes: recibir nunca depende del horario (PM-03).
+ */
+interface ReceptionPlan {
+  /** Ausente si el pedido se recibe atendiendo y se procesa de inmediato. */
+  processingNotice?: OrderProcessingNoticeDto
+  availableTimeSlots: TimeSlot[]
+  /** Fecha local a la que corresponden las franjas; ausente si no hay franjas o la fecha es desconocida. */
+  timeSlotsDate?: string
 }
 
 /**
- * Una franja con ventana se ofrece mientras su fin (o el cierre, si llega antes) no haya
- * pasado y empiece antes del cierre. `closesAt` es `null` con apertura manual (`open`).
+ * Franjas de la primera fecha con atención en que alguna franja habilitada cabe en el horario de ese día.
+ * La fecha de la franja puede ser posterior a la próxima apertura (que sigue fijando cuándo se procesa).
+ * Vacío solo si ninguna franja habilitada cabe en ningún día atendido del ciclo semanal.
  */
-const isSlotAvailable = (slot: TimeSlotConfigDto, minutes: number, closesAt: number | null): boolean => {
-  if (!slot.enabled) return false
-  if (slot.id === 'asap') return true
-  const end = closesAt === null ? minutesOfDay(slot.end) : Math.min(minutesOfDay(slot.end), closesAt)
-  const startsBeforeClose = closesAt === null || minutesOfDay(slot.start) < closesAt
-  return startsBeforeClose && minutes < end
+const slotsOnFirstFittingDate = (
+  settings: AvailabilitySettings,
+  openings: readonly NextOpening[],
+): Pick<ReceptionPlan, 'availableTimeSlots' | 'timeSlotsDate'> => {
+  for (const opening of openings) {
+    const availableTimeSlots = slotsAvailableAt(settings.timeSlots, opening.opensAt, opening.closesAt)
+    if (availableTimeSlots.length > 0) return { availableTimeSlots, timeSlotsDate: opening.date }
+  }
+  return { availableTimeSlots: [] }
+}
+
+/** Sin fecha de reapertura conocida: franjas habilitadas, sin fecha concreta. */
+const slotsWithoutDate = (settings: AvailabilitySettings): Pick<ReceptionPlan, 'availableTimeSlots'> =>
+  ({ availableTimeSlots: enabledSlots(settings.timeSlots) })
+
+const planReception = (
+  settings: AvailabilitySettings,
+  deliveryType: DeliveryType,
+  local: LocalMoment,
+): ReceptionPlan => {
+  const day = settings.weeklySchedule[local.weekday]
+  const closedReason = closedReasonOf(settings.scheduleOverride, day, local.minutes)
+  const cutoffPassed = settings.delivery.cutoff !== null && local.minutes >= minutesOfDay(settings.delivery.cutoff)
+  const reason: OrderProcessingDeferralReason | undefined =
+    closedReason ?? (deliveryType === 'delivery' && cutoffPassed ? 'delivery_cutoff' : undefined)
+
+  if (reason === undefined) {
+    const closesAt = settings.scheduleOverride === 'open' ? null : minutesOfDay(day.close)
+    const today = slotsAvailableAt(settings.timeSlots, local.minutes, closesAt)
+    if (today.length > 0) return { availableTimeSlots: today, timeSlotsDate: local.date }
+    // Atendiendo pero con las franjas habilitadas ya vencidas hoy: no se exige una vencida y se ofrecen
+    // las de la próxima fecha con atención (sin aviso: el pedido se procesa ya). Si ninguna franja está
+    // habilitada o ninguna cabe en el horario, queda vacío: es configuración, no el horario de hoy.
+    const openings = attendedOpenings(settings.weeklySchedule, local, settings.timeZone, false)
+    return openings.length === 0 ? slotsWithoutDate(settings) : slotsOnFirstFittingDate(settings, openings)
+  }
+  // Un cierre manual no tiene fecha de reapertura: no se inventa una hora ni una fecha de franja.
+  const openings = reason === 'override_closed'
+    ? []
+    : attendedOpenings(settings.weeklySchedule, local, settings.timeZone, reason === 'before_opening')
+  const [nextOpening] = openings
+  if (nextOpening === undefined) return { processingNotice: { kind: 'unscheduled', reason }, ...slotsWithoutDate(settings) }
+  // El procesamiento empieza en la próxima apertura; la franja puede caer en una fecha posterior.
+  return {
+    processingNotice: { kind: 'scheduled', reason, startsAt: nextOpening.startsAt.toISOString() },
+    ...slotsOnFirstFittingDate(settings, openings),
+  }
 }
 
 /**
  * Disponibilidad en el instante `now`, calculada en la zona horaria de la tienda. Intervalos
- * `[apertura, cierre)`: a la hora exacta de cierre ya está cerrada. El corte de domicilio
- * también es exclusivo: a la hora de corte ya no se aceptan domicilios. La recogida solo
- * depende de que la tienda esté abierta.
+ * `[apertura, cierre)`: a la hora exacta de cierre ya está cerrada (informativo). Los pedidos se
+ * reciben siempre: la recogida se ofrece siempre y el domicilio mientras no esté deshabilitado;
+ * el horario y el corte solo determinan cuándo se procesa (`resolveOrderReception`).
  */
 export const evaluateStoreAvailability = (settings: AvailabilitySettings, now: Date): StoreAvailabilityDto => {
   const local = localMomentIn(now, settings.timeZone)
-  const day = settings.weeklySchedule[local.weekday]
-  const closedReason = closedReasonOf(settings.scheduleOverride, day, local.minutes)
-  const isOpen = closedReason === undefined
-  const closesAt = settings.scheduleOverride === 'open' ? null : minutesOfDay(day.close)
-  const cutoffPassed = settings.delivery.cutoff !== null && local.minutes >= minutesOfDay(settings.delivery.cutoff)
+  const closedReason = closedReasonOf(settings.scheduleOverride, settings.weeklySchedule[local.weekday], local.minutes)
+  const { availableTimeSlots, timeSlotsDate } = planReception(settings, 'pickup', local)
 
   return {
     evaluatedAt: now.toISOString(),
     localDate: local.date,
     localTime: local.time,
     weekday: local.weekday,
-    isOpen,
+    isOpen: closedReason === undefined,
     ...(closedReason === undefined ? {} : { closedReason }),
-    acceptsPickup: isOpen,
-    acceptsDelivery: isOpen && settings.delivery.enabled && !cutoffPassed,
-    availableTimeSlots: isOpen
-      ? settings.timeSlots.filter((slot) => isSlotAvailable(slot, local.minutes, closesAt)).map((slot) => slot.id)
-      : [],
+    acceptsPickup: true,
+    acceptsDelivery: settings.delivery.enabled,
+    availableTimeSlots,
+    ...(timeSlotsDate === undefined ? {} : { timeSlotsDate }),
   }
 }
 
-export interface OrderPlacementRequest {
+export interface OrderReceptionRequest {
   deliveryType: DeliveryType
   timeSlot?: TimeSlot | undefined
 }
 
-/**
- * Valida en servidor que la tienda pueda recibir el pedido ahora: abierta, domicilio
- * habilitado y antes del corte, y franja vigente si se eligió. Lanza `StoreRuleError`.
- */
-export const assertOrderPlacementAllowed = (
-  settings: AvailabilitySettings,
-  request: OrderPlacementRequest,
-  now: Date,
-): StoreAvailabilityDto => {
-  const availability = evaluateStoreAvailability(settings, now)
-  if (!availability.isOpen) throw new StoreRuleError('STORE_CLOSED', 'La tienda está cerrada en este momento')
+export interface OrderReception {
+  availability: StoreAvailabilityDto
+  processingNotice?: OrderProcessingNoticeDto
+  /** Fecha local de la franja elegida; solo con franja y fecha conocida. La fija el servidor, nunca el cliente. */
+  timeSlotDate?: string
+}
 
+/**
+ * Valida en servidor que el pedido pueda recibirse y fija su aviso de procesamiento. Solo rechaza
+ * un domicilio deshabilitado y una franja incompatible con la fecha de procesamiento; cierre,
+ * día sin atención, override y corte de domicilio no impiden recibirlo. Lanza `StoreRuleError`.
+ */
+export const resolveOrderReception = (
+  settings: AvailabilitySettings,
+  request: OrderReceptionRequest,
+  now: Date,
+): OrderReception => {
+  const availability = evaluateStoreAvailability(settings, now)
   if (request.deliveryType === 'delivery' && !availability.acceptsDelivery) {
-    if (!settings.delivery.enabled) {
-      throw new StoreRuleError('DELIVERY_UNAVAILABLE', 'El domicilio no está disponible; puede recoger en tienda')
-    }
-    throw new StoreRuleError(
-      'DELIVERY_CUTOFF_PASSED',
-      `Los domicilios de hoy se reciben hasta las ${settings.delivery.cutoff ?? 'el cierre'}`,
-    )
+    throw new StoreRuleError('DELIVERY_UNAVAILABLE', 'El domicilio no está disponible; puede recoger en tienda')
   }
-  if (request.timeSlot !== undefined && !availability.availableTimeSlots.includes(request.timeSlot)) {
-    throw new StoreRuleError('TIME_SLOT_UNAVAILABLE', 'La franja elegida ya no está disponible hoy')
+  const plan = planReception(settings, request.deliveryType, localMomentIn(now, settings.timeZone))
+  if (request.timeSlot !== undefined && !plan.availableTimeSlots.includes(request.timeSlot)) {
+    throw new StoreRuleError('TIME_SLOT_UNAVAILABLE', 'La franja elegida no está disponible')
   }
-  return availability
+  return {
+    availability,
+    ...(plan.processingNotice === undefined ? {} : { processingNotice: plan.processingNotice }),
+    ...(request.timeSlot === undefined || plan.timeSlotsDate === undefined ? {} : { timeSlotDate: plan.timeSlotsDate }),
+  }
 }
 
 export interface ShippingQuote {

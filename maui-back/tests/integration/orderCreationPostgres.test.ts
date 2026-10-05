@@ -14,6 +14,7 @@ import { validPickupRequest, validDeliveryRequest } from '../contratos/fixtures.
 import { initializeOrderCatalog } from '../orders/creationFixture.js'
 import { startEmbeddedPostgres, type EmbeddedPostgres } from './pgliteNeon.js'
 import { forceStatus } from '../orders/forceStatus.js'
+import { toOrderDto } from '../../src/domain/orders/orderMappers.js'
 
 const actor = { id: 'cust_01', role: 'customer' as const, storeId: null }
 const context = { storeId: 'leche-y-miel' }
@@ -60,6 +61,102 @@ describe('T-10: commit real PostgreSQL de pedido, idempotencia y cuota', () => {
     expect(order).toMatchObject({ estimatedTotal: 12000, shippingCost: 3000 })
     expect((await orders.findById(order.id))?.items[0]).toMatchObject({ priceAtMoment: 4500, unit: '1 L', name: 'Leche entera 1L' })
     expect(await counts()).toEqual({ orders: 1, claims: 1, attempts: 1 })
+  })
+  it('PM-03: pedido recibido con la tienda cerrada persiste y conserva su aviso en cada lectura, sin migración', async () => {
+    await embedded.pg.exec("UPDATE stores SET schedule_override='closed',version=version+1")
+    const key = randomUUID(), created = await create(key)
+    const notice = { kind: 'unscheduled', reason: 'override_closed' }
+    expect(created).toMatchObject({ status: 'received', processingNotice: notice })
+    expect(await counts()).toEqual({ orders: 1, claims: 1, attempts: 1 })
+    // El aviso vive en el snapshot de creación; la tabla de pedidos no cambió de forma.
+    const stored = await embedded.pg.query<{ notice: unknown }>("select snapshot->'processingNotice' as notice from order_creations")
+    expect(stored.rows[0]?.notice).toEqual(notice)
+    expect((await embedded.pg.query<{ column_name: string }>("select column_name from information_schema.columns where table_name='orders'"))
+      .rows.map(row => row.column_name)).not.toContain('processing_notice')
+    expect((await orders.findById(created.id))?.processingNotice).toEqual(notice)
+    expect(toOrderDto((await orders.findById(created.id))!)).toMatchObject({ processingNotice: notice })
+    const page = await orders.listPage({ scope: { kind: 'customer', customerId: actor.id }, filter: {}, limit: 10 })
+    expect(page.entries.map(entry => entry.order.processingNotice)).toEqual([notice])
+    // Un cambio de estado posterior conserva el aviso del snapshot original.
+    expect((await forceStatus(orders, created.id, 'confirmed', clock.nowIso())).processingNotice).toEqual(notice)
+    await embedded.pg.exec("UPDATE stores SET schedule_override='open',version=version+1")
+    expect(await create(key)).toEqual(created)
+    expect(await counts()).toEqual({ orders: 1, claims: 1, attempts: 1 })
+  })
+  it('PM-03: tras escribir un cambio no se relee el aviso: un fallo de lectura no oculta un cambio ya persistido', async () => {
+    await embedded.pg.exec("UPDATE stores SET schedule_override='closed',version=version+1")
+    const created = await create()
+    const current = (await orders.findById(created.id))!
+    // Cualquier SELECT posterior al UPDATE fallaría; el cambio debe confirmarse y devolverse igualmente.
+    const noReads = new OrdersRepositoryPostgres(new Proxy(embedded.db, {
+      get: (target, property, receiver) => {
+        if (property === 'select') throw new Error('lectura posterior a la escritura')
+        return Reflect.get(target, property, receiver)
+      },
+    }))
+    const saved = await noReads.saveChange({
+      expected: { id: current.id, storeId: current.storeId, version: current.version, status: current.status },
+      next: { ...current, status: 'confirmed', version: current.version + 1, updatedAt: clock.nowIso() }, products: [],
+    })
+    expect(saved).toMatchObject({ status: 'confirmed', version: 2, processingNotice: created.processingNotice })
+    expect((await orders.findById(created.id))).toMatchObject({ status: 'confirmed', processingNotice: created.processingNotice })
+  })
+  it('PM-03: la fecha de la franja se persiste en el snapshot, se lee en cada vía y no se relee tras escribir', async () => {
+    // Esta prueba cambia horario y franjas de la tienda compartida: se restauran al terminar.
+    const original = (await embedded.pg.query<{ weekly_schedule: unknown; time_slots: unknown }>('select weekly_schedule, time_slots from stores')).rows[0]!
+    try {
+    const full = "'{\"open\":\"08:00\",\"close\":\"18:00\",\"closed\":false}'"
+    const late = "'{\"open\":\"14:00\",\"close\":\"18:00\",\"closed\":false}'"
+    const off = "'{\"open\":\"08:00\",\"close\":\"18:00\",\"closed\":true}'"
+    await embedded.pg.exec(`UPDATE stores SET schedule_override='auto', version=version+1,
+      weekly_schedule=jsonb_build_object('mon',${full}::jsonb,'tue',${late}::jsonb,'wed',${full}::jsonb,'thu',${off}::jsonb,'fri',${off}::jsonb,'sat',${off}::jsonb,'sun',${off}::jsonb),
+      time_slots='[{"id":"morning","enabled":true,"start":"08:00","end":"12:00"},{"id":"afternoon","enabled":false,"start":"12:00","end":"17:00"},{"id":"asap","enabled":false}]'::jsonb`)
+    clock = new TestClock(new Date('2026-10-05T19:00:00.000Z')) // lunes 14:00 en Bogotá: abierta y la franja de hoy ya venció
+    const key = randomUUID(), created = await create(key, { ...validPickupRequest(), deliveryData: { timeSlot: 'morning' } })
+    expect(created).toMatchObject({ timeSlotDate: '2026-10-07' })
+    expect(created.processingNotice).toBeUndefined()
+    const stored = await embedded.pg.query<{ slot_date: string; notice: unknown }>("select snapshot->>'timeSlotDate' as slot_date, snapshot->'processingNotice' as notice from order_creations")
+    expect(stored.rows[0]).toEqual({ slot_date: '2026-10-07', notice: null })
+    const read = (await orders.findById(created.id))!
+    expect(read.timeSlotDate).toBe('2026-10-07')
+    expect(toOrderDto(read)).toMatchObject({ timeSlotDate: '2026-10-07', deliveryData: { timeSlot: 'morning' } })
+    const page = await orders.listPage({ scope: { kind: 'customer', customerId: actor.id }, filter: {}, limit: 10 })
+    expect(page.entries.map(entry => entry.order.timeSlotDate)).toEqual(['2026-10-07'])
+    // Cambiar el horario después no altera la fecha guardada; un cambio de estado sin lecturas posteriores la conserva.
+    await embedded.pg.exec("UPDATE stores SET weekly_schedule=weekly_schedule || '{\"wed\":{\"open\":\"08:00\",\"close\":\"18:00\",\"closed\":true}}'::jsonb, version=version+1")
+    const noReads = new OrdersRepositoryPostgres(new Proxy(embedded.db, {
+      get: (target, property, receiver) => {
+        if (property === 'select') throw new Error('lectura posterior a la escritura')
+        return Reflect.get(target, property, receiver)
+      },
+    }))
+    const saved = await noReads.saveChange({
+      expected: { id: read.id, storeId: read.storeId, version: read.version, status: read.status },
+      next: { ...read, status: 'confirmed', version: read.version + 1, updatedAt: clock.nowIso() }, products: [],
+    })
+    expect(saved).toMatchObject({ status: 'confirmed', timeSlotDate: '2026-10-07' })
+    expect(await create(key, { ...validPickupRequest(), deliveryData: { timeSlot: 'morning' } })).toEqual(created)
+    expect((await orders.findById(created.id))?.timeSlotDate).toBe('2026-10-07')
+    // Un pedido anterior (sin fecha en su snapshot) sigue leyéndose sin fecha.
+    await embedded.pg.exec("UPDATE order_creations SET snapshot = snapshot - 'timeSlotDate'")
+    expect((await orders.findById(created.id))?.timeSlotDate).toBeUndefined()
+    } finally {
+      await embedded.pg.query('update stores set weekly_schedule=$1::jsonb, time_slots=$2::jsonb, version=version+1', [JSON.stringify(original.weekly_schedule), JSON.stringify(original.time_slots)])
+    }
+  })
+  it('PM-03: horario programado fija la próxima apertura en UTC; abierta o sin snapshot no lleva aviso', async () => {
+    await embedded.pg.exec("UPDATE stores SET schedule_override='auto',version=version+1")
+    clock = new TestClock(new Date('2026-10-06T01:00:00.000Z')) // lunes 20:00 en Bogotá: tras el cierre
+    const closed = await create()
+    expect(closed.processingNotice).toEqual({ kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' })
+    expect((await orders.findById(closed.id))?.processingNotice).toEqual(closed.processingNotice)
+    clock = new TestClock(new Date('2026-10-05T15:00:00.000Z'))
+    const open = await create()
+    expect(open.processingNotice).toBeUndefined()
+    expect((await orders.findById(open.id))?.processingNotice).toBeUndefined()
+    // Pedidos sin fila de creación (seed/legacy) se leen sin aviso.
+    const direct = await orders.create({ ...open, id: `direct-${randomUUID()}` })
+    expect((await orders.findById(direct.id))?.processingNotice).toBeUndefined()
   })
   it('dos adapters concurrentes confirman un ID y un único cupo (PGlite serializa conexiones)', async () => {
     const second = new OrdersRepositoryPostgres(embedded.db), key = randomUUID()

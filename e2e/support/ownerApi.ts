@@ -1,7 +1,8 @@
 /**
- * Cliente API del owner de fixtures para preparar el escenario: comprobar el destino, abrir la tienda
- * si hace falta (con restauración garantizada) y leer auditoría. Usa el mismo servidor y la misma
- * autenticación por cookie que las apps; no hay atajos ni mocks.
+ * Cliente API del owner de fixtures para preparar el escenario: comprobar el destino, devolver el
+ * override que dejó una corrida interrumpida y leer auditoría. Usa el mismo servidor y la misma
+ * autenticación por cookie que las apps; no hay atajos ni mocks. La tienda nunca se abre para pedir:
+ * recibir pedidos no depende del horario (PM-03).
  */
 import { expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
 import {
@@ -18,8 +19,8 @@ type Playwright = PlaywrightWorkerArgs['playwright']
 export interface OwnerApi extends FixtureApi {
   request: APIRequestContext
   storeId: string
-  /** Abre la tienda solo si no recibe pedidos; devuelve la restauración (idempotente). */
-  ensureStoreOpen(runtime: RuntimeRecord): Promise<() => Promise<void>>
+  /** Devuelve el override que una corrida anterior interrumpida dejó aplicado; no cambia el horario por su cuenta. */
+  restoreInterruptedOverride(runtime: RuntimeRecord): Promise<void>
   orderAudit(orderId: string): Promise<{ action: string }[]>
   close(): Promise<void>
 }
@@ -79,26 +80,12 @@ export async function openOwnerApi(playwright: Playwright, dest: Destination, cr
     readStaffProduct,
     patchStore,
     patchProduct,
-    async ensureStoreOpen(runtime) {
+    async restoreInterruptedOverride(runtime) {
       const previous = runtime.override
-      let store = await readStaffStore()
-      // Una corrida anterior interrumpida pudo dejar el override propio aplicado: se devuelve antes de seguir.
-      if (previous && !previous.restored && store.scheduleOverride === previous.applied) {
-        store = await patchOverride(previous.original as 'auto' | 'open' | 'closed')
-        previous.restored = true
-        saveRuntime(runtime, 'store-restored')
-      }
-      if (store.availability.isOpen && store.availability.acceptsPickup) return async () => undefined
-      runtime.override = { original: store.scheduleOverride, applied: 'open', restored: false }
-      saveRuntime(runtime, 'store-override')
-      const opened = await patchOverride('open')
-      expect(opened.availability.isOpen, 'la tienda debe quedar abierta tras el override').toBe(true)
-      return async () => {
-        if (!runtime.override || runtime.override.restored) return
-        await patchOverride(runtime.override.original as 'auto' | 'open' | 'closed')
-        runtime.override.restored = true
-        saveRuntime(runtime, 'store-restored')
-      }
+      if (!previous || previous.restored || (await readStaffStore()).scheduleOverride !== previous.applied) return
+      await patchOverride(previous.original as 'auto' | 'open' | 'closed')
+      previous.restored = true
+      saveRuntime(runtime, 'store-restored')
     },
     async orderAudit(orderId) {
       const response = await request.get(`/api/audit?entity=order&entityId=${encodeURIComponent(orderId)}&limit=50`)

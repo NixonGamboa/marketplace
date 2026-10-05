@@ -53,3 +53,32 @@ export const localMomentIn = (instant: Date, timeZone: string): LocalMoment => {
   const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   return { date: `${parts.year}-${parts.month}-${parts.day}`, time, minutes: hour * 60 + minute, weekday }
 }
+
+const parseDate = (date: string): [number, number, number] => {
+  const [year, month, day] = date.split('-').map(Number)
+  return [year ?? 0, month ?? 1, day ?? 1]
+}
+
+/** `YYYY-MM-DD` desplazada `days` días civiles (sin depender de la zona del runtime). */
+export const addCalendarDays = (date: string, days: number): string => {
+  const [year, month, day] = parseDate(date)
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
+}
+
+/**
+ * Instante UTC que corresponde a la fecha `YYYY-MM-DD` y hora `HH:MM` locales de `timeZone`.
+ * Se corrige la diferencia entre la hora pedida y la que `timeZone` marca para el instante
+ * candidato; dos pasadas bastan para el desfase de una zona (la tienda no usa horario de verano).
+ */
+export const instantFromLocal = (date: string, time: string, timeZone: string): Date => {
+  const [year, month, day] = parseDate(date)
+  const [hours, minutes] = time.split(':').map(Number)
+  const wanted = Date.UTC(year, month - 1, day, hours ?? 0, minutes ?? 0)
+  let candidate = wanted
+  for (let pass = 0; pass < 2; pass += 1) {
+    const local = localMomentIn(new Date(candidate), timeZone)
+    const [localYear, localMonth, localDay] = parseDate(local.date)
+    candidate += wanted - Date.UTC(localYear, localMonth - 1, localDay, 0, local.minutes)
+  }
+  return new Date(candidate)
+}

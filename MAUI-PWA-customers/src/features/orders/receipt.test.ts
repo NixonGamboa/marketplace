@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildOrderReceipt, customerReceiptFrom, staffReceiptFrom } from '@shared/receipts'
+import { buildOrderReceipt, customerReceiptFrom, describeTimeSlot, processingNoticeMessage, staffReceiptFrom } from '@shared/receipts'
 import { orderDtoSchema } from '@shared/contracts'
 
 const order = orderDtoSchema.parse({
@@ -57,5 +57,64 @@ describe('comprobante compartido real', () => {
   })
   it('admin legacy sin celular conserva seguimiento', () => {
     expect(staffReceiptFrom({ ...order, customerPhone: undefined }).contact).toBeNull()
+  })
+})
+
+describe('franja de recogida con fecha autoritativa (PM-03)', () => {
+  const pickup = { ...order, deliveryType: 'pickup' as const, deliveryData: { timeSlot: 'morning' as const }, shippingCost: 0, status: 'received' as const }
+
+  it('describe la franja con la fecha del servidor, sin «hoy»/«mañana» relativos', () => {
+    expect(describeTimeSlot('morning', '2026-10-07')).toBe('por la mañana · miércoles, 7 de octubre')
+    expect(describeTimeSlot('afternoon', '2026-10-31')).toBe('por la tarde · sábado, 31 de octubre')
+    expect(describeTimeSlot('asap', '2026-11-01')).toBe('lo antes posible · domingo, 1 de noviembre')
+    expect(describeTimeSlot('morning')).toBe('por la mañana')
+  })
+
+  it('el comprobante muestra la franja y su fecha, separada del aviso de procesamiento', () => {
+    const receipt = buildOrderReceipt({ ...pickup, timeSlotDate: '2026-10-07', processingNotice: { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T19:00:00.000Z' } })
+    expect(receipt.rows).toContain('Franja de recogida: por la mañana · miércoles, 7 de octubre')
+    expect(receipt.rows).toContain(processingNoticeMessage({ kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T19:00:00.000Z' }))
+    expect(receipt.text).toContain('martes, 6 de octubre a las 2:00 p. m.') // apertura (procesamiento), no la franja
+  })
+
+  it('la franja y su fecha siguen en el comprobante tras avanzar el estado; sin fecha solo la franja', () => {
+    expect(buildOrderReceipt({ ...pickup, status: 'preparing', timeSlotDate: '2026-10-07' }).text).toContain('Franja de recogida: por la mañana · miércoles, 7 de octubre')
+    expect(buildOrderReceipt(pickup).text).toContain('Franja de recogida: por la mañana')
+    expect(buildOrderReceipt(pickup).text).not.toContain('·')
+    expect(buildOrderReceipt({ ...order, deliveryType: 'pickup', deliveryData: {}, shippingCost: 0 }).text).not.toContain('Franja de recogida')
+  })
+})
+
+describe('aviso de procesamiento (PM-03)', () => {
+  const scheduled = { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' } as const
+  const unscheduled = { kind: 'unscheduled', reason: 'override_closed' } as const
+
+  it('programado: día, fecha y hora en Bogotá, sin prometer entrega ni recogida', () => {
+    const message = processingNoticeMessage(scheduled)
+    expect(message).toBe('¡Recibimos tu pedido! En este momento estamos descansando para darte un mejor servicio. Comenzaremos a procesarlo el martes, 6 de octubre a las 8:00 a. m.')
+    expect(message).not.toMatch(/entreg|recog|llegar/i)
+  })
+
+  it('misma hora UTC pero otro día local: la fecha sale en America/Bogota', () => {
+    // 02:30 UTC del 6 de octubre son las 21:30 del lunes 5 en Bogotá.
+    expect(processingNoticeMessage({ ...scheduled, startsAt: '2026-10-06T02:30:00.000Z' })).toContain('el lunes, 5 de octubre a las 9:30 p. m.')
+  })
+
+  it('sin hora conocida: texto sin hora inventada', () => {
+    expect(processingNoticeMessage(unscheduled)).toBe('¡Recibimos tu pedido! En este momento estamos descansando para darte un mejor servicio. Lo procesaremos cuando retomemos la atención.')
+    expect(processingNoticeMessage(unscheduled)).not.toMatch(/\d:\d\d/)
+  })
+
+  it('corte de domicilio: explica el corte y conserva la fecha de procesamiento', () => {
+    expect(processingNoticeMessage({ ...scheduled, reason: 'delivery_cutoff' })).toBe('¡Recibimos tu pedido! Ya pasó la hora de corte de los domicilios de hoy. Comenzaremos a procesarlo el martes, 6 de octubre a las 8:00 a. m.')
+  })
+
+  it('el comprobante lo incluye mientras el pedido sigue recibido y lo omite después', () => {
+    const received = { ...order, status: 'received' as const, processingNotice: scheduled }
+    const receipt = buildOrderReceipt(received)
+    expect(receipt.rows).toContain(processingNoticeMessage(scheduled))
+    expect(customerReceiptFrom(received, null).receipt.text).toContain('Comenzaremos a procesarlo')
+    expect(buildOrderReceipt({ ...received, status: 'confirmed' }).text).not.toContain('Recibimos tu pedido')
+    expect(buildOrderReceipt({ ...order, status: 'received' }).text).not.toContain('Recibimos tu pedido')
   })
 })

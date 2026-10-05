@@ -20,7 +20,6 @@ test.describe('selector de sustituciones PM-02 @completo', () => {
   let customer: Actor
   let admin: Actor
   let runtime: RuntimeRecord
-  let restoreStore: () => Promise<void> = async () => undefined
   let product: ProductDto
 
   const trigger = (page: Page) => page.locator(TRIGGER)
@@ -39,7 +38,7 @@ test.describe('selector de sustituciones PM-02 @completo', () => {
     expect(await checkHealth(playwright, dest)).toMatchObject({ environment: 'test', database: 'connected' })
     runtime = createRuntime(dest.previewSha, dest.readyStamp)
     owner = await openOwnerApi(playwright, dest, credentials)
-    restoreStore = await owner.ensureStoreOpen(runtime)
+    await owner.restoreInterruptedOverride(runtime)
     customer = await openActor(browser, dest, 'cliente', runtime)
     admin = await openActor(browser, dest, 'admin', runtime)
     await customerLogin(customer.page, credentials.customer)
@@ -55,7 +54,7 @@ test.describe('selector de sustituciones PM-02 @completo', () => {
   test.afterAll(async () => {
     if (!runtime) return
     const cleanup = await Promise.allSettled([
-      (async () => { await restoreStore(); await owner?.close() })(),
+      owner?.close(),
       customer?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) }),
       admin?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) }),
     ])

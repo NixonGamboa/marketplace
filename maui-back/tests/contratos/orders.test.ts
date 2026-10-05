@@ -274,4 +274,22 @@ describe('DTOs de respuesta', () => {
       orderConfirmationSchema.safeParse({ orderId: 'MAUI-1', status: 'ready', estimatedTotal: 9000 }).success,
     ).toBe(false)
   })
+
+  it('fecha de la franja: formato válido, requiere franja y el cliente no puede enviarla', () => {
+    const pickup = { ...validDto(), deliveryType: 'pickup', deliveryData: { timeSlot: 'morning' }, shippingCost: 0 }
+    expect(orderDtoSchema.parse({ ...pickup, timeSlotDate: '2026-10-07' }).timeSlotDate).toBe('2026-10-07')
+    expect(orderDtoSchema.safeParse({ ...pickup, timeSlotDate: '7 de octubre' }).success).toBe(false)
+    expect(orderDtoSchema.safeParse({ ...pickup, deliveryData: {}, timeSlotDate: '2026-10-07' }).success).toBe(false)
+    expect(orderConfirmationSchema.parse({ orderId: 'MAUI-1', status: 'received', estimatedTotal: 9000, timeSlotDate: '2026-10-07' }).timeSlotDate).toBe('2026-10-07')
+    expect(createOrderRequestSchema.safeParse({ ...validPickupRequest(), timeSlotDate: '2026-10-07' }).success).toBe(false)
+    expect(createOrderRequestSchema.safeParse({ ...validPickupRequest(), deliveryData: { timeSlot: 'morning', timeSlotDate: '2026-10-07' } }).success).toBe(false)
+  })
+
+  it('confirmación y pedido admiten el aviso de procesamiento y lo conservan', () => {
+    const processingNotice = { kind: 'scheduled', reason: 'before_opening', startsAt: '2026-10-05T13:00:00.000Z' }
+    expect(orderConfirmationSchema.parse({ orderId: 'MAUI-1', status: 'received', estimatedTotal: 9000, processingNotice }).processingNotice).toEqual(processingNotice)
+    expect(orderDtoSchema.parse({ ...validDto(), processingNotice }).processingNotice).toEqual(processingNotice)
+    expect(orderDtoSchema.safeParse({ ...validDto(), processingNotice: { kind: 'scheduled' } }).success).toBe(false)
+    expect(orderDtoSchema.parse(validDto())).not.toHaveProperty('processingNotice')
+  })
 })

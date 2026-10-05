@@ -16,6 +16,7 @@ import { validDeliveryRequest, validPickupRequest, variableWeightItem } from '..
 import { initializeOrderCatalog } from '../../orders/creationFixture.js'
 import { updateStoreSettings } from '../../../src/usecases/store/updateStoreSettings.js'
 import { forceStatus } from '../../orders/forceStatus.js'
+import { STORE_SEED_SETTINGS } from '../../../src/usecases/store/storeSeed.js'
 
 const customer = { id: 'cust_01', role: 'customer' as const, storeId: null }
 const context = { storeId: 'leche-y-miel' }
@@ -149,13 +150,155 @@ describe('creación autoritativa e idempotente', () => {
     clock.advanceSeconds(3600)
     expect((await create()).status).toBe('received')
   })
-  it('rechaza tienda cerrada sin consumir quota y aplica corte/franja', async () => {
+  describe('recepción permanente (PM-03)', () => {
     const owner = { id: 'owner', role: 'owner' as const, storeId: context.storeId }
-    await updateStoreSettings(deps(), owner, { scheduleOverride: 'closed' })
-    await expect(create()).rejects.toMatchObject({ code: 'STORE_CLOSED' })
-    await updateStoreSettings(deps(), owner, { scheduleOverride: 'open', delivery: { cutoff: '10:00' } })
-    await expect(create(validDeliveryRequest())).rejects.toMatchObject({ code: 'DELIVERY_CUTOFF_PASSED' })
-    expect((await create()).shippingCost).toBe(0)
+    const at = (local: string) => { clock = new TestClock(new Date(`${local}:00-05:00`)) }
+    // El fixture abre la tienda manualmente; estas pruebas siguen el horario semanal.
+    beforeEach(async () => { await updateStoreSettings(deps(), owner, { scheduleOverride: 'auto' }) })
+
+    it('abierta: recibe sin aviso de procesamiento', async () => {
+      const order = await create()
+      expect(order.processingNotice).toBeUndefined()
+      expect(toOrderDto(order)).not.toHaveProperty('processingNotice')
+    })
+
+    it('cierre manual: persiste el pedido y fija un aviso sin hora', async () => {
+      await updateStoreSettings(deps(), owner, { scheduleOverride: 'closed' })
+      const order = await create()
+      expect(order).toMatchObject({ status: 'received', processingNotice: { kind: 'unscheduled', reason: 'override_closed' } })
+      expect((await orders.findById(order.id))?.processingNotice).toEqual({ kind: 'unscheduled', reason: 'override_closed' })
+    })
+
+    it.each([
+      ['2026-10-05T06:30', 'before_opening', '2026-10-05T13:00:00.000Z'],
+      ['2026-10-05T21:00', 'after_closing', '2026-10-06T13:00:00.000Z'],
+      ['2026-10-03T21:00', 'after_closing', '2026-10-04T14:00:00.000Z'],
+    ])('%s: recibe y fija la próxima apertura (%s)', async (local, reason, startsAt) => {
+      at(local)
+      const order = await create()
+      expect(order.processingNotice).toEqual({ kind: 'scheduled', reason, startsAt })
+      expect(order.createdAt).toBe(clock.nowIso())
+    })
+
+    it('día sin atención: salta al siguiente día con atención', async () => {
+      await updateStoreSettings(deps(), owner, { weeklySchedule: { ...STORE_SEED_SETTINGS.weeklySchedule, mon: { open: '08:00', close: '20:00', closed: true } } })
+      at('2026-10-04T15:00') // domingo ya cerrado; el lunes no atiende
+      expect((await create()).processingNotice).toEqual({ kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' })
+    })
+
+    it('corte de domicilio: se recibe y su procesamiento pasa al siguiente día; la recogida no se aplaza', async () => {
+      await updateStoreSettings(deps(), owner, { scheduleOverride: 'open', delivery: { cutoff: '10:00' } })
+      const delivery = await create(validDeliveryRequest())
+      expect(delivery.processingNotice).toEqual({ kind: 'scheduled', reason: 'delivery_cutoff', startsAt: '2026-10-06T13:00:00.000Z' })
+      expect(delivery.shippingCost).toBe(3000)
+      expect((await create()).processingNotice).toBeUndefined()
+    })
+
+    it('conserva las restricciones ajenas: domicilio deshabilitado y franja incompatible se rechazan sin consumir cupo', async () => {
+      at('2026-10-05T21:00')
+      await updateStoreSettings(deps(), owner, { delivery: { enabled: false } })
+      await expect(create(validDeliveryRequest())).rejects.toMatchObject({ code: 'DELIVERY_UNAVAILABLE' })
+      await updateStoreSettings(deps(), owner, { delivery: { enabled: true }, timeSlots: [
+        { id: 'morning', enabled: false, start: '08:00', end: '12:00' },
+        { id: 'afternoon', enabled: true, start: '12:00', end: '17:00' }, { id: 'asap', enabled: true },
+      ] })
+      const closedPickup = { ...validPickupRequest(), deliveryData: { timeSlot: 'morning' } }
+      await expect(create(closedPickup)).rejects.toMatchObject({ code: 'TIME_SLOT_UNAVAILABLE' })
+      // Una franja vigente para la fecha de procesamiento sí se acepta, aunque hoy ya haya vencido.
+      const accepted = await create({ ...validPickupRequest(), deliveryData: { timeSlot: 'afternoon' } })
+      expect(accepted.processingNotice).toMatchObject({ kind: 'scheduled' })
+    })
+
+    it('abierta con la única franja habilitada vencida hoy: recibe sin aviso, con franja de la próxima fecha o sin franja', async () => {
+      const day = { open: '08:00', close: '18:00', closed: false }
+      await updateStoreSettings(deps(), owner, {
+        scheduleOverride: 'auto',
+        weeklySchedule: { mon: day, tue: day, wed: day, thu: day, fri: day, sat: day, sun: day },
+        delivery: { enabled: false },
+        timeSlots: [
+          { id: 'morning', enabled: true, start: '08:00', end: '12:00' },
+          { id: 'afternoon', enabled: false, start: '12:00', end: '17:00' },
+          { id: 'asap', enabled: false },
+        ],
+      })
+      at('2026-10-05T14:00')
+      const withSlot = await create({ ...validPickupRequest(), deliveryData: { timeSlot: 'morning' } })
+      expect(withSlot).toMatchObject({ status: 'received', deliveryData: { timeSlot: 'morning' } })
+      expect(withSlot.processingNotice).toBeUndefined()
+      expect((await create(validPickupRequest())).processingNotice).toBeUndefined()
+      await expect(create(validDeliveryRequest())).rejects.toMatchObject({ code: 'DELIVERY_UNAVAILABLE' })
+      await expect(create({ ...validPickupRequest(), deliveryData: { timeSlot: 'asap' } })).rejects.toMatchObject({ code: 'TIME_SLOT_UNAVAILABLE' })
+    })
+
+    describe('fecha autoritativa de la franja', () => {
+      const full = { open: '08:00', close: '18:00', closed: false }
+      const closedDay = { open: '08:00', close: '18:00', closed: true }
+      const weeklyWithLateTuesday = { mon: full, tue: { open: '14:00', close: '18:00', closed: false }, wed: full, thu: closedDay, fri: closedDay, sat: closedDay, sun: closedDay }
+      const onlyMorning = [
+        { id: 'morning' as const, enabled: true, start: '08:00', end: '12:00' },
+        { id: 'afternoon' as const, enabled: false, start: '12:00', end: '17:00' },
+        { id: 'asap' as const, enabled: false },
+      ]
+      const pickupMorning = () => ({ ...validPickupRequest(), deliveryData: { timeSlot: 'morning' } })
+
+      it('persiste la fecha calculada por el servidor, separada del aviso, y no cambia con el horario', async () => {
+        await updateStoreSettings(deps(), owner, { scheduleOverride: 'auto', weeklySchedule: weeklyWithLateTuesday, timeSlots: onlyMorning, delivery: { enabled: false } })
+        at('2026-10-05T14:00')
+        const key = randomUUID()
+        const order = await create(pickupMorning(), key)
+        expect(order.timeSlotDate).toBe('2026-10-07')
+        expect(order.processingNotice).toBeUndefined()
+        expect(toOrderDto(order)).toMatchObject({ timeSlotDate: '2026-10-07', deliveryData: { timeSlot: 'morning' } })
+        expect(orderDtoSchema.safeParse(toOrderDto(order)).success).toBe(true)
+        // Otro horario y otro día: ni la lectura ni el reintento idempotente cambian la fecha ni la huella.
+        await updateStoreSettings(deps(), owner, { weeklySchedule: { ...weeklyWithLateTuesday, wed: closedDay, thu: full } })
+        clock = new TestClock(new Date('2026-10-07T20:00:00.000Z'))
+        expect((await orders.findById(order.id))?.timeSlotDate).toBe('2026-10-07')
+        const retry = await create(pickupMorning(), key)
+        expect(retry).toEqual(order)
+        await expect(create({ ...pickupMorning(), customerName: 'Otra' }, key)).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+      })
+
+      it('tras el cierre: aviso en la próxima apertura y fecha de franja posterior, cada uno en su campo', async () => {
+        await updateStoreSettings(deps(), owner, { scheduleOverride: 'auto', weeklySchedule: weeklyWithLateTuesday, timeSlots: onlyMorning })
+        at('2026-10-05T19:00')
+        const order = await create(pickupMorning())
+        expect(order.processingNotice).toEqual({ kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T19:00:00.000Z' })
+        expect(order.timeSlotDate).toBe('2026-10-07')
+      })
+
+      it('sin franja o con cierre manual no hay fecha de franja', async () => {
+        await updateStoreSettings(deps(), owner, { scheduleOverride: 'auto', weeklySchedule: weeklyWithLateTuesday, timeSlots: onlyMorning })
+        at('2026-10-05T14:00')
+        expect((await create({ ...validPickupRequest(), deliveryData: {} })).timeSlotDate).toBeUndefined()
+        await updateStoreSettings(deps(), owner, { scheduleOverride: 'closed' })
+        expect((await create(pickupMorning())).timeSlotDate).toBeUndefined()
+      })
+
+      it('el cliente no puede fijar la fecha: se rechaza en la raíz y en deliveryData, y no entra en la huella', async () => {
+        await expect(create({ ...validPickupRequest(), timeSlotDate: '2030-01-01' })).rejects.toBeInstanceOf(ValidationError)
+        await expect(create({ ...validPickupRequest(), deliveryData: { timeSlot: 'asap', timeSlotDate: '2030-01-01' } })).rejects.toBeInstanceOf(ValidationError)
+      })
+    })
+
+    it('precios y envío siguen siendo autoritativos fuera de horario', async () => {
+      at('2026-10-05T21:00')
+      const order = await create({ ...validDeliveryRequest(), shippingCost: 1, items: [{ id: 'prod_leche', qty: 2, priceAtMoment: 1 }] })
+      expect(order).toMatchObject({ estimatedTotal: 12000, shippingCost: 3000 })
+    })
+
+    it('el reintento idempotente devuelve el mismo aviso aunque el horario cambie; otra intención es conflicto', async () => {
+      at('2026-10-05T21:00')
+      const key = randomUUID()
+      const first = await create(validPickupRequest(), key)
+      await updateStoreSettings(deps(), owner, { scheduleOverride: 'open' })
+      clock = new TestClock(new Date('2026-10-06T15:00:00.000Z'))
+      const retry = await create(validPickupRequest(), key)
+      expect(retry.id).toBe(first.id)
+      expect(retry.processingNotice).toEqual(first.processingNotice)
+      expect(retry.processingNotice).toMatchObject({ kind: 'scheduled', reason: 'after_closing' })
+      await expect(create({ ...validPickupRequest(), customerName: 'Otra persona' }, key)).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' })
+    })
   })
   it.each([undefined, 'short', 'bad key with spaces', 'x'.repeat(129)])('rechaza clave inválida %j', async key => {
     await expect(createOrder(deps(), customer, validPickupRequest(), context, key)).rejects.toBeInstanceOf(ValidationError)

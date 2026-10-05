@@ -105,7 +105,13 @@ describe('casos de uso de tienda', () => {
     })
     expect((await evaluateOrderFulfillment(deps, STORE, { deliveryType: 'pickup', itemsSubtotal: 5000 })).shippingCost).toBe(0)
 
-    clock.advanceSeconds(10 * 3600) // 20:00 Bogotá: cerrado
-    await expect(evaluateOrderFulfillment(deps, STORE, { deliveryType: 'pickup', itemsSubtotal: 5000 })).rejects.toBeInstanceOf(StoreRuleError)
+    clock.advanceSeconds(10 * 3600) // 20:00 Bogotá: cerrado, pero se recibe y se calcula la próxima apertura
+    expect(await evaluateOrderFulfillment(deps, STORE, { deliveryType: 'pickup', itemsSubtotal: 5000 })).toMatchObject({
+      shippingCost: 0,
+      availability: { isOpen: false, closedReason: 'after_closing', acceptsPickup: true },
+      processingNotice: { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' },
+    })
+    await updateStoreSettings(deps, owner, { delivery: { enabled: false } })
+    await expect(evaluateOrderFulfillment(deps, STORE, { deliveryType: 'delivery', itemsSubtotal: 5000 })).rejects.toBeInstanceOf(StoreRuleError)
   })
 })

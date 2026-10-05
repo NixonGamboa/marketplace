@@ -1,5 +1,6 @@
 import type { OrderDto, OrderItemDto } from '../contracts/orders.js'
-import type { StoreDto } from '../contracts/store.js'
+import type { OrderProcessingNoticeDto, StoreDto } from '../contracts/store.js'
+import type { TimeSlot } from '../contracts/orderEnums.js'
 import { PLACEHOLDER_CONTACT_PHONE, STORE_TIME_ZONE } from '../contracts/store.js'
 import { normalizeColombianMobile } from '../contracts/common.js'
 import { itemEstimatedTotal, itemFinalTotal } from '../contracts/orderPricing.js'
@@ -15,6 +16,45 @@ const quantity = (value: number): string => new Intl.NumberFormat('es-CO', { max
 const date = (iso: string): string => new Intl.DateTimeFormat('es-CO', {
   timeZone: STORE_TIME_ZONE, dateStyle: 'medium', timeStyle: 'short',
 }).format(new Date(iso))
+
+const processingDay = new Intl.DateTimeFormat('es-CO', {
+  timeZone: STORE_TIME_ZONE, weekday: 'long', day: 'numeric', month: 'long',
+})
+const processingTime = new Intl.DateTimeFormat('es-CO', {
+  timeZone: STORE_TIME_ZONE, hour: 'numeric', minute: '2-digit', hour12: true,
+})
+/** ICU separa «a. m.» con espacios especiales (NBSP/NNBSP); NFKC los reduce a un espacio normal. */
+const plainSpaces = (text: string): string => text.normalize('NFKC')
+
+const SLOT_DESCRIPTIONS: Record<TimeSlot, string> = {
+  morning: 'por la mañana', afternoon: 'por la tarde', asap: 'lo antes posible',
+}
+const calendarDay = new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' })
+
+/**
+ * Franja elegida con la fecha fijada por el servidor al crear el pedido (`timeSlotDate`, fecha civil de
+ * Bogotá): «por la mañana · martes, 6 de octubre». Sin fecha registrada solo dice la franja. Nunca usa
+ * «hoy»/«mañana» relativos (la franja «mañana» es la de la mañana) y no es la hora de procesamiento.
+ */
+export const describeTimeSlot = (slot: TimeSlot, timeSlotDate?: string): string =>
+  timeSlotDate === undefined
+    ? SLOT_DESCRIPTIONS[slot]
+    : plainSpaces(`${SLOT_DESCRIPTIONS[slot]} · ${calendarDay.format(new Date(`${timeSlotDate}T12:00:00Z`))}`)
+
+/**
+ * Aviso mostrado tras persistir un pedido recibido fuera de atención. Informa cuándo empieza el
+ * procesamiento (nunca una hora de entrega o recogida) y no inventa una hora si no se conoce.
+ */
+export const processingNoticeMessage = (notice: OrderProcessingNoticeDto): string => {
+  const intro = notice.reason === 'delivery_cutoff'
+    ? '¡Recibimos tu pedido! Ya pasó la hora de corte de los domicilios de hoy.'
+    : '¡Recibimos tu pedido! En este momento estamos descansando para darte un mejor servicio.'
+  if (notice.kind === 'unscheduled') return `${intro} Lo procesaremos cuando retomemos la atención.`
+  const startsAt = new Date(notice.startsAt)
+  const time = plainSpaces(processingTime.format(startsAt))
+  // «a. m.» ya termina en punto: no se duplica al cerrar la frase.
+  return plainSpaces(`${intro} Comenzaremos a procesarlo el ${processingDay.format(startsAt)} a las ${time}${time.endsWith('.') ? '' : '.'}`)
+}
 
 export interface ReceiptLine {
   id: string
@@ -66,6 +106,9 @@ export const buildOrderReceipt = (order: OrderDto): OrderReceipt => {
     `Creado: ${date(order.createdAt)} (Colombia)`,
     ...(order.updatedAt ? [`Actualizado: ${date(order.updatedAt)} (Colombia)`] : []),
     `Modalidad: ${order.deliveryType === 'pickup' ? 'Recogida en tienda' : 'Domicilio'}`,
+    ...(order.deliveryData.timeSlot ? [`Franja de recogida: ${describeTimeSlot(order.deliveryData.timeSlot, order.timeSlotDate)}`] : []),
+    // El aviso es del momento de la recepción: deja de aplicar cuando el personal ya actuó sobre el pedido.
+    ...(order.processingNotice && order.status === 'received' ? [processingNoticeMessage(order.processingNotice)] : []),
     'Estimación original:', ...originalLines.map(lineText),
     ...(order.shippingCost === undefined ? ['Envío: no registrado'] : [
       `Subtotal estimado original: ${formatReceiptMoney(order.estimatedTotal - order.shippingCost)}`,
