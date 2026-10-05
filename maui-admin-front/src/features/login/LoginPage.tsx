@@ -4,11 +4,14 @@
  * En fallo muestra toast 'Credenciales inválidas'.
  * Estado loading desactiva el formulario durante la petición.
  */
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { emailInputSchema } from '@shared/contracts'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
 import { Spinner } from '@/ui/Spinner'
+import { FieldError } from '@/ui/FieldError'
+import { fieldErrorId, invalidInputClass } from '@/ui/fieldStyles'
 import { isDemoMode } from '@/services'
 import { ApiError } from '@/services/http/apiError'
 
@@ -28,6 +31,16 @@ function loginErrorMessage(error: unknown): string {
   return error.message
 }
 
+const INPUT_CLASS = 'px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-1 disabled:bg-gray-50 transition'
+const VALID_INPUT_CLASS = 'border-gray-300 focus:border-indigo-400 focus:ring-indigo-200'
+
+function emailProblem(email: string): string | null {
+  const trimmed = email.trim()
+  if (!trimmed) return 'Escribe tu correo electrónico.'
+  // Misma validación que el servidor (contrato de auth): un correo mal formado se señala aquí, no como «Credenciales inválidas».
+  return emailInputSchema.safeParse(trimmed).success ? null : 'Escribe un correo válido, por ejemplo nombre@dominio.com.'
+}
+
 export function LoginPage() {
   const { login, sessionExpired } = useSession()
   const navigate = useNavigate()
@@ -36,11 +49,26 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Ingreso: la contraseña solo es obligatoria; no se reimpone la política de alta a cuentas existentes.
+  const emailIssue = emailProblem(email)
+  const passwordIssue = password ? null : 'Escribe tu contraseña.'
+  const emailError = attempted ? emailIssue : null
+  const passwordError = attempted ? passwordIssue : null
 
   const from = (location.state as LocationState | null)?.from?.pathname ?? '/'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (loading) return
+    setAttempted(true)
+    if (emailIssue || passwordIssue) {
+      (emailIssue ? emailRef : passwordRef).current?.focus()
+      return
+    }
     setLoading(true)
     try {
       await login(email.trim(), password)
@@ -78,15 +106,19 @@ export function LoginPage() {
             </label>
             <input
               id="login-email"
+              ref={emailRef}
               type="email"
               autoComplete="email"
-              required
+              aria-required="true"
+              aria-invalid={emailError !== null}
+              aria-describedby={emailError ? fieldErrorId('login-email') : undefined}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 disabled:bg-gray-50 transition"
+              className={`${INPUT_CLASS} ${emailError ? invalidInputClass : VALID_INPUT_CLASS}`}
               placeholder={isDemoMode ? 'owner@lechemiel.demo' : undefined}
             />
+            <FieldError id="login-email" message={emailError} />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -95,20 +127,24 @@ export function LoginPage() {
             </label>
             <input
               id="login-password"
+              ref={passwordRef}
               type="password"
               autoComplete="current-password"
-              required
+              aria-required="true"
+              aria-invalid={passwordError !== null}
+              aria-describedby={passwordError ? fieldErrorId('login-password') : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 disabled:bg-gray-50 transition"
+              className={`${INPUT_CLASS} ${passwordError ? invalidInputClass : VALID_INPUT_CLASS}`}
               placeholder={isDemoMode ? 'demo1234' : undefined}
             />
+            <FieldError id="login-password" message={passwordError} />
           </div>
 
           <button
             type="submit"
-            disabled={loading || !email || !password}
+            disabled={loading}
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium rounded-lg transition"
           >
             {loading && <Spinner size={16} label="Iniciando sesión" />}

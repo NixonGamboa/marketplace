@@ -9,14 +9,16 @@ import { ORDER_LIST_LIMITS } from '@shared/contracts'
 import { ORDER_STATUS_VALUES } from '@shared/contracts'
 import type { OrderStatus } from '@/types/orderService'
 import { isDemoMode } from '@/services'
-import { useToast } from '@/ui/Toast'
+import { FieldError } from '@/ui/FieldError'
+import { fieldErrorId, invalidInputClass } from '@/ui/fieldStyles'
 import { Spinner } from '@/ui/Spinner'
 import { EmptyState } from '@/ui/EmptyState'
 import { StatusBadge } from '@/features/orders/StatusBadge'
 import { useOrderPages } from '@/features/orders/useOrderPages'
 import type { OrderListFilterInput } from '@/services/real/adapters'
 
-const DAY_MS = 24 * 60 * 60 * 1000
+const RANGE_ERROR = 'La fecha «Desde» no puede ser posterior a «Hasta».'
+const DAY_MS =24 * 60 * 60 * 1000
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -46,7 +48,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 }
 
 export function HistoricoPage() {
-  const toast = useToast()
+  const [rangeAttempted, setRangeAttempted] = useState(false)
   const initial = defaultRange()
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
@@ -56,10 +58,19 @@ export function HistoricoPage() {
   const [applied, setApplied] = useState<OrderListFilterInput>({ from: initial.from, to: initial.to })
   const { orders, loading, loadingMore, error, hasMore, loadMore, reload } = useOrderPages(applied)
 
+  // El error del rango aparece al aplicar y se retira solo cuando las fechas vuelven a ser coherentes.
+  const rangeError = rangeAttempted && from > to ? RANGE_ERROR : null
+  const rangeFieldProps = {
+    'aria-invalid': rangeError !== null,
+    'aria-describedby': rangeError ? fieldErrorId('hist-range') : undefined,
+  }
+  const dateInputClass = `border rounded-lg px-3 py-1.5 text-sm ${rangeError ? invalidInputClass : 'border-gray-300'}`
+
   function handleApply(e: React.FormEvent) {
     e.preventDefault()
+    setRangeAttempted(true)
     if (from > to) {
-      toast.error('El "desde" no puede ser mayor que el "hasta"')
+      document.getElementById('hist-from')?.focus()
       return
     }
     const q = queryDraft.trim()
@@ -83,7 +94,8 @@ export function HistoricoPage() {
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+            {...rangeFieldProps}
+            className={dateInputClass}
           />
         </div>
         <div>
@@ -95,8 +107,10 @@ export function HistoricoPage() {
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+            {...rangeFieldProps}
+            className={dateInputClass}
           />
+          <FieldError id="hist-range" message={rangeError} />
         </div>
         {!isDemoMode && (
           <>

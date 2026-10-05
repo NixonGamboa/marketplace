@@ -5,6 +5,8 @@
  * Parseo robusto: acepta '12.345', '12,345', '12345' → 12345.
  */
 import { useState, useEffect } from 'react'
+import { FieldError } from './FieldError'
+import { fieldErrorId, invalidInputClass } from './fieldStyles'
 
 interface PriceInputProps {
   value: number
@@ -13,6 +15,8 @@ interface PriceInputProps {
   id?: string
   disabled?: boolean
   min?: number
+  /** Mensaje de validación del campo: lo marca inválido y lo muestra debajo. */
+  error?: string | null
 }
 
 function formatCOP(n: number): string {
@@ -35,6 +39,7 @@ export function PriceInput({
   id = 'price-input',
   disabled = false,
   min = 0,
+  error = null,
 }: PriceInputProps) {
   const [display, setDisplay] = useState(() => formatCOP(value))
   const [focused, setFocused] = useState(false)
@@ -88,10 +93,15 @@ export function PriceInput({
           disabled={disabled}
           min={min}
           aria-label={label ?? 'Precio en COP'}
-          className="w-full pl-7 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 disabled:bg-gray-50 disabled:text-gray-400 transition"
+          aria-invalid={error !== null}
+          aria-describedby={error ? fieldErrorId(id) : undefined}
+          className={`w-full pl-7 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 disabled:bg-gray-50 disabled:text-gray-400 transition ${
+            error ? invalidInputClass : 'border-gray-300 focus:border-indigo-400 focus:ring-indigo-200'
+          }`}
         />
         <span className="absolute right-3 text-xs text-gray-400 select-none">COP</span>
       </div>
+      <FieldError id={id} message={error} />
     </div>
   )
 }
