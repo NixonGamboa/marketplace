@@ -1,11 +1,28 @@
 # MAUI — Plan de implementación directa y entrega en test
 
-> **Fuente única del estado global.** Actualización: **2026-10-03**.
+> **Fuente única del estado global.** Actualización: **2026-10-05**.
 > **Método:** implementaciones directas con Codex y Claude Code. SDD deja de ser requisito del proyecto.
 > **Entregable:** ambiente de test desplegado con seed reproducible y flujo funcional equivalente al de producción.
 > **Stack inicial:** Vercel Functions + Neon Postgres + Drizzle. Destino de escala: AWS Lambda.
 
 ## Alcance y definición de entrega
+
+### Segunda fase: primera barrida de la prueba manual — 2026-10-05
+
+Encargo del usuario en la sesión `01a10dd3-cff3-7c33-abe4-6a6287ab2b31`, con referencia al registro local `hallazgos-prueba-manual-20261004.md`. El registro original conserva los hallazgos y la decisión de recepción permanente; esta sección registra ejecución y evidencia. Un PR por defecto, E2E completo nuevo y tag consecutivo al certificar; `mvp-v1.0.0` permanece inmutable. La propuesta PM-P01 de política global de teléfonos no amplía este lote.
+
+| ID | Estado y responsabilidad | Evidencia y límite |
+|---|---|---|
+| PM-03 | En curso; Claude Sonnet/high en `feature/pm03-recepcion-permanente`; Codex revisa contratos/regla temporal antes de integrar. | Recepción a cualquier hora y aviso de procesamiento tras persistir, conforme a la decisión del usuario. Sin cambios cloud todavía. |
+| PM-01 | En curso; sesión Claude `aa7d4307…`, Sonnet/medium en `feature/pm01-validacion-formularios`. | Primera asignación: PWA 277/277, admin 234/234, tipos/lint y build unificado aprobados. Reanudar para feedback del histórico y cobertura de navegador; sin cambiar reglas de auth ni política global de teléfonos. |
+| PM-02 | Ejecutor Claude `c962ef06…`, Sonnet/medium en `feature/pm02-selector-sustituciones`; revisión y cierre técnico del diff inicial. | PR draft #34. Tres regresiones iniciales aprobadas: opción actual, opción distinta y Enter con recuperación de foco. Typecheck y lint PWA aprobados. CI push aprobado; CI del PR en cola. Falta cobertura dirigida de navegador y E2E completo real. |
+| PM-04 | Revisión y cierre local por Claude `603d784f…`, Sonnet/medium en `feature/pm04-celular-local`; pendiente de certificación. | Precarga/edición de 10 dígitos, conservación del único `57` al enviar. 22/22 regresiones checkout, tipos/lint PWA aprobados; tipos E2E y selftest 38/38 aprobados por ejecutor. Dos escenarios nuevos de navegador preparados; falta corrida completa real. |
+
+
+**Reparto ratificado por el usuario (2026-10-05):** Codex solo orquesta, asigna sesiones concretas, registra estado, revisa evidencia y coordina PRs/integración; los ejecutores asumen implementación, correcciones y cierre técnico. Los cambios iniciales de PM-02/PM-04 preparados por Codex se conservan y se transfieren para revisión y terminación a sesiones dedicadas. No continuar implementación de aplicación desde el chat orquestador.
+
+Checkouts aislados, sin escrituras concurrentes sobre los mismos archivos. El checkout inicial tenía únicamente el registro de hallazgos sin versionar; se conserva. Reset/reseed de `dev/maui` pendiente de coordinar con el usuario para proteger datos de su prueba. No declarar ningún defecto certificado con evidencia histórica 23/23 o servicios simulados.
+
 
 Las dos listas separan lo ya construido de las implementaciones pendientes. El seed puede reutilizar el catálogo y los datos de los mocks actuales, pero se carga en la BD de test y se consume mediante la API real. PWA y admin usan los mismos contratos, autenticación, permisos, cálculos y transiciones que se usarán en producción.
 

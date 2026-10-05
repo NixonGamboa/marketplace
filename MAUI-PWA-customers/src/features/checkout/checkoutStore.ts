@@ -113,6 +113,12 @@ export function normalizeCustomerPhone(value: string | null | undefined): string
   return /^3\d{9}$/.test(local) ? `57${local}` : null
 }
 
+/** Presenta el celular local sin cambiar la normalización usada al crear el pedido. */
+export function localCustomerPhone(value: string | null | undefined): string {
+  const normalized = normalizeCustomerPhone(value)
+  return normalized ? normalized.slice(2) : value ?? ''
+}
+
 function hasDeliveryLocation(state: CheckoutState): boolean {
   const hasAddress = Boolean(state.address?.trim())
   const hasCoordinates = state.lat !== null && state.lng !== null &&

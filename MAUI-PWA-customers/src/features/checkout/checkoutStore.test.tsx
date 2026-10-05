@@ -154,7 +154,7 @@ describe('checkout contact and location', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
 
     const phone = screen.getByRole('textbox', { name: 'Celular para este pedido' }) as HTMLInputElement
-    expect(phone.value).toBe('+573001234567')
+    expect(phone.value).toBe('3001234567')
     fireEvent.click(screen.getByRole('radio', { name: /Recoger en tienda/i }))
     fireEvent.click(screen.getByRole('radio', { name: /Lo antes posible/i }))
 
