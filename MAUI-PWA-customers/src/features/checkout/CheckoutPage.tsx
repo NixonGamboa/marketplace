@@ -58,6 +58,18 @@ function formatPhone(raw: string | undefined): string {
   return raw
 }
 
+/**
+ * Error del celular de contacto. Con el valor aún sin precargar (`null`) no se muestra nada hasta que la
+ * persona sale del campo; un valor presente y mal formado (editado o precargado) se señala de inmediato.
+ */
+function customerPhoneProblem(phone: string | null, touched: boolean): string | null {
+  if (phone === null && !touched) return null
+  if (normalizeCustomerPhone(phone) !== null) return null
+  return (phone ?? '').trim() === ''
+    ? 'Escribe tu celular.'
+    : 'Ingresa un celular colombiano de 10 dígitos, con o sin +57.'
+}
+
 /** Vista previa del envío; el servidor recalcula con sus reglas. Sin reglas (real sin cargar) no se inventa un costo. */
 function getCheckoutShipping(subtotal: number, deliveryMode: 'delivery' | 'pickup' | null, rules: ShippingRules | null): ShippingQuote {
   const quote = calculateShipping(subtotal, rules ?? { cost: 0, freeThreshold: null })
@@ -291,6 +303,8 @@ function StepEntrega({ animClass, rules }: { animClass: string; rules: CheckoutR
   const setCustomerPhone = useCheckoutStore((s) => s.setCustomerPhone)
   const [localNote,     setLocalNote]     = useState('')
   const [notesExpanded, setNotesExpanded] = useState(false)
+  const [phoneTouched,  setPhoneTouched]  = useState(false)
+  const phoneError = customerPhoneProblem(customerPhone, phoneTouched)
 
   return (
     <section
@@ -337,16 +351,28 @@ function StepEntrega({ animClass, rules }: { animClass: string; rules: CheckoutR
                 required
                 value={customerPhone ?? ''}
                 onChange={(event) => setCustomerPhone(event.target.value)}
-                aria-invalid={normalizeCustomerPhone(customerPhone) === null}
-                aria-describedby="checkout-customer-phone-help"
+                onBlur={() => setPhoneTouched(true)}
+                aria-invalid={phoneError !== null}
+                aria-describedby={phoneError ? 'checkout-customer-phone-error' : 'checkout-customer-phone-help'}
                 placeholder="300 123 4567"
-                className="mt-1 block w-full min-h-11 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-brand-dark outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/40"
+                className={[
+                  'mt-1 block w-full min-h-11 rounded-xl border bg-white px-3 py-2 text-sm text-brand-dark outline-none focus:ring-2',
+                  phoneError
+                    ? 'border-brand-error focus:border-brand-error focus:ring-brand-error/30'
+                    : 'border-gray-300 focus:border-brand-primary focus:ring-brand-primary/40',
+                ].join(' ')}
               />
-              <p id="checkout-customer-phone-help" className="mt-1.5 text-xs text-brand-muted">
-                {normalizeCustomerPhone(customerPhone) === null
-                  ? 'Ingresa un celular colombiano de 10 dígitos, con o sin +57.'
-                  : 'Usaremos este número solo para contactarte sobre este pedido.'}
-              </p>
+              {phoneError ? (
+                <p id="checkout-customer-phone-error" role="alert" className="mt-1.5 text-xs font-medium text-brand-error">
+                  {phoneError}
+                </p>
+              ) : (
+                <p id="checkout-customer-phone-help" className="mt-1.5 text-xs text-brand-muted">
+                  {normalizeCustomerPhone(customerPhone) === null
+                    ? 'Ingresa un celular colombiano de 10 dígitos, con o sin +57.'
+                    : 'Usaremos este número solo para contactarte sobre este pedido.'}
+                </p>
+              )}
             </div>
           </div>
         </div>

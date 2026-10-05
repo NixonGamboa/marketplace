@@ -246,6 +246,82 @@ describe('RealAuthPage', () => {
     expect(auth.register).toHaveBeenCalledWith({ name: 'Ana', phone: '+573001234567', password: 'una-clave-bastante-larga' })
   })
 
+  it('enviar vacío muestra el error junto a cada campo, enfoca el primero y no hace la petición', () => {
+    renderAuth()
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    const phone = screen.getByLabelText('Celular')
+    const password = screen.getByLabelText('Contraseña')
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(phone).toHaveAttribute('aria-describedby', 'auth-phone-error')
+    expect(document.getElementById('auth-phone-error')).toHaveTextContent(/celular colombiano válido/)
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAttribute('aria-describedby', 'auth-password-error')
+    expect(document.getElementById('auth-password-error')).toHaveTextContent('Escribe tu contraseña.')
+    expect(phone).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
+    expect(auth.login).not.toHaveBeenCalled()
+  })
+
+  it('el ingreso no impone la longitud del registro a cuentas existentes', async () => {
+    auth.login.mockResolvedValue(session('usr-1'))
+    renderAuth()
+    fill('3001234567', 'corta')
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    expect(await screen.findByText('inicio')).toBeInTheDocument()
+    expect(auth.login).toHaveBeenCalledWith('+573001234567', 'corta')
+  })
+
+  it('registro: marca nombre y contraseña corta, enfoca el nombre y se recupera al corregir', async () => {
+    auth.register.mockResolvedValue(session('usr-2'))
+    renderAuth()
+    fireEvent.click(screen.getByRole('button', { name: '¿Primera vez? Crea tu cuenta' }))
+    fill('3001234567', 'corta')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+
+    const name = screen.getByLabelText('Tu nombre')
+    const password = screen.getByLabelText('Contraseña')
+    expect(name).toHaveAttribute('aria-invalid', 'true')
+    expect(name).toHaveAttribute('aria-describedby', 'auth-name-error')
+    expect(name).toHaveFocus()
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password.getAttribute('aria-describedby')).toBe('auth-password-help auth-password-error')
+    expect(document.getElementById('auth-password-error')).toHaveTextContent('al menos 12 caracteres')
+    expect(screen.getByLabelText('Celular')).toHaveAttribute('aria-invalid', 'false')
+    expect(auth.register).not.toHaveBeenCalled()
+
+    fireEvent.change(name, { target: { value: 'Ana' } })
+    expect(name).toHaveAttribute('aria-invalid', 'false')
+    expect(document.getElementById('auth-name-error')).toBeNull()
+    fireEvent.change(password, { target: { value: 'una-clave-bastante-larga' } })
+    expect(password).toHaveAttribute('aria-invalid', 'false')
+    expect(password.getAttribute('aria-describedby')).toBe('auth-password-help')
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+    expect(await screen.findByText('inicio')).toBeInTheDocument()
+    expect(auth.register).toHaveBeenCalledWith({ name: 'Ana', phone: '+573001234567', password: 'una-clave-bastante-larga' })
+  })
+
+  it('cambiar de modo limpia los errores mostrados', () => {
+    renderAuth()
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    fireEvent.click(screen.getByRole('button', { name: '¿Primera vez? Crea tu cuenta' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('aria-invalid', 'false')
+  })
+
+  it('mantiene el botón deshabilitado solo mientras dura la petición y conserva el error del servidor', async () => {
+    let fail: (reason: unknown) => void = () => {}
+    auth.login.mockReturnValue(new Promise((_, reject) => { fail = reject }))
+    renderAuth()
+    fill('3001234567', 'clave')
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    expect(await screen.findByRole('button', { name: 'Un momento…' })).toBeDisabled()
+    await act(async () => { fail(new ApiError({ kind: 'unauthenticated', status: 401, message: 'x' })) })
+    expect(await screen.findByText('Celular o contraseña incorrectos.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
+  })
+
   it('avisa que la sesión expiró', () => {
     renderAuth({ from: '/pedidos', expired: true })
     expect(screen.getByRole('alert')).toHaveTextContent('Tu sesión expiró')

@@ -3,7 +3,7 @@
  * no hay enlace ficticio ni "continuar" sin credenciales. El celular es un dato de contacto NO
  * verificado (sin OTP) y la contraseña se valida con la política del contrato.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { PASSWORD_LIMITS, ACCOUNT_NAME_MAX_LENGTH } from '@shared/contracts'
 import { useAuthStore } from '@/stores/authStore'
@@ -20,6 +20,25 @@ function formatPhoneDisplay(digits: string) {
   return [trimmed.slice(0, 3), trimmed.slice(3, 6), trimmed.slice(6, 10)].filter(Boolean).join(' ')
 }
 
+const INPUT_BASE = 'rounded-2xl border bg-white px-4 py-3 text-base text-brand-dark outline-none focus:ring-2'
+const inputTone = (invalid: boolean) => invalid
+  ? 'border-brand-error focus:border-brand-error focus:ring-brand-error/20'
+  : 'border-brand-border focus:border-brand-primary focus:ring-brand-primary/20'
+
+function FieldError({ id, message }: { id: string; message: string | null }) {
+  if (!message) return null
+  return <p id={id} role="alert" className="text-[12px] font-medium text-brand-error">{message}</p>
+}
+
+/** En registro aplica la política de contraseña del contrato; en ingreso solo exige que no esté vacía. */
+function passwordProblem(mode: AuthMode, password: string): string | null {
+  if (password.length === 0) return 'Escribe tu contraseña.'
+  if (mode === 'login') return null
+  if (password.length < PASSWORD_LIMITS.min) return `La contraseña debe tener al menos ${PASSWORD_LIMITS.min} caracteres.`
+  if (password.length > PASSWORD_LIMITS.max) return `La contraseña no puede superar ${PASSWORD_LIMITS.max} caracteres.`
+  return null
+}
+
 export default function RealAuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -33,18 +52,28 @@ export default function RealAuthPage() {
   const [touched, setTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const phoneValid = isValidCoMobile(rawDigits)
-  const passwordValid = mode === 'register'
-    ? password.length >= PASSWORD_LIMITS.min && password.length <= PASSWORD_LIMITS.max
-    : password.length > 0
-  const nameValid = mode === 'login' || name.trim().length >= 2
-  const canSubmit = phoneValid && passwordValid && nameValid && !loading
+  const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Los problemas se calculan siempre, pero solo se muestran tras intentar enviar; al corregir desaparecen solos.
+  const nameProblem = mode === 'register' && name.trim().length < 2 ? 'Escribe tu nombre (mínimo 2 caracteres).' : null
+  const phoneProblem = isValidCoMobile(rawDigits) ? null : 'Ingresa un celular colombiano válido (10 dígitos, empieza con 3).'
+  const passwordIssue = passwordProblem(mode, password)
+  const nameError = touched ? nameProblem : null
+  const phoneError = touched ? phoneProblem : null
+  const passwordError = touched ? passwordIssue : null
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    if (loading) return
     setTouched(true)
     setError(null)
-    if (!canSubmit) return
+    if (nameProblem || phoneProblem || passwordIssue) {
+      const firstInvalid = nameProblem ? nameRef : phoneProblem ? phoneRef : passwordRef
+      firstInvalid.current?.focus()
+      return
+    }
     const phone = `+57${rawDigits}`
     try {
       if (mode === 'register') await signUp({ name: name.trim(), phone, password })
@@ -84,14 +113,17 @@ export default function RealAuthPage() {
               <label htmlFor="auth-name" className="text-[13px] font-medium text-brand-dark/90">Tu nombre</label>
               <input
                 id="auth-name"
+                ref={nameRef}
                 type="text"
                 autoComplete="name"
                 maxLength={ACCOUNT_NAME_MAX_LENGTH}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                aria-invalid={touched && !nameValid}
-                className="rounded-2xl border border-brand-border bg-white px-4 py-3 text-base text-brand-dark outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
+                aria-invalid={nameError !== null}
+                aria-describedby={nameError ? 'auth-name-error' : undefined}
+                className={`${INPUT_BASE} ${inputTone(nameError !== null)}`}
               />
+              <FieldError id="auth-name-error" message={nameError} />
             </div>
           )}
 
@@ -100,7 +132,7 @@ export default function RealAuthPage() {
             <div
               className={[
                 'flex items-center rounded-2xl border bg-white transition-all',
-                touched && !phoneValid
+                phoneError
                   ? 'border-brand-error focus-within:ring-2 focus-within:ring-brand-error/20'
                   : 'border-brand-border focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/20',
               ].join(' ')}
@@ -108,36 +140,37 @@ export default function RealAuthPage() {
               <span className="pl-4 pr-2 py-3 text-sm font-semibold text-brand-dark border-r border-brand-border select-none">+57</span>
               <input
                 id="auth-phone"
+                ref={phoneRef}
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel-national"
                 placeholder="300 123 4567"
                 value={formatPhoneDisplay(rawDigits)}
                 onChange={(e) => setRawDigits(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                aria-invalid={touched && !phoneValid}
+                aria-invalid={phoneError !== null}
+                aria-describedby={phoneError ? 'auth-phone-error' : undefined}
                 className="flex-1 bg-transparent px-3 py-3 text-base tabular-nums text-brand-dark placeholder:text-brand-muted/60 outline-none"
               />
             </div>
-            {touched && !phoneValid && (
-              <p className="text-[12px] text-brand-error font-medium" role="alert">
-                Ingresa un celular colombiano válido (10 dígitos, empieza con 3).
-              </p>
-            )}
+            <FieldError id="auth-phone-error" message={phoneError} />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label htmlFor="auth-password" className="text-[13px] font-medium text-brand-dark/90">Contraseña</label>
             <input
               id="auth-password"
+              ref={passwordRef}
               type="password"
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               maxLength={PASSWORD_LIMITS.max}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              aria-invalid={touched && !passwordValid}
-              aria-describedby="auth-password-help"
-              className="rounded-2xl border border-brand-border bg-white px-4 py-3 text-base text-brand-dark outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
+              aria-invalid={passwordError !== null}
+              aria-describedby={[mode === 'register' && 'auth-password-help', passwordError && 'auth-password-error']
+                .filter(Boolean).join(' ') || undefined}
+              className={`${INPUT_BASE} ${inputTone(passwordError !== null)}`}
             />
+            <FieldError id="auth-password-error" message={passwordError} />
             {mode === 'register' && (
               <p id="auth-password-help" className="text-xs text-brand-muted">
                 Mínimo {PASSWORD_LIMITS.min} caracteres.

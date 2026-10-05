@@ -1,11 +1,28 @@
 # MAUI — Plan de implementación directa y entrega en test
 
-> **Fuente única del estado global.** Actualización: **2026-10-03**.
+> **Fuente única del estado global.** Actualización: **2026-10-05**.
 > **Método:** implementaciones directas con Codex y Claude Code. SDD deja de ser requisito del proyecto.
 > **Entregable:** ambiente de test desplegado con seed reproducible y flujo funcional equivalente al de producción.
 > **Stack inicial:** Vercel Functions + Neon Postgres + Drizzle. Destino de escala: AWS Lambda.
 
 ## Alcance y definición de entrega
+
+### Segunda fase: primera barrida de la prueba manual — 2026-10-05
+
+Encargo del usuario en la sesión `01a10dd3-cff3-7c33-abe4-6a6287ab2b31`, con referencia al registro local `hallazgos-prueba-manual-20261004.md`. El registro original conserva los hallazgos y la decisión de recepción permanente; esta sección registra ejecución y evidencia. Un PR por defecto, E2E completo nuevo y tag consecutivo al certificar; `mvp-v1.0.0` permanece inmutable. La propuesta PM-P01 de política global de teléfonos no amplía este lote.
+
+| ID | Estado y responsabilidad | Evidencia y límite |
+|---|---|---|
+| PM-03 | Revisión en curso por Claude `376f0206…`, Sonnet/high en `feature/pm03-recepcion-permanente`; pendiente de certificación. | Recepción permanente, próxima apertura en servidor, aviso persistido sin migración; `timeSlotsDate` distingue franjas futuras del procesamiento. Gates de revisión previa: backend 1205/1205, PWA 295/295, admin 226/226, cuatro typechecks, lint, drift, selftest 38/38 y build. Reanudada para franjas compatibles en una jornada posterior y persistencia de la fecha de recogida. E2E real completo nuevo pendiente. |
+| PM-01 | Revisión local por Claude `aa7d4307…`, Sonnet/medium en `feature/pm01-validacion-formularios`; pendiente de certificación. | Feedback junto al campo en auth, login, celular checkout, catálogo, configuración e histórico. Primera etapa: PWA 277/277, admin 234/234 y build aprobados. Última: checkout 23/23, formularios admin 38/38, auth PWA 34/34, tipos PWA/admin/E2E, lint y selftest 38/38. Tres escenarios E2E preparados; falta corrida completa real. Sin ampliar política global de teléfonos. |
+| PM-02 | Revisado y corregido por Claude `c962ef06…`, Sonnet/medium en `feature/pm02-selector-sustituciones`; pendiente de certificación. | PR draft [#34](https://github.com/NixonGamboa/marketplace/pull/34) (`c761b46`), CI y Preview aprobados. Seis pruebas del selector, checkout 24/24, tipos PWA/E2E, lint checkout y selftest 38/38 aprobados. Chrome local verificó opción actual/distinta, Enter, Space, flechas y foco; no acredita API/Postgres. Spec real preparada; falta corrida completa nueva. |
+| PM-04 | Revisión y cierre local por Claude `603d784f…`, Sonnet/medium en `feature/pm04-celular-local`; pendiente de certificación. | PR draft #35 (`6999d06`) con CI y Preview aprobados. Precarga/edición de 10 dígitos, único `57` al enviar: checkout 22/22 y tipos/lint PWA aprobados; tipos E2E y selftest 38/38 por ejecutor. Dos escenarios nuevos preparados; falta corrida completa real. |
+
+
+**Reparto ratificado por el usuario (2026-10-05):** Codex solo orquesta, asigna sesiones concretas, registra estado, revisa evidencia y coordina PRs/integración; los ejecutores asumen implementación, correcciones y cierre técnico. Los cambios iniciales de PM-02/PM-04 preparados por Codex se conservan y se transfieren para revisión y terminación a sesiones dedicadas. No continuar implementación de aplicación desde el chat orquestador.
+
+Checkouts aislados, sin escrituras concurrentes sobre los mismos archivos. El checkout inicial tenía únicamente el registro de hallazgos sin versionar; se conserva. Reset/reseed de `dev/maui` pendiente de coordinar con el usuario para proteger datos de su prueba. No declarar ningún defecto certificado con evidencia histórica 23/23 o servicios simulados.
+
 
 Las dos listas separan lo ya construido de las implementaciones pendientes. El seed puede reutilizar el catálogo y los datos de los mocks actuales, pero se carga en la BD de test y se consume mediante la API real. PWA y admin usan los mismos contratos, autenticación, permisos, cálculos y transiciones que se usarán en producción.
 
