@@ -1,8 +1,9 @@
 import { newId } from '../../shared/ids.js'
 import { orderChangeAudit } from '../../domain/audit/orderAudit.js'
 import { auditedWrite } from './auditedWrite.js'
-import { and, eq, or, sql, type SQL } from 'drizzle-orm'
+import { and, eq, inArray, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
+import { localDateSchema, orderProcessingNoticeSchema } from '../../../../shared/contracts/index.js'
 import type { Order } from '../../domain/orders/Order.js'
 import { orderFromRecord, orderToRecord } from '../../domain/orders/orderRecord.js'
 import type {
@@ -87,8 +88,47 @@ const substitutesLocked = (storeId: string, products: { id: string; version: num
   ) as locked
 ) = ${products.length}`
 
+/** Datos fijados por el servidor al crear el pedido que no tienen columna en `orders`. */
+type CreationExtras = Pick<Order, 'processingNotice' | 'timeSlotDate'>
+
+/**
+ * El aviso de procesamiento y la fecha de la franja se fijan al crear el pedido y viven en el snapshot de
+ * creación (`order_creations`, único por `order_id`), no en `orders`: no hace falta migración ni columna.
+ * Pedidos sin fila de creación (seed, legacy) o sin esos datos (recibidos atendiendo, sin franja) no los tienen.
+ */
+const creationExtrasFor = async (db: Db, orderIds: string[]): Promise<Map<string, CreationExtras>> => {
+  if (orderIds.length === 0) return new Map()
+  const rows = await db
+    .select({
+      orderId: orderCreationsTable.orderId,
+      notice: sql<unknown>`${orderCreationsTable.snapshot} -> 'processingNotice'`,
+      slotDate: sql<string | null>`${orderCreationsTable.snapshot} ->> 'timeSlotDate'`,
+    })
+    .from(orderCreationsTable)
+    .where(inArray(orderCreationsTable.orderId, orderIds))
+  const extras = new Map<string, CreationExtras>()
+  for (const { orderId, notice, slotDate } of rows) {
+    // Una expresión jsonb cruda puede llegar como texto según el driver; el valor se valida igual.
+    const value = typeof notice === 'string' ? JSON.parse(notice) : notice
+    const found: CreationExtras = {
+      ...(value !== null && value !== undefined ? { processingNotice: orderProcessingNoticeSchema.parse(value) } : {}),
+      ...(slotDate !== null && slotDate !== undefined ? { timeSlotDate: localDateSchema.parse(slotDate) } : {}),
+    }
+    if (Object.keys(found).length > 0) extras.set(orderId, found)
+  }
+  return extras
+}
+
+const withExtras = (order: Order, extras: CreationExtras | undefined): Order => (extras === undefined ? order : { ...order, ...extras })
+
 export class OrdersRepositoryPostgres implements OrdersRepository {
   constructor(private readonly db: Db) {}
+
+  /** Adjunta aviso y fecha de franja a los pedidos de una respuesta; el fallo del driver se traduce a 503. */
+  private async attachCreationExtras(orders: Order[]): Promise<Order[]> {
+    const extras = await guardPersistence(() => creationExtrasFor(this.db, orders.map((order) => order.id)))
+    return orders.map((order) => withExtras(order, extras.get(order.id)))
+  }
 
   findCreation(identity: OrderCreationIdentity): Promise<StoredOrderCreation | null> {
     return guardPersistence(async () => {
@@ -144,7 +184,9 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
       .from(ordersTable)
       .where(eq(ordersTable.id, id))
       .limit(1)
-    return row ? orderFromRecord(row) : null
+    if (!row) return null
+    const [order] = await this.attachCreationExtras([orderFromRecord(row)])
+    return order ?? null
   }
 
   async listPage({ scope, filter, limit, after }: OrderPageRequest): Promise<OrderPage> {
@@ -166,9 +208,11 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
       .orderBy(...LIST_ORDER)
       .limit(limit + 1))
 
+    const page = rows.slice(0, limit)
+    const orders = await this.attachCreationExtras(page.map(({ record }) => orderFromRecord(record)))
     return {
-      entries: rows.slice(0, limit).map(({ record, position }) => ({
-        order: orderFromRecord(record),
+      entries: page.map(({ record, position }, index) => ({
+        order: orders[index]!,
         position: { createdAt: position, id: record.id },
       })),
       hasMore: rows.length > limit,
@@ -216,7 +260,13 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
           ...(products.length > 0 ? [substitutesLocked(expected.storeId, products)] : []),
         ))
         .returning(), 'order', expected.status !== next.status ? 'status_changed' : 'items_changed', expected.storeId, orderChangeAudit(change))
-      return row ? orderFromRecord(row) : null
+      if (!row) return null
+      // Aviso y fecha de franja son inmutables y `next` nace de la lectura previa (que ya los adjuntó): no se
+      // releen tras escribir, porque un fallo de lectura después del UPDATE confirmado devolvería error por un cambio ya persistido.
+      return withExtras(orderFromRecord(row), {
+        ...(next.processingNotice !== undefined ? { processingNotice: next.processingNotice } : {}),
+        ...(next.timeSlotDate !== undefined ? { timeSlotDate: next.timeSlotDate } : {}),
+      })
     })
   }
 }

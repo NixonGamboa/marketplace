@@ -13,6 +13,7 @@ import {
   TIME_SLOT_VALUES,
 } from './orderEnums.js'
 import { isGramPrecision } from './orderPricing.js'
+import { localDateSchema, orderProcessingNoticeSchema } from './store.js'
 
 /**
  * Contrato único de pedidos. DTO de cliente/público, NO el modelo interno.
@@ -317,12 +318,17 @@ export const updateOrderItemsRequestSchema = z
   })
   .strict()
 
-/** Respuesta de POST /api/orders. */
+/**
+ * Respuesta de POST /api/orders. `processingNotice` y `timeSlotDate` son el snapshot persistido con el
+ * pedido (iguales en reintentos idempotentes); el aviso falta si se recibió con la tienda atendiendo.
+ */
 export const orderConfirmationSchema = z
   .object({
     orderId: entityIdSchema,
     status: z.literal('received'),
     estimatedTotal: copAmountSchema,
+    processingNotice: orderProcessingNoticeSchema.optional(),
+    timeSlotDate: localDateSchema.optional(),
   })
   .strict()
 
@@ -360,9 +366,23 @@ export const orderDtoSchema = z
     originalItems: z.array(orderItemSchema).min(1).max(ORDER_LIMITS.maxItems).optional(),
     cancellationReason: cancellationReasonSchema.optional(),
     cancelledAt: isoUtcSchema.optional(),
+    /** Aviso fijado al crear el pedido fuera de atención; ver `orderProcessingNoticeSchema`. */
+    processingNotice: orderProcessingNoticeSchema.optional(),
+    /**
+     * Fecha local (America/Bogota) de la franja elegida (deliveryData.timeSlot), fijada por el servidor al
+     * crear el pedido con el mismo cálculo que ofreció la franja; el cliente nunca la envía. Es independiente
+     * de processingNotice (la franja puede caer después de la apertura en que se procesa) y no promete
+     * entrega ni recogida. Ausente sin franja, con fecha desconocida (cierre manual) y en pedidos anteriores.
+     */
+    timeSlotDate: localDateSchema.optional(),
   })
   .strict()
   .superRefine(refineDeliveryRules)
+  .superRefine((order, ctx) => {
+    if (order.timeSlotDate !== undefined && order.deliveryData.timeSlot === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['timeSlotDate'], message: 'La fecha de franja requiere una franja elegida' })
+    }
+  })
   .superRefine((order, ctx) => {
     const hasReason = order.cancellationReason !== undefined
     if (hasReason !== (order.cancelledAt !== undefined) || (hasReason && order.status !== 'cancelled')) {

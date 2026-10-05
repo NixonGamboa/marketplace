@@ -37,7 +37,7 @@ import { isDemoMode } from '@/config/mode'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
 import { calculateShipping, type ShippingQuote, type ShippingRules } from './shipping'
-import { closedMessage, useCheckoutRules, type CheckoutRules } from './storeRules'
+import { useCheckoutRules, type CheckoutRules } from './storeRules'
 import { formatPrice } from '@/shared/utils/formatPrice'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,7 +78,8 @@ function getCheckoutShipping(subtotal: number, deliveryMode: 'delivery' | 'picku
 
 /**
  * Motivo por el que no se puede confirmar ahora según las reglas conocidas de la tienda; `null` si
- * nada lo impide. El servidor revalida: esto solo evita enviar lo que ya sabemos que rechazará.
+ * nada lo impide. El horario no bloquea (recepción permanente): solo carga/error de reglas, productos
+ * agotados, una modalidad deshabilitada o una franja incompatible. El servidor revalida todo.
  */
 function blockingReason(
   rules: CheckoutRules,
@@ -89,9 +90,11 @@ function blockingReason(
   if (unavailable.length > 0) return `Ya no podemos entregar: ${unavailable.map((item) => item.name).join(', ')}. Quítalos de tu canasta.`
   if (rules.status === 'loading') return 'Cargando las reglas de la tienda…'
   if (rules.status === 'error') return 'No pudimos cargar las reglas de la tienda.'
-  if (!rules.isOpen) return closedMessage(rules.closedReason)
-  if (mode === 'delivery' && !rules.acceptsDelivery) return 'El domicilio no está disponible ahora. Puedes recoger en tienda.'
+  if (mode === 'delivery' && !rules.acceptsDelivery) return 'El domicilio no está disponible. Puedes recoger en tienda.'
   if (mode === 'pickup' && !rules.acceptsPickup) return 'La recogida no está disponible ahora.'
+  if (mode === 'pickup' && rules.slotsEmptyNote) {
+    return `${rules.slotsEmptyNote}${rules.acceptsDelivery ? ' Elige domicilio.' : ''}`
+  }
   if (mode === 'pickup' && slot && !rules.slots.some((option) => option.value === slot)) {
     return 'La franja que elegiste ya no está disponible. Elige otra.'
   }
@@ -296,9 +299,25 @@ function StepResumen({ animClass, rules }: StepResumenProps) {
   )
 }
 
+// ─── Aviso de bloqueo ─────────────────────────────────────────────────────────
+
+/** Razón por la que no se puede continuar; ofrece reintentar cuando fallaron las reglas de la tienda. */
+function BlockedNotice({ blocked, rules }: { blocked: string; rules: CheckoutRules }) {
+  return (
+    <div role="alert" className="flex items-start justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+      <p className="text-xs font-medium text-amber-800">{blocked}</p>
+      {rules.status === 'error' && (
+        <button type="button" onClick={rules.refetch} className="shrink-0 text-xs font-semibold text-amber-900 underline">
+          Actualizar
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Step 1: Entrega ──────────────────────────────────────────────────────────
 
-function StepEntrega({ animClass, rules }: { animClass: string; rules: CheckoutRules }) {
+function StepEntrega({ animClass, rules, blocked }: { animClass: string; rules: CheckoutRules; blocked: string | null }) {
   const customerPhone = useCheckoutStore((s) => s.customerPhone)
   const setCustomerPhone = useCheckoutStore((s) => s.setCustomerPhone)
   const [localNote,     setLocalNote]     = useState('')
@@ -319,6 +338,9 @@ function StepEntrega({ animClass, rules }: { animClass: string; rules: CheckoutR
       <div className="rounded-2xl border border-brand-border bg-white p-5 shadow-card">
         <DeliverySelector rules={rules} />
       </div>
+
+      {/* El motivo que impide continuar se explica aquí, en el paso donde el usuario lo encuentra. */}
+      {blocked && <BlockedNotice blocked={blocked} rules={rules} />}
 
       {/* Celular de contacto para este pedido */}
       <section
@@ -467,7 +489,7 @@ function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: Step
     deliveryMode === 'delivery'
       ? `Entregamos en: ${address?.trim() || (lat !== null ? 'ubicación actual enviada' : '')}`
       : deliveryMode === 'pickup' && timeSlot
-        ? `Recoges en tienda — ${rules.slotLabel(timeSlot)}`
+        ? `Recoges en tienda — ${rules.slotLabel(timeSlot)}${rules.slotsDay ? ` · ${rules.slotsDay}` : ''}`
         : 'Entrega pendiente'
 
   return (
@@ -547,16 +569,7 @@ function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: Step
         </p>
       </div>
 
-      {blocked && (
-        <div role="alert" className="flex items-start justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
-          <p className="text-xs font-medium text-amber-800">{blocked}</p>
-          {(rules.status === 'error' || !rules.isOpen) && (
-            <button type="button" onClick={rules.refetch} className="shrink-0 text-xs font-semibold text-amber-900 underline">
-              Actualizar
-            </button>
-          )}
-        </div>
-      )}
+      {blocked && <BlockedNotice blocked={blocked} rules={rules} />}
 
       {/* Error de envío (también visible aquí para feedback en paso 2) */}
       {submitError && !isSubmitting && (
@@ -753,7 +766,7 @@ export default function CheckoutPage() {
         {/* key triggers re-mount (and animation) on every step change */}
         <div key={animKey} className="will-change-transform">
           {step === 0 && <StepResumen animClass={animClass} rules={rules} />}
-          {step === 1 && <StepEntrega animClass={animClass} rules={rules} />}
+          {step === 1 && <StepEntrega animClass={animClass} rules={rules} blocked={blocked} />}
           {step === 2 && (
             <StepPago
               animClass={animClass}

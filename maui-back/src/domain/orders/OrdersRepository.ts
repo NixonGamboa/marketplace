@@ -14,6 +14,7 @@ export interface ListOrdersOptions {
 export interface OrderChange {
   /** La escritura solo procede si la fila sigue en esta tienda, versión y estado. */
   expected: Pick<Order, 'id' | 'storeId' | 'version' | 'status'>
+  /** Debe derivar del pedido leído: conserva `processingNotice` y `timeSlotDate` inmutables, que no se persisten en `orders`. */
   next: Order
   /** Productos usados como sustitutos: deben seguir pedibles en la tienda con esta versión. */
   audit?: import('../audit/orderAudit.js').OrderAuditChanges

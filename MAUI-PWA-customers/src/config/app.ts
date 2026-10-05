@@ -47,13 +47,6 @@ export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
   asap:      'Lo antes posible',
 }
 
-/** Etiqueta en el detalle de un pedido ya enviado. */
-export const TIME_SLOT_LABELS_ORDER: Record<TimeSlot, string> = {
-  morning:   'Recoges esta mañana',
-  afternoon: 'Recoges esta tarde',
-  asap:      'Recoges lo antes posible',
-}
-
 // ─── Mensajes WhatsApp (cliente → comerciante) ────────────────────────────────
 
 export const WA_MESSAGES: Record<OrderStatus, (id: string) => string> = {

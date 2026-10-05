@@ -2,6 +2,7 @@ import type {
   DeliveryDataDto,
   DeliveryType,
   OrderItemDto,
+  OrderProcessingNoticeDto,
   OrderStatus,
   SubstitutionPref,
 } from '../../../../shared/contracts/index.js'
@@ -48,6 +49,13 @@ export interface Order {
   cancelledAt?: string
   /** Sustituciones y retiros aplicados, en orden. Constancia interna para T-13; no sale en el DTO. */
   itemAdjustments?: OrderItemAdjustment[]
+  /**
+   * Snapshot inmutable fijado al crear el pedido fuera de atención. Vive en el snapshot de
+   * creación (`order_creations`), no en una columna de `orders`; los repositorios lo adjuntan al leer.
+   */
+  processingNotice?: OrderProcessingNoticeDto
+  /** Fecha local de la franja elegida, fijada por el servidor al crear; mismo almacenamiento inmutable que el aviso. */
+  timeSlotDate?: string
 }
 
 /**

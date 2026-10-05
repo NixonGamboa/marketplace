@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page, type Response, type Route } from '@playwright/test'
 import {
-  authSessionResponseSchema, orderConfirmationSchema, orderDtoSchema, orderListResponseSchema,
-  publicCatalogResponseSchema, type CreateOrderRequest, type ProductDto,
+  WEEKDAY_KEYS, authSessionResponseSchema, orderConfirmationSchema, orderDtoSchema, orderListResponseSchema,
+  publicCatalogResponseSchema, type CreateOrderRequest, type ProductDto, type TimeSlotConfigDto, type WeeklyScheduleDto,
 } from '../../shared/contracts/index.js'
 import { apiHeaders, getWithRetry, openActor, type Actor } from '../support/actors.js'
 import { readCredentials, readDestination, type Credentials, type Destination } from '../support/env.js'
@@ -33,7 +33,6 @@ test.describe('resiliencia y reglas reales @completo', () => {
   let owner: OwnerApi
   let runtime: RuntimeRecord
   let fixtures: TechnicalFixtures
-  let restoreStore: () => Promise<void> = async () => undefined
   let fixed: ProductDto
   let substitute: ProductDto
   let latestOrderId: string
@@ -97,7 +96,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
     owner = await openOwnerApi(playwright, dest, credentials)
     fixtures = new TechnicalFixtures(owner, runtime)
     await fixtures.restore() // cambios técnicos que una corrida interrumpida dejó sin devolver
-    restoreStore = await owner.ensureStoreOpen(runtime)
+    await owner.restoreInterruptedOverride(runtime)
     customer = await openActor(browser, dest, 'cliente', runtime)
     admin = await openActor(browser, dest, 'admin', runtime)
     await customerLogin(customer.page, credentials.customer)
@@ -123,7 +122,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
     if (!runtime) return
     // Todo se intenta aunque un paso falle: fixtures, override de tienda, sesiones y contextos.
     const cleanup = await Promise.allSettled([
-      (async () => { await fixtures?.restore(); await restoreStore(); await owner?.close() })(),
+      (async () => { await fixtures?.restore(); await owner?.close() })(),
       customer?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) }),
       admin?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) }),
     ])
@@ -245,22 +244,87 @@ test.describe('resiliencia y reglas reales @completo', () => {
     await cancel(latestOrderId)
   })
 
-  test('tienda cerrada: el servidor rechaza (409 STORE_CLOSED) y conserva la canasta', async () => {
+  /** Envía el pedido real y devuelve la confirmación validada del POST (el aviso viaja en ella y en el detalle). */
+  const submitAndConfirm = async () => {
+    const response = customer.page.waitForResponse(isOrderPost)
+    await submit()
+    const created = await response
+    expect(created.status(), 'la API registra el pedido fuera de atención').toBe(201)
+    return orderConfirmationSchema.parse(await created.json())
+  }
+  const noticeBanner = () => customer.page.getByRole('status').filter({ hasText: '¡Recibimos tu pedido!' })
+
+  test('tienda cerrada por override: se elige la modalidad, se registra el pedido y el aviso no inventa hora', async () => {
     const before = await ownIds()
-    await checkout()
     await fixtures.store({ scheduleOverride: 'closed' })
     try {
-      const response = customer.page.waitForResponse(isOrderPost)
-      await submitButton().click()
-      const rejected = await response
-      expect(rejected.status()).toBe(409)
-      expect(await rejected.json()).toMatchObject({ error: 'STORE_CLOSED' })
-      await expect(alertWith(customer.page, /No pudimos confirmar|cerrad/i)).toBeVisible()
-      await expectNoNewOrders(before)
-      await cartHasProduct()
+      // Entrega, Pago y envío funcionan con la tienda cerrada; no aparece ningún aviso antes de persistir.
+      await checkout()
+      await expect(customer.page.getByRole('alert')).toHaveCount(0)
+      await expect(noticeBanner()).toHaveCount(0)
+      const confirmation = await submitAndConfirm()
+      expect(confirmation.processingNotice).toEqual({ kind: 'unscheduled', reason: 'override_closed' })
+      expect(confirmation.timeSlotDate, 'cierre manual: no hay fecha de reapertura, no se inventa fecha de franja').toBeUndefined()
+      expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
+      await expect(noticeBanner()).toContainText('Lo procesaremos cuando retomemos la atención.')
+      await expect(noticeBanner()).not.toContainText(/entreg|recog|\d:\d\d/i)
+      expect((await readOrder(latestOrderId)).processingNotice).toEqual(confirmation.processingNotice)
     } finally { await fixtures.restore() }
-    await preparePickupCheckout(customer.page, credentials.customer.phone, 'similar')
-    await submit()
+    await cancel(latestOrderId)
+  })
+
+  test('día sin atención: el procesamiento se programa para la próxima apertura en America/Bogota', async () => {
+    const before = await ownIds()
+    const { localDate, weekday } = (await owner.readStaffStore()).availability
+    const tomorrow = WEEKDAY_KEYS[(WEEKDAY_KEYS.indexOf(weekday) + 1) % WEEKDAY_KEYS.length]!
+    const tomorrowDate = new Date(`${localDate}T12:00:00Z`)
+    tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1)
+    const startsAt = new Date(`${tomorrowDate.toISOString().slice(0, 10)}T08:00:00-05:00`).toISOString()
+    // Hoy sin atención y mañana abre a las 08:00; el resto de la semana también cerrado.
+    const weeklySchedule = Object.fromEntries(WEEKDAY_KEYS.map((day) => [day, { open: '08:00', close: '18:00', closed: day !== tomorrow }])) as WeeklyScheduleDto
+    await fixtures.store({ scheduleOverride: 'auto', weeklySchedule })
+    try {
+      await checkout()
+      expect(await owner.readStaffStore()).toMatchObject({ availability: { isOpen: false, closedReason: 'day_closed' } })
+      const confirmation = await submitAndConfirm()
+      expect(confirmation.processingNotice).toEqual({ kind: 'scheduled', reason: 'day_closed', startsAt })
+      // Mañana abre 08:00–18:00: la franja elegida cae ese día; la fecha la fijó el servidor, no el cliente.
+      expect(confirmation.timeSlotDate).toBe(tomorrowDate.toISOString().slice(0, 10))
+      expect((await readOrder(latestOrderId)).timeSlotDate).toBe(confirmation.timeSlotDate)
+      await expect(noticeBanner()).toContainText('Comenzaremos a procesarlo el')
+      await expect(noticeBanner()).toContainText('a las 8:00 a. m.')
+      await expect(noticeBanner()).not.toContainText(/entreg|recog/i)
+      expect((await readOrder(latestOrderId)).processingNotice).toEqual({ kind: 'scheduled', reason: 'day_closed', startsAt })
+      expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
+    } finally { await fixtures.restore() }
+    await cancel(latestOrderId)
+  })
+
+  test('atendiendo con la única franja habilitada vencida hoy: se ofrece la fecha siguiente y el pedido se recibe sin aviso', async () => {
+    const before = await ownIds()
+    // Abierta todo el día (00:00–23:59) y una sola franja 00:00–00:01: hoy ya venció, la de mañana sirve.
+    const open = { open: '00:00', close: '23:59', closed: false }
+    const weeklySchedule: WeeklyScheduleDto = { mon: open, tue: open, wed: open, thu: open, fri: open, sat: open, sun: open }
+    const timeSlots: TimeSlotConfigDto[] = [
+      { id: 'morning', enabled: true, start: '00:00', end: '00:01' },
+      { id: 'afternoon', enabled: false, start: '12:00', end: '17:00' },
+      { id: 'asap', enabled: false },
+    ]
+    await fixtures.store({ scheduleOverride: 'auto', weeklySchedule, timeSlots })
+    try {
+      const { localDate, isOpen, availableTimeSlots, timeSlotsDate } = (await owner.readStaffStore()).availability
+      expect(isOpen, 'abierta todo el día (la prueba no cruza la medianoche de Bogotá)').toBe(true)
+      expect(availableTimeSlots, 'la única franja habilitada ya venció hoy pero hay una para la próxima fecha').toEqual(['morning'])
+      expect(timeSlotsDate).not.toBe(localDate)
+      await checkout() // llega a Pago: Entrega ofrece la franja con su fecha, sin bloquear
+      const confirmation = await submitAndConfirm()
+      expect(confirmation.processingNotice, 'la tienda atendía: sin aviso de procesamiento diferido').toBeUndefined()
+      expect(confirmation.timeSlotDate, 'la fecha de la franja es la ofrecida en Entrega y queda en el pedido').toBe(timeSlotsDate)
+      expect((await readOrder(latestOrderId)).timeSlotDate).toBe(timeSlotsDate)
+      await expect(noticeBanner()).toHaveCount(0)
+      expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
+      expect((await readOrder(latestOrderId)).deliveryData.timeSlot).toBe('morning')
+    } finally { await fixtures.restore() }
     await cancel(latestOrderId)
   })
 

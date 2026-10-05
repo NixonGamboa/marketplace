@@ -35,6 +35,9 @@ export const STORE_LIMITS = {
 
 const LOCAL_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
 
+/** Fecha civil local `YYYY-MM-DD` en `STORE_TIME_ZONE`. */
+export const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
 /** Hora local 24 h `HH:MM` en `STORE_TIME_ZONE`. */
 export const localTimeSchema = z.string().regex(LOCAL_TIME_PATTERN, 'Hora en formato HH:MM (00:00–23:59)')
 
@@ -161,24 +164,58 @@ export const updateStoreSettingsRequestSchema = z
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, 'Se requiere al menos un campo')
 
-/** Motivo por el que la tienda no recibe pedidos ahora. */
+/** Motivo por el que la tienda no está atendiendo ahora (el horario es operativo; no bloquea pedidos). */
 export const STORE_CLOSED_REASONS = ['override_closed', 'day_closed', 'before_opening', 'after_closing'] as const
 export type StoreClosedReason = (typeof STORE_CLOSED_REASONS)[number]
 
-/** Estado calculado en el servidor en el instante `evaluatedAt`; no se persiste. */
+/**
+ * Por qué un pedido recibido no se procesa de inmediato: la tienda no atiende (`StoreClosedReason`)
+ * o es un domicilio posterior a la hora de corte del día (`delivery_cutoff`).
+ */
+export const ORDER_PROCESSING_DEFERRAL_REASONS = [...STORE_CLOSED_REASONS, 'delivery_cutoff'] as const
+export type OrderProcessingDeferralReason = (typeof ORDER_PROCESSING_DEFERRAL_REASONS)[number]
+
+/**
+ * Aviso de procesamiento fijado por el servidor al persistir un pedido recibido fuera de atención;
+ * ausente si se recibió atendiendo. Indica cuándo el equipo empieza a procesarlo, nunca cuándo se
+ * entrega o se puede recoger. Es un snapshot inmutable: cambios posteriores del horario no lo alteran.
+ *  - `scheduled`: próxima apertura (`startsAt`, ISO UTC) calculada con el horario en `STORE_TIME_ZONE`.
+ *  - `unscheduled`: sin hora conocida (cierre manual sin reapertura o horario sin días de atención).
+ */
+export const orderProcessingNoticeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('scheduled'), reason: z.enum(ORDER_PROCESSING_DEFERRAL_REASONS), startsAt: isoUtcSchema }).strict(),
+  z.object({ kind: z.literal('unscheduled'), reason: z.enum(ORDER_PROCESSING_DEFERRAL_REASONS) }).strict(),
+])
+
+/**
+ * Estado calculado en el servidor en el instante `evaluatedAt`; no se persiste. `isOpen` es
+ * informativo (atención del personal): no condiciona `acceptsPickup`/`acceptsDelivery`, que indican
+ * si la modalidad se ofrece. Recogida siempre se recibe; domicilio solo si no está deshabilitado.
+ */
 export const storeAvailabilitySchema = z
   .object({
     evaluatedAt: isoUtcSchema,
     /** Fecha y hora locales en `STORE_TIME_ZONE`. */
-    localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    localDate: localDateSchema,
     localTime: localTimeSchema,
     weekday: z.enum(WEEKDAY_KEYS),
     isOpen: z.boolean(),
     closedReason: z.enum(STORE_CLOSED_REASONS).optional(),
     acceptsPickup: z.boolean(),
     acceptsDelivery: z.boolean(),
-    /** Franjas habilitadas cuya ventana sigue vigente hoy. */
+    /**
+     * Franjas habilitadas compatibles con un pedido de recogida hecho ahora: las vigentes hoy si las hay;
+     * si no (tienda sin atender o franjas de hoy vencidas), las de la próxima fecha con atención, sin
+     * exigir una franja vencida. Vacío solo si ninguna franja habilitada es compatible con el horario.
+     */
     availableTimeSlots: z.array(z.enum(TIME_SLOT_VALUES)),
+    /**
+     * Fecha local (`YYYY-MM-DD`) a la que corresponden `availableTimeSlots`: `localDate` si hay franjas
+     * vigentes hoy o la del próximo día con atención si no. Ausente si no hay franjas o la reapertura es
+     * desconocida (cierre manual u horario sin días de atención). Es una referencia de la franja, no una
+     * promesa de entrega o recogida.
+     */
+    timeSlotsDate: localDateSchema.optional(),
   })
   .strict()
 
@@ -198,5 +235,6 @@ export type TimeSlotConfigDto = z.infer<typeof timeSlotConfigSchema>
 export type DeliverySettingsDto = z.infer<typeof deliverySettingsSchema>
 export type StoreSettingsDto = z.infer<typeof storeSettingsSchema>
 export type UpdateStoreSettingsRequest = z.infer<typeof updateStoreSettingsRequestSchema>
+export type OrderProcessingNoticeDto = z.infer<typeof orderProcessingNoticeSchema>
 export type StoreAvailabilityDto = z.infer<typeof storeAvailabilitySchema>
 export type StoreDto = z.infer<typeof storeDtoSchema>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   contactPhoneInputSchema,
+  orderProcessingNoticeSchema,
   storeSettingsSchema,
   timeSlotsSchema,
   updateStoreSettingsRequestSchema,
@@ -58,5 +59,23 @@ describe('contrato de configuración de tienda', () => {
     }
     expect(updateStoreSettingsRequestSchema.safeParse({}).success).toBe(false)
     expect(updateStoreSettingsRequestSchema.safeParse({ delivery: {} }).success).toBe(false)
+  })
+})
+
+describe('contrato del aviso de procesamiento (PM-03)', () => {
+  const scheduled = { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' }
+
+  it('acepta programado con instante UTC y sin hora, con motivo de cierre o de corte', () => {
+    expect(orderProcessingNoticeSchema.parse(scheduled)).toEqual(scheduled)
+    expect(orderProcessingNoticeSchema.parse({ kind: 'scheduled', reason: 'delivery_cutoff', startsAt: '2026-10-06T13:00:00Z' })).toMatchObject({ kind: 'scheduled' })
+    expect(orderProcessingNoticeSchema.parse({ kind: 'unscheduled', reason: 'override_closed' })).toEqual({ kind: 'unscheduled', reason: 'override_closed' })
+  })
+
+  it('no admite programado sin hora, sin hora con hora inventada, motivos ajenos ni campos extra', () => {
+    expect(orderProcessingNoticeSchema.safeParse({ kind: 'scheduled', reason: 'after_closing' }).success).toBe(false)
+    expect(orderProcessingNoticeSchema.safeParse({ kind: 'unscheduled', reason: 'override_closed', startsAt: scheduled.startsAt }).success).toBe(false)
+    expect(orderProcessingNoticeSchema.safeParse({ ...scheduled, reason: 'vacation' }).success).toBe(false)
+    expect(orderProcessingNoticeSchema.safeParse({ ...scheduled, startsAt: 'mañana a las 8' }).success).toBe(false)
+    expect(orderProcessingNoticeSchema.safeParse({ ...scheduled, deliveryAt: scheduled.startsAt }).success).toBe(false)
   })
 })
