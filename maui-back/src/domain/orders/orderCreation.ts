@@ -61,5 +61,7 @@ export function decodeCreationOrder(value: unknown): Order {
     ...(dto.customerPhone !== undefined ? { customerPhone: dto.customerPhone } : {}),
     ...(dto.shippingCost !== undefined ? { shippingCost: dto.shippingCost } : {}),
     ...(dto.finalTotal !== undefined ? { finalTotal: dto.finalTotal } : {}),
+    ...(dto.processingNotice !== undefined ? { processingNotice: dto.processingNotice } : {}),
+    ...(dto.timeSlotDate !== undefined ? { timeSlotDate: dto.timeSlotDate } : {}),
   }
 }

@@ -194,7 +194,8 @@ describe.skipIf(!enabled)('flujo real de cliente', () => {
 
     const store = await mine.catalog.getStore()
     expect(store.delivery.coverageNote ?? '').toBeDefined()
-    expect(store.availability.isOpen, 'la tienda de test debe estar abierta para crear el pedido').toBe(true)
+    // Recepción permanente (PM-03): crear el pedido no exige tienda abierta; solo se comprueba que responda.
+    expect(store.availability.acceptsPickup, 'la recogida se recibe siempre').toBe(true)
   })
 
   it('doble envío concurrente y pérdida de respuesta real conservan la intención sin duplicar', async () => {

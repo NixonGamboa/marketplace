@@ -56,6 +56,8 @@ export const toOrderDto = (order: Order): OrderDto =>
     ...(order.originalItems !== undefined ? { originalItems: order.originalItems.map(toItemDto) } : {}),
     ...(order.cancellationReason !== undefined ? { cancellationReason: order.cancellationReason } : {}),
     ...(order.cancelledAt !== undefined ? { cancelledAt: order.cancelledAt } : {}),
+    ...(order.processingNotice !== undefined ? { processingNotice: order.processingNotice } : {}),
+    ...(order.timeSlotDate !== undefined ? { timeSlotDate: order.timeSlotDate } : {}),
   })
 
 /** Página del listado: cada pedido sale por el mismo DTO canónico que el detalle. */
@@ -68,4 +70,6 @@ export const toOrderConfirmation = (order: Order): OrderConfirmationDto =>
     orderId: order.id,
     status: 'received',
     estimatedTotal: order.estimatedTotal,
+    ...(order.processingNotice !== undefined ? { processingNotice: order.processingNotice } : {}),
+    ...(order.timeSlotDate !== undefined ? { timeSlotDate: order.timeSlotDate } : {}),
   })

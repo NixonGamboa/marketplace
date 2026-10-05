@@ -49,7 +49,7 @@ urbana fijada), 9 categorías y 16 productos de `shared/catalog` con IDs estable
 `jabon-bano-3pack`, no pedible), cuentas `acc_seed_owner`, `acc_seed_operator`, `acc_seed_customer_ana` y
 `acc_seed_customer_luis` (emails `@seed.maui.invalid`, celulares de fixture `300 000 000x`) y 9 pedidos
 `ord-seed-*` con ID, clave de idempotencia y fecha deterministas: lunes a jueves, 09:30–11:00 de Bogotá,
-dentro del horario y antes del corte, sin cambiar las reglas de T-08.
+dentro del horario y antes del corte (se reciben atendiendo, sin aviso de procesamiento diferido).
 
 | Pedido | Modalidad | Estado final | Cubre |
 |---|---|---|---|
@@ -161,6 +161,37 @@ son snapshots del catálogo; envío y gratuidad se calculan con la tienda. Campo
 `priceAtMoment`, `name`, `is_variable_weight` y `shippingCost` son opcionales, ignorados
 y excluidos de la huella. Su forma sigue validada. `userId` sigue requerido y debe
 coincidir con la sesión; no autoriza. La PWA real añadirá la clave en T-18.
+
+**Recepción permanente (PM-03).** Los pedidos se reciben siempre: cierre por horario, día sin
+atención, override `closed` y corte de domicilio ya no producen `STORE_CLOSED` ni
+`DELIVERY_CUTOFF_PASSED` (códigos retirados). Solo se rechazan un domicilio deshabilitado en la
+configuración (`DELIVERY_UNAVAILABLE`) y una franja incompatible con la fecha de procesamiento
+(`TIME_SLOT_UNAVAILABLE`). `resolveOrderReception` (`domain/store/storeRules.ts`) calcula con el reloj
+del servidor en `America/Bogota` la próxima apertura: antes de abrir es hoy; tras el cierre o en un día
+sin atención, el siguiente día con atención según el horario semanal; override `closed` u horario sin
+ningún día de atención dejan el aviso `unscheduled` (sin hora inventada). Un domicilio posterior al corte
+con la tienda abierta se aplaza igual (`delivery_cutoff`); la recogida se procesa ya. El aviso
+(`processingNotice`) forma parte del snapshot de creación: se guarda en `order_creations.snapshot`
+(único por `order_id`) y los repositorios lo adjuntan al leer, así que no hay migración ni columna nueva;
+la respuesta del POST, los reintentos idempotentes, el detalle y el comprobante muestran el mismo valor y
+un cambio posterior del horario no lo altera. Las franjas ofrecidas son las habilitadas compatibles con la
+fecha de procesamiento (sin exigir una vencida hoy); con la tienda atendiendo pero todas las franjas
+habilitadas ya vencidas hoy, se ofrecen las de la próxima fecha con atención y el pedido se recibe sin
+aviso (se procesa ya). `availability.timeSlotsDate` indica la fecha de las franjas; vacío significa
+configuración (ninguna franja habilitada o ninguna cabe en el horario), no el horario de hoy, y el
+servidor sigue aceptando una recogida sin franja. La búsqueda de esa fecha recorre el ciclo semanal: la
+primera fecha con atención en que alguna franja habilitada cabe en el horario de ese día (puede ser posterior
+a la próxima apertura, que sigue fijando cuándo se procesa). Con cierre manual no se inventa fecha.
+**Fecha de la franja (`timeSlotDate`):** al crear una recogida con franja, el servidor fija la fecha local de
+esa franja con el mismo cálculo que la ofreció y la guarda, junto al aviso y también sin migración, en el
+snapshot de creación; el cliente no puede enviarla (el request es `strict`, también en `deliveryData`), no
+entra en la huella de idempotencia y es independiente de `processingNotice`. Detalle, listado, comprobante
+(PWA y admin) la muestran como «Franja de recogida: por la mañana · miércoles, 7 de octubre»; los pedidos
+anteriores no la tienen y muestran solo la franja. En `saveChange` el aviso se toma de `next` (que
+nace del pedido leído, ya con el aviso inmutable) en vez de releerlo tras el UPDATE: un fallo de lectura
+no puede reportar error por un cambio ya persistido. GET/listado sí leen `order_creations` y fallan
+con 503 si esa lectura falla (lectura sin efectos). La verificación contra Neon/Preview real queda
+pendiente: las pruebas PGlite ejecutan el SQL real en una conexión.
 
 Migración aditiva `0004_order_creation_idempotency`: claim/snapshot persistente y
 función SQL con privilegios del llamador; un lock transaccional por identidad y
@@ -430,8 +461,8 @@ sentencia (PostgreSQL reporta `23001`/`23503`); CHECK repiten COP, precio/kg y u
 Ediciones condicionadas por `version` (409 ante concurrencia). Tienda: horario semanal,
 override, corte de domicilio, franjas, envío/umbral y nota de cobertura; sin geocerca
 ni geocodificación. `usecases/store/evaluateOrderFulfillment` deja listas las reglas de
-cierre/corte/franja/envío para T-10, que debe pasarle el subtotal calculado con el
-catálogo del servidor. Sin tienda inicializada, `/api/store` responde 404 y el
+recepción/procesamiento/franja/envío para T-10, que debe pasarle el subtotal calculado
+con el catálogo del servidor. Sin tienda inicializada, `/api/store` responde 404 y el
 catálogo público queda vacío: `initializeStore` y `seedCatalogBaseline` son el seed
 idempotente de servidor para T-16 (no sobrescriben ediciones).
 

@@ -36,7 +36,6 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
   let runtime: RuntimeRecord
   let owner: OwnerApi
   let fixtures: TechnicalFixtures
-  let restoreStore: () => Promise<void> = async () => undefined
   let customer: Actor
   let admin: Actor
   let adminIsOwner = false
@@ -52,7 +51,7 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     fixtures = new TechnicalFixtures(owner, runtime)
     await fixtures.restore() // cambios técnicos que una corrida interrumpida dejó sin devolver
     if (!(await owner.readStaffStore()).contactPhone) await fixtures.store({ contactPhone: '573101234567' })
-    restoreStore = await owner.ensureStoreOpen(runtime)
+    await owner.restoreInterruptedOverride(runtime)
     customer = await openActor(browser, dest, 'cliente', runtime)
     admin = await openActor(browser, dest, 'admin', runtime)
     saveRuntime(runtime, 'started')
@@ -60,10 +59,10 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
 
   test.afterAll(async () => {
     if (!runtime) return
-    // Todo se intenta aunque un paso falle: override de tienda, sesiones y contextos.
+    // Todo se intenta aunque un paso falle: fixtures, sesiones y contextos.
     const logout = (actor: Actor | undefined) => actor?.context.request.post('/api/auth/logout', { headers: apiHeaders(dest) })
     const results = await Promise.allSettled([
-      (async () => { await restoreStore(); await fixtures?.restore(); await owner?.close() })(), logout(customer), logout(admin),
+      (async () => { await fixtures?.restore(); await owner?.close() })(), logout(customer), logout(admin),
     ].map((step) => Promise.resolve(step)))
     runtime.sessionsClosed = results.every((result) => result.status === 'fulfilled')
     saveRuntime(runtime, 'finished')
@@ -90,7 +89,8 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     scenario.fixed = fixed!
     scenario.variable = variable!
     const store = storeDtoSchema.parse(await (await customer.context.request.get('/api/store', { headers: apiHeaders(dest) })).json())
-    expect(store.availability.isOpen, 'la tienda debe estar abierta para pedir').toBe(true)
+    // Recepción permanente: el pedido se registra con la tienda en cualquier estado de horario.
+    expect(store.availability.acceptsPickup, 'la recogida se recibe siempre').toBe(true)
     scenario.contactPhone = store.contactPhone
   })
 
@@ -213,12 +213,11 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     expect([...customer.issues, ...admin.issues], 'sin errores de servidor ni intentos de abrir WhatsApp').toEqual([])
   })
 
-  test('cierre de sesión de cliente y admin, y restauración de la tienda', async () => {
+  test('cierre de sesión de cliente y admin, y override de tienda sin residuos', async () => {
     await customerLogout(customer.page)
     await adminLogout(admin.page)
     await expectSessionClosed(customer, dest)
     await expectSessionClosed(admin, dest)
-    await restoreStore()
     const store = await owner.readStaffStore()
     if (runtime.override) expect(store.scheduleOverride, 'override de tienda restaurado').toBe(runtime.override.original)
     runtime.sessionsClosed = true

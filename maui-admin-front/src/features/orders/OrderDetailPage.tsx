@@ -11,6 +11,7 @@ import type { Product } from '@/types/catalog'
 import { isDemoMode, orderRepo, catalogRepo } from '@/services'
 import { errorMessage, isConflict, isNotFound } from '@/lib/errorMessage'
 import { RealOrderReceipt } from '@/components/orders/RealOrderReceipt'
+import { describeTimeSlot } from '@shared/receipts'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
 import { latestOrder, orderPollingInterval, startOrderPolling } from '@/lib/orderPolling'
@@ -400,6 +401,11 @@ export function OrderDetailPage() {
               <p className="text-sm text-gray-700">
                 {order.deliveryType === 'pickup' ? 'Retiro en tienda' : 'Domicilio'}
               </p>
+              {order.deliveryType === 'pickup' && order.deliveryData.timeSlot && (
+                <p className="mt-1 text-sm text-gray-600">
+                  Franja de recogida: {describeTimeSlot(order.deliveryData.timeSlot, order.timeSlotDate)}
+                </p>
+              )}
               {order.deliveryType === 'delivery' && order.deliveryData.address && (
                 <p className="mt-1 text-sm text-gray-600">Dirección o referencia: {order.deliveryData.address}</p>
               )}
