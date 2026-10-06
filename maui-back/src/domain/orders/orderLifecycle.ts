@@ -6,6 +6,7 @@ import {
   isTerminalOrderStatus,
   issuesFromZodError,
   orderItemSchema,
+  pendingPickItems,
   type ContractIssue,
   type OrderItemChange,
   type OrderItemDto,
@@ -92,11 +93,23 @@ const missingRealWeights = (items: readonly OrderItemDto[]): Issue[] =>
 /** Etapas de entrega: desde `ready` el pedido se cobra con total final. */
 const DELIVERY_STAGES: readonly OrderStatus[] = ['ready', 'in_delivery', 'delivered']
 
+/** ME-03: Listo solo con cada línea vigente alistada y, en peso variable, pesada. Sin excepciones. */
+const assertFullyPicked = (items: readonly OrderItemDto[]): void => {
+  const pending = new Set(pendingPickItems(items))
+  if (pending.size === 0) return
+  throw new ValidationError(
+    `Faltan ${pending.size} productos por alistar: el pedido no puede pasar a listo`,
+    items.flatMap((item, index) => (pending.has(item) ? [issue(`items.${index}.picked`, 'Falta alistar este producto')] : [])),
+  )
+}
+
 /**
  * Transición de la máquina común según la modalidad. Entrar en `ready`, `in_delivery` o
  * `delivered` exige todos los pesos reales y fija el total final con los ítems vigentes y el envío
  * cotizado: así un pedido legacy que llegó a `ready`/`in_delivery` sin total o sin peso no termina
- * entregado sin importe (sin peso se rechaza). `cancelled` guarda motivo y fecha. Un pedido
+ * entregado sin importe (sin peso se rechaza). Pasar de `preparing` a `ready` exige además todo
+ * alistado. `ready` → `preparing` reabre la preparación conservando ítems, marcas, pesos, total e
+ * historial; la auditoría registra actor y fecha. `cancelled` guarda motivo y fecha. Un pedido
  * terminal no admite ninguna transición.
  */
 export const applyStatusChange = (order: Order, change: StatusChange, ctx: OrderChangeContext): Order => {
@@ -109,6 +122,7 @@ export const applyStatusChange = (order: Order, change: StatusChange, ctx: Order
   }
   const next: Order = { ...order, status: change.status, ...stamp(order, ctx) }
 
+  if (change.status === 'ready') assertFullyPicked(order.items)
   if (DELIVERY_STAGES.includes(change.status)) {
     const missing = missingRealWeights(order.items)
     if (missing.length > 0) {
@@ -128,8 +142,29 @@ export const applyStatusChange = (order: Order, change: StatusChange, ctx: Order
   return next
 }
 
-/** El snapshot original no lleva pesos reales: refleja lo que se pidió. */
-const asOriginalItem = ({ kilosReal: _real, ...item }: OrderItemDto): OrderItemDto => item
+/** El snapshot original no lleva pesos reales ni marcas: refleja lo que se pidió. */
+const asOriginalItem = ({ kilosReal: _real, picked: _picked, ...item }: OrderItemDto): OrderItemDto => item
+
+/** Línea sin marca de alistado; conserva el peso real. */
+const unpicked = ({ picked: _picked, ...item }: OrderItemDto): OrderItemDto => item
+
+/** ME-03: un peso válido guardado marca la línea; borrarlo (`null`) quita peso y marca. */
+const weighed = (item: OrderItemDto, kilosReal: number | null): OrderItemDto => {
+  if (kilosReal !== null) return { ...item, kilosReal, picked: true }
+  const { kilosReal: _real, ...rest } = unpicked(item)
+  return rest
+}
+
+type PickChange = Extract<OrderItemChange, { type: 'pick' }>
+
+/** Marca o desmarca sin tocar el peso; una línea de peso variable solo se marca con su peso real. */
+const picking = (item: OrderItemDto, change: PickChange): OrderItemDto | Issue[] => {
+  if (!change.picked) return unpicked(item)
+  if (item.is_variable_weight && item.kilosReal === undefined) {
+    return [issue('picked', 'Registra el peso real para alistar este producto')]
+  }
+  return { ...item, picked: true }
+}
 
 type SubstituteChange = Extract<OrderItemChange, { type: 'substitute' }>
 
@@ -191,7 +226,7 @@ const substituteLine = (
 
 /**
  * Cambios de ítems en bloque, solo durante la preparación. Todos se validan contra el pedido leído
- * y se aplican juntos o ninguno: pesos reales (solo peso variable), retiro y sustitución. El pedido
+ * y se aplican juntos o ninguno: pesos reales (solo peso variable), marcas de alistado, retiro y sustitución. El pedido
  * no puede quedar vacío (para eso se cancela con motivo). La primera sustitución o retiro fija
  * `originalItems`; cada uno queda en `itemAdjustments` con actor, fecha y constancia de contacto.
  * El total final se recalcula y queda ausente mientras falte un peso real.
@@ -223,7 +258,13 @@ export const applyItemChanges = (
     }
     if (change.type === 'weight') {
       if (!item.is_variable_weight) issues.push(issue(at('kilosReal'), 'Solo aplica a productos de peso variable'))
-      else replacements.set(item.id, { ...item, kilosReal: change.kilosReal })
+      else replacements.set(item.id, weighed(item, change.kilosReal))
+      return
+    }
+    if (change.type === 'pick') {
+      const line = picking(item, change)
+      if (Array.isArray(line)) issues.push(...line.map(({ path, message }) => issue(at(path), message)))
+      else replacements.set(item.id, line)
       return
     }
     const line = change.type === 'remove'
@@ -256,7 +297,7 @@ export const applyItemChanges = (
     ])
   }
 
-  const changesLines = changes.some((change) => change.type !== 'weight')
+  const changesLines = changes.some((change) => change.type === 'remove' || change.type === 'substitute')
   const originalItems = order.originalItems ?? (changesLines ? order.items.map(asOriginalItem) : undefined)
   const itemAdjustments = [...(order.itemAdjustments ?? []), ...adjustments]
   const next: Order = {

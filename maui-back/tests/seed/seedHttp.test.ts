@@ -107,7 +107,7 @@ describe('seed + handlers HTTP reales (APP_ENV=test)', () => {
     vi.stubEnv('SEED_CUSTOMER_PASSWORD', passwords.customer)
     embedded = await startEmbeddedPostgres()
     await embedded.pg.exec('create schema drizzle; create table drizzle.__drizzle_migrations (id serial primary key, hash text not null, created_at bigint)')
-    for (let index = 0; index < 8; index += 1) await embedded.pg.query('insert into drizzle.__drizzle_migrations (hash, created_at) values ($1, $2)', [`h${index}`, index])
+    for (let index = 0; index < 9; index += 1) await embedded.pg.query('insert into drizzle.__drizzle_migrations (hash, created_at) values ($1, $2)', [`h${index}`, index])
   })
   afterAll(async () => {
     vi.unstubAllEnvs()

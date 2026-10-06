@@ -128,9 +128,12 @@ export const SEED_ORDERS: readonly SeedOrderSpec[] = [
           changes: [
             { type: 'weight', itemId: 'queso-campesino-250g', kilosReal: 0.52 },
             { type: 'substitute', itemId: 'gaseosa-cola-2l', productId: 'agua-botella-600ml', qty: 2, customerContacted: true },
+            { type: 'pick', itemId: 'azucar-1kg', picked: true },
           ],
         },
       },
+      // El sustituto entra sin alistar (ME-03): se marca antes de pasar a listo.
+      { actor: 'operator', action: { kind: 'items', changes: [{ type: 'pick', itemId: 'agua-botella-600ml', picked: true }] } },
       ...advance('owner', 'ready'),
     ],
   },
@@ -147,7 +150,11 @@ export const SEED_ORDERS: readonly SeedOrderSpec[] = [
     },
     steps: [
       ...advance('operator', 'confirmed', 'preparing'),
-      { actor: 'operator', action: { kind: 'items', changes: [{ type: 'weight', itemId: 'queso-campesino-250g', kilosReal: 1.05 }] } },
+      { actor: 'operator', action: { kind: 'items', changes: [
+        { type: 'weight', itemId: 'queso-campesino-250g', kilosReal: 1.05 },
+        { type: 'pick', itemId: 'lenteja-500g', picked: true },
+        { type: 'pick', itemId: 'atun-lata-170g', picked: true },
+      ] } },
       ...advance('operator', 'ready', 'in_delivery'),
     ],
   },
@@ -158,7 +165,14 @@ export const SEED_ORDERS: readonly SeedOrderSpec[] = [
       substitutionPreference: 'remove', deliveryType: 'delivery',
       deliveryData: { address: 'Calle 5 # 4-12, Dolores', timeSlot: 'afternoon' },
     },
-    steps: advance('owner', 'confirmed', 'preparing', 'ready', 'in_delivery', 'delivered'),
+    steps: [
+      ...advance('owner', 'confirmed', 'preparing'),
+      { actor: 'owner', action: { kind: 'items', changes: [
+        { type: 'pick', itemId: 'detergente-1kg', picked: true },
+        { type: 'pick', itemId: 'aceite-girasol-1l', picked: true },
+      ] } },
+      ...advance('owner', 'ready', 'in_delivery', 'delivered'),
+    ],
   },
   {
     id: 'ord-seed-entregado-recogida-peso', customer: 'ana', createdAt: '2026-09-15T15:00:00.000Z',
@@ -168,7 +182,10 @@ export const SEED_ORDERS: readonly SeedOrderSpec[] = [
     },
     steps: [
       ...advance('operator', 'confirmed', 'preparing'),
-      { actor: 'operator', action: { kind: 'items', changes: [{ type: 'weight', itemId: 'queso-campesino-250g', kilosReal: 1.98 }] } },
+      { actor: 'operator', action: { kind: 'items', changes: [
+        { type: 'weight', itemId: 'queso-campesino-250g', kilosReal: 1.98 },
+        { type: 'pick', itemId: 'chorizo-250g', picked: true },
+      ] } },
       ...advance('operator', 'ready', 'delivered'),
     ],
   },

@@ -3,7 +3,7 @@ import { orderChangeAudit } from '../../domain/audit/orderAudit.js'
 import { auditedWrite } from './auditedWrite.js'
 import { and, eq, inArray, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { localDateSchema, orderProcessingNoticeSchema } from '../../../../shared/contracts/index.js'
+import { PAYMENT_METHOD_VALUES, localDateSchema, orderProcessingNoticeSchema, orderReferenceSchema } from '../../../../shared/contracts/index.js'
 import type { Order } from '../../domain/orders/Order.js'
 import { orderFromRecord, orderToRecord } from '../../domain/orders/orderRecord.js'
 import type {
@@ -121,6 +121,14 @@ const creationExtrasFor = async (db: Db, orderIds: string[]): Promise<Map<string
 
 const withExtras = (order: Order, extras: CreationExtras | undefined): Order => (extras === undefined ? order : { ...order, ...extras })
 
+/** Referencia y método del pedido (columnas inmutables) que acompañan al snapshot de creación. */
+const creationColumnsSchema = z.object({ reference: orderReferenceSchema, paymentMethod: z.enum(PAYMENT_METHOD_VALUES) })
+
+const creationFrom = (fingerprint: string, snapshot: unknown, columns: unknown): StoredOrderCreation => ({
+  fingerprint,
+  order: { ...decodeCreationOrder(snapshot), ...creationColumnsSchema.parse(columns) },
+})
+
 export class OrdersRepositoryPostgres implements OrdersRepository {
   constructor(private readonly db: Db) {}
 
@@ -132,12 +140,19 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
 
   findCreation(identity: OrderCreationIdentity): Promise<StoredOrderCreation | null> {
     return guardPersistence(async () => {
-      const [row] = await this.db.select().from(orderCreationsTable).where(and(
-        eq(orderCreationsTable.customerId, identity.customerId),
-        eq(orderCreationsTable.storeId, identity.storeId),
-        eq(orderCreationsTable.keyHash, identity.keyHash),
-      )).limit(1)
-      return row ? { fingerprint: row.fingerprint, order: decodeCreationOrder(row.snapshot) } : null
+      const [row] = await this.db.select({
+        fingerprint: orderCreationsTable.fingerprint,
+        snapshot: orderCreationsTable.snapshot,
+        reference: ordersTable.referenceNumber,
+        paymentMethod: ordersTable.paymentMethod,
+      }).from(orderCreationsTable)
+        .innerJoin(ordersTable, eq(ordersTable.id, orderCreationsTable.orderId))
+        .where(and(
+          eq(orderCreationsTable.customerId, identity.customerId),
+          eq(orderCreationsTable.storeId, identity.storeId),
+          eq(orderCreationsTable.keyHash, identity.keyHash),
+        )).limit(1)
+      return row ? creationFrom(row.fingerprint, row.snapshot, row) : null
     })
   }
 
@@ -159,7 +174,7 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
     const value = result.rows[0]?.result
     const envelope = z.object({ kind: z.enum(['created', 'replayed', 'conflict', 'changed', 'limited']),
       retryAfterSeconds: z.number().int().positive().optional(),
-      creation: z.object({ fingerprint: z.string(), order: z.unknown() }).optional(),
+      creation: z.object({ fingerprint: z.string(), order: z.unknown(), reference: z.unknown(), paymentMethod: z.unknown() }).optional(),
     }).parse(value)
     if (envelope.kind === 'limited') {
       if (!envelope.retryAfterSeconds) throw new Error('Missing rate limit interval')
@@ -168,12 +183,15 @@ export class OrdersRepositoryPostgres implements OrdersRepository {
     if (envelope.kind === 'conflict' || envelope.kind === 'changed') return { kind: envelope.kind }
     // El snapshot lo produce este adapter con el modelo tipado, la misma transacción lo devuelve.
     if (!envelope.creation) throw new Error('Missing creation snapshot')
-    return { kind: envelope.kind, creation: { fingerprint: envelope.creation.fingerprint,
-      order: decodeCreationOrder(envelope.creation.order) } }
+    const { fingerprint, order, ...columns } = envelope.creation
+    return { kind: envelope.kind, creation: creationFrom(fingerprint, order, columns) }
   }
 
   async create(order: Order): Promise<Order> {
-    const [row] = await auditedWrite(this.db, ordersTable, this.db.insert(ordersTable).values(orderToRecord(order)).returning(), 'order', 'created', order.storeId)
+    // La referencia nunca viene del llamador: el trigger `orders_assign_reference` la asigna en el mismo INSERT.
+    const { referenceNumber: _reference, ...record } = orderToRecord(order)
+    const values = record as typeof ordersTable.$inferInsert
+    const [row] = await auditedWrite(this.db, ordersTable, this.db.insert(ordersTable).values(values).returning(), 'order', 'created', order.storeId)
     if (!row) throw new Error('Insert failed')
     return orderFromRecord(row)
   }

@@ -13,6 +13,7 @@ desde `@shared/contracts`; los handlers y casos de uso validan datos con Zod.
 | `updateOrderStatusRequestSchema` | PATCH `/api/orders/:id/status` (T-12): `status`, `expectedVersion` y `reason` obligatorio solo al cancelar (5–500) |
 | `updateOrderItemsRequestSchema` | PATCH `/api/orders/:id` (T-12): `expectedVersion` y `changes` (`weight`, `remove`, `substitute`) sin ítems ni sustitutos repetidos; `customerContacted: true` (declaración del personal) obligatorio para quitar/sustituir con preferencia `call_me` |
 | `apiErrorSchema` | `{error,message,issues?:[{path,message}]}` |
+| `contractVersionFrom` / `toV1Order*` | Negociación v1/v2 de las respuestas de pedidos con la cabecera `X-Maui-Contract` (ME-01/03/04) |
 | `productDtoSchema` / `categoryDtoSchema` | Catálogo público, mismo shape que `shared/catalog` (`Product`/`Category`) |
 | `staffProductDtoSchema` | Vista de personal: añade `active`, `archived` y fechas; nunca `storeId` |
 | `create/updateProductRequestSchema`, `create/updateCategoryRequestSchema` | CRUD estricto del owner; `null` borra opcionales en PATCH |
@@ -68,6 +69,26 @@ servidor y `userId` del request solo se admite si coincide con la cuenta autenti
 sustitutos (T-12); los cambios de estado e ítems son atómicos por versión. Este contrato no
 acredita que los servicios reales de ambas apps estén conectados: T-17/T-18 y el build real
 T-23 siguen pendientes.
+
+## Contrato v2 de pedidos (ME-01, ME-03, ME-04)
+
+Las apps anteriores validan las respuestas con DTO `.strict()`: un campo nuevo, aunque sea opcional, las
+rompe. Por eso los campos v2 solo viajan si la petición envía `X-Maui-Contract: 2`; sin la cabecera (o con
+otro valor) las cinco respuestas de pedidos (POST/GET listado, GET/PATCH detalle y PATCH estado) salen en la
+forma exacta de 1.0.1 (`toV1OrderDto`, `toV1OrderConfirmation`, `toV1OrderList`). Las peticiones v1 siguen
+siendo válidas. `Vary` incluye la cabecera. Las apps nuevas deben enviarla en sus lecturas y mutaciones de pedidos.
+
+- `paymentMethod` (`cash`/`qr`/`bre_b`): opcional al crear; sin elegir es `cash`, igual que los pedidos
+  anteriores. Solo registra cómo pagará el cliente; no hay pasarela ni estado «pagado».
+- `reference`: número comercial por tienda, asignado por la base de datos al guardar e inmutable (también en
+  reintentos). `formatOrderReference` produce «Pedido #001248» (6 cifras, sin cortar desde 1 000 000). No
+  reemplaza `orderId` en enlaces ni autoriza nada.
+- `picked` por ítem y cambio `{ type: 'pick', itemId, picked }`: guardar un peso válido marca la línea,
+  `{ type: 'weight', kilosReal: null }` borra peso y marca, desmarcar conserva el peso; una línea de peso
+  variable solo se marca con peso real. `pendingPickItems` da las líneas que impiden pasar a `ready`.
+- `canReopenPreparation`: `ready` → `preparing` («Reabrir preparación») es la única vuelta atrás; no figura en
+  `allowedNextStatuses`. La auditoría (contrato sin cambios) registra el cambio de estado con actor y fecha; las
+  marcas quedan como `items_changed` sin detalle de línea para no romper el admin anterior.
 
 ## Catálogo y tienda (T-07/T-08)
 

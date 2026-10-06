@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createOrder } from '../../../src/usecases/orders/createOrder.js'
+import { createOrder, orderIntentFingerprint } from '../../../src/usecases/orders/createOrder.js'
+import { IdempotencyConflictError } from '../../../src/domain/orders/orderCreation.js'
 import { OrdersRepositoryMemory } from '../../../src/infra/memory/OrdersRepositoryMemory.js'
 import { CatalogRepositoryMemory } from '../../../src/infra/memory/CatalogRepositoryMemory.js'
 import { StoreRepositoryMemory } from '../../../src/infra/memory/StoreRepositoryMemory.js'
@@ -313,5 +314,44 @@ describe('creación autoritativa e idempotente', () => {
   it('rechaza total COP sobre máximo desde precios reales', async () => {
     await alter('prod_leche', { price: 60_000_000 })
     await expect(create()).rejects.toBeInstanceOf(ValidationError)
+  })
+  it('ME-01: sin método es efectivo; el elegido se guarda y el reintento lo conserva', async () => {
+    expect((await create()).paymentMethod).toBe('cash')
+    const key = randomUUID()
+    const qr = await create({ ...validPickupRequest(), paymentMethod: 'qr' }, key)
+    expect(qr.paymentMethod).toBe('qr')
+    expect(await orders.findById(qr.id)).toMatchObject({ paymentMethod: 'qr' })
+    expect(await create({ ...validPickupRequest(), paymentMethod: 'qr' }, key)).toEqual(qr)
+    // Otro método con la misma clave es otra intención.
+    await expect(create({ ...validPickupRequest(), paymentMethod: 'bre_b' }, key)).rejects.toBeInstanceOf(IdempotencyConflictError)
+    await expect(create({ ...validPickupRequest(), paymentMethod: 'tarjeta' })).rejects.toBeInstanceOf(ValidationError)
+  })
+  it('ME-01: efectivo explícito u omitido conserva la huella anterior; los reintentos de clientes previos siguen valiendo', async () => {
+    const legacy = createOrderRequestSchema.parse(validPickupRequest())
+    const previousFormula = createHash('sha256').update(JSON.stringify({
+      items: legacy.items.map(({ id, qty, kilosRequested }) => ({ id, qty, kilosRequested })),
+      substitutionPreference: legacy.substitutionPreference, deliveryType: legacy.deliveryType,
+      deliveryData: { address: legacy.deliveryData.address, lat: legacy.deliveryData.lat,
+        lng: legacy.deliveryData.lng, timeSlot: legacy.deliveryData.timeSlot },
+      customerName: legacy.customerName, customerPhone: legacy.customerPhone,
+    })).digest('hex')
+    expect(orderIntentFingerprint(legacy)).toBe(previousFormula)
+    expect(orderIntentFingerprint(createOrderRequestSchema.parse({ ...validPickupRequest(), paymentMethod: 'cash' }))).toBe(previousFormula)
+    expect(orderIntentFingerprint(createOrderRequestSchema.parse({ ...validPickupRequest(), paymentMethod: 'qr' }))).not.toBe(previousFormula)
+    const key = randomUUID()
+    const first = await create(validPickupRequest(), key)
+    expect(await create({ ...validPickupRequest(), paymentMethod: 'cash' }, key)).toEqual(first)
+  })
+  it('ME-04: referencia consecutiva por tienda, distinta en creaciones simultáneas y estable en reintentos', async () => {
+    const key = randomUUID()
+    const first = await create(validPickupRequest(), key)
+    expect(first.reference).toBe(1)
+    const simultaneous = await Promise.all(Array.from({ length: 6 }, () => create()))
+    expect(simultaneous.map((order) => order.reference).sort((a, b) => a! - b!)).toEqual([2, 3, 4, 5, 6, 7])
+    expect((await create(validPickupRequest(), key)).reference).toBe(1)
+    expect((await orders.findById(first.id))?.reference).toBe(1)
+    // Otra tienda numera aparte; el número del llamador nunca se usa.
+    const foreign = await orders.create({ ...first, id: 'ord_ajeno', storeId: 'otra-tienda', reference: 99 })
+    expect(foreign.reference).toBe(1)
   })
 })

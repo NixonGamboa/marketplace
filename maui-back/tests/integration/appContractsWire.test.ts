@@ -170,7 +170,11 @@ describe('contratos serializados entre PWA, admin y API', () => {
         { type: 'weight', itemId: 'prod_carne', kilosReal: 1.234 },
         { type: 'substitute', itemId: 'prod_leche', productId: substitute.id, qty: 2 },
       ] }))
-      await patchStatus(id, actors.operator, 4, { status: 'ready' })
+      // El sustituto entra sin alistar (ME-03); la carne quedó alistada al pesarla.
+      read(orderDtoSchema, await send('PATCH', `/api/orders/${id}`, actors.operator, { expectedVersion: 4, changes: [
+        { type: 'pick', itemId: substitute.id, picked: true },
+      ] }))
+      await patchStatus(id, actors.operator, 5, { status: 'ready' })
 
       const dto = await order(actors.customer, id)
       // 2 × 4.800 + 22.000 × 1,234 kg = 9.600 + 27.148; la estimación original conserva 2 × 4.500 + 22.000.

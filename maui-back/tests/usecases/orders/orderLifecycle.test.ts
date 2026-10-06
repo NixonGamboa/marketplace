@@ -48,7 +48,7 @@ const issuePaths = (run: () => unknown): string[] =>
 describe('applyStatusChange: máquina común por modalidad', () => {
   it('recorre el flujo de retiro y deja versión, actor y fecha en cada paso', () => {
     let current = order({ deliveryType: 'pickup', deliveryData: {}, shippingCost: 0, estimatedTotal: 42000,
-      items: [{ id: 'prod_leche', name: 'Leche', qty: 2, priceAtMoment: 4500 }] })
+      items: [{ id: 'prod_leche', name: 'Leche', qty: 2, priceAtMoment: 4500, picked: true }] })
     for (const [index, status] of (['confirmed', 'preparing', 'ready', 'delivered'] as OrderStatus[]).entries()) {
       current = applyStatusChange(current, { status }, ctx)
       expect(current).toMatchObject({ status, version: index + 2, updatedBy: 'acc_operador', updatedAt: ctx.now, estimatedTotal: 42000 })
@@ -63,7 +63,8 @@ describe('applyStatusChange: máquina común por modalidad', () => {
   })
 
   it('no salta pasos ni retrocede', () => {
-    for (const [from, to] of [['received', 'preparing'], ['received', 'ready'], ['preparing', 'confirmed'], ['ready', 'preparing']] as const) {
+    for (const [from, to] of [['received', 'preparing'], ['received', 'ready'], ['preparing', 'confirmed'], ['ready', 'confirmed'],
+      ['in_delivery', 'preparing'], ['in_delivery', 'ready'], ['confirmed', 'received']] as const) {
       expect(issuePaths(() => applyStatusChange(order({ status: from }), { status: to }, ctx))).toEqual(['status'])
     }
   })
@@ -76,14 +77,15 @@ describe('applyStatusChange: máquina común por modalidad', () => {
   })
 
   it('ready exige todos los pesos reales y fija el total final', () => {
-    expect(issuePaths(() => applyStatusChange(preparing(), { status: 'ready' }, ctx))).toEqual(['items.1.kilosReal'])
-    const weighed = preparing({ items: [order().items[0]!, { ...order().items[1]!, kilosReal: 1.237 }] })
+    const unweighed = preparing({ items: [{ ...order().items[0]!, picked: true }, order().items[1]!] })
+    expect(issuePaths(() => applyStatusChange(unweighed, { status: 'ready' }, ctx))).toEqual(['items.1.picked'])
+    const weighed = preparing({ items: [{ ...order().items[0]!, picked: true }, { ...order().items[1]!, kilosReal: 1.237, picked: true }] })
     // 9000 + round(22000 × 1,237) = 9000 + 27214 + envío 3000.
     expect(applyStatusChange(weighed, { status: 'ready' }, ctx)).toMatchObject({ status: 'ready', finalTotal: 39214, estimatedTotal: 45000 })
   })
 
   it('pedido solo de peso fijo: ready fija el total final igual a ítems + envío', () => {
-    const fixed = preparing({ items: [{ id: 'prod_leche', name: 'Leche', qty: 3, priceAtMoment: 4500 }], estimatedTotal: 16500 })
+    const fixed = preparing({ items: [{ id: 'prod_leche', name: 'Leche', qty: 3, priceAtMoment: 4500, picked: true }], estimatedTotal: 16500 })
     expect(applyStatusChange(fixed, { status: 'ready' }, ctx).finalTotal).toBe(16500)
   })
 
@@ -283,5 +285,117 @@ describe('applyItemChanges: retiro y sustitución', () => {
     ], catalogOf(product({ inStock: false }))))
     expect(base.items).toHaveLength(2)
     expect(base).not.toHaveProperty('originalItems')
+  })
+})
+
+describe('ME-03: alistado persistente y regla de listo', () => {
+  const pick = (itemId: string, picked = true): OrderItemChange => ({ type: 'pick', itemId, picked })
+
+  it('un peso válido guardado marca la línea; borrarlo quita peso y marca; desmarcar conserva el peso', () => {
+    const weighed = items(preparing(), [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1.237 }])
+    expect(weighed.items[1]).toMatchObject({ kilosReal: 1.237, picked: true })
+    expect(weighed.finalTotal).toBe(39214)
+
+    const unpicked = items(weighed, [pick('prod_carne', false)])
+    expect(unpicked.items[1]).toMatchObject({ kilosReal: 1.237 })
+    expect(unpicked.items[1]).not.toHaveProperty('picked')
+    expect(unpicked.finalTotal).toBe(39214)
+    // Un desmarcado accidental se corrige volviendo a marcar, sin perder el peso.
+    expect(items(unpicked, [pick('prod_carne')]).items[1]).toMatchObject({ kilosReal: 1.237, picked: true })
+
+    const cleared = items(weighed, [{ type: 'weight', itemId: 'prod_carne', kilosReal: null }])
+    expect(cleared.items[1]).not.toHaveProperty('kilosReal')
+    expect(cleared.items[1]).not.toHaveProperty('picked')
+    expect(cleared).not.toHaveProperty('finalTotal')
+  })
+
+  it('marcar peso variable exige peso real; peso fijo se marca y desmarca libremente', () => {
+    expect(issuePaths(() => items(preparing(), [pick('prod_carne')]))).toEqual(['changes.0.picked'])
+    const fixed = items(preparing(), [pick('prod_leche')])
+    expect(fixed.items[0]).toMatchObject({ picked: true })
+    expect(fixed).toMatchObject({ version: 4, updatedBy: 'acc_operador', estimatedTotal: 45000 })
+    expect(fixed).not.toHaveProperty('originalItems')
+    expect(items(fixed, [pick('prod_leche', false)]).items[0]).not.toHaveProperty('picked')
+    expect(issuePaths(() => items(preparing(), [{ type: 'weight', itemId: 'prod_leche', kilosReal: null }]))).toEqual(['changes.0.kilosReal'])
+  })
+
+  it('marcas solo en preparación y nunca sobre líneas retiradas', () => {
+    for (const status of ['received', 'confirmed', 'ready', 'in_delivery'] as const) {
+      expect(issuePaths(() => items(order({ status }), [pick('prod_leche')]))).toEqual(['status'])
+    }
+    const removed = items(preparing(), [{ type: 'remove', itemId: 'prod_leche' }])
+    expect(issuePaths(() => items(removed, [pick('prod_leche')]))).toEqual(['changes.0.itemId'])
+  })
+
+  it('todo sustituto entra sin alistar (también con peso); el original no hereda la marca', () => {
+    const picked = items(preparing(), [pick('prod_leche')])
+    const substituted = items(picked, [{ type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }], catalogOf(product()))
+    expect(substituted.items[0]).not.toHaveProperty('picked')
+    expect(substituted.originalItems?.every((line) => !('picked' in line) && !('kilosReal' in line))).toBe(true)
+    const weighedSubstitute = items(preparing(), [
+      { type: 'substitute', itemId: 'prod_carne', productId: 'prod_pollo', qty: 1, kilosRequested: 0.5, kilosReal: 0.333 },
+    ], catalogOf(pollo))
+    expect(weighedSubstitute.items[1]).toMatchObject({ id: 'prod_pollo', kilosReal: 0.333 })
+    expect(weighedSubstitute.items[1]).not.toHaveProperty('picked')
+    expect(weighedSubstitute.finalTotal).toBeDefined()
+    // Listo sigue bloqueado hasta marcar; después el toggle y el peso funcionan con normalidad.
+    const withLeche = items(weighedSubstitute, [pick('prod_leche')])
+    expect(issuePaths(() => applyStatusChange(withLeche, { status: 'ready' }, ctx))).toEqual(['items.1.picked'])
+    const marked = items(withLeche, [pick('prod_pollo')])
+    expect(marked.items[1]).toMatchObject({ kilosReal: 0.333, picked: true })
+    expect(applyStatusChange(marked, { status: 'ready' }, ctx).status).toBe('ready')
+    expect(items(marked, [pick('prod_pollo', false)]).items[1]).toMatchObject({ kilosReal: 0.333 })
+    expect(items(marked, [{ type: 'weight', itemId: 'prod_pollo', kilosReal: 0.4 }]).items[1]).toMatchObject({ kilosReal: 0.4, picked: true })
+    // Sustituto de peso fijo: también sin marcar.
+    const fixedSub = items(preparing(), [{ type: 'substitute', itemId: 'prod_leche', productId: 'prod_queso', qty: 1 }], catalogOf(product()))
+    expect(fixedSub.items[0]).not.toHaveProperty('picked')
+    expect(issuePaths(() => applyStatusChange(items(fixedSub, [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1 }]), { status: 'ready' }, ctx))).toEqual(['items.0.picked'])
+  })
+
+  it('listo exige cada línea vigente alistada y pesada; lo retirado no cuenta; se señalan las pendientes', () => {
+    const base = preparing()
+    expect(issuePaths(() => applyStatusChange(base, { status: 'ready' }, ctx))).toEqual(['items.0.picked', 'items.1.picked'])
+    const partial = items(base, [pick('prod_leche')])
+    expect(rejection(() => applyStatusChange(partial, { status: 'ready' }, ctx)).message).toContain('Faltan 1 productos por alistar')
+    expect(issuePaths(() => applyStatusChange(partial, { status: 'ready' }, ctx))).toEqual(['items.1.picked'])
+    // Desmarcar un producto ya pesado vuelve a bloquear listo aunque el peso siga guardado.
+    const all = items(partial, [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1.5 }])
+    expect(issuePaths(() => applyStatusChange(items(all, [pick('prod_carne', false)]), { status: 'ready' }, ctx))).toEqual(['items.1.picked'])
+    expect(applyStatusChange(all, { status: 'ready' }, ctx)).toMatchObject({ status: 'ready', finalTotal: 45000 })
+    const onlyLeche = items(partial, [{ type: 'remove', itemId: 'prod_carne' }])
+    expect(applyStatusChange(onlyLeche, { status: 'ready' }, ctx)).toMatchObject({ status: 'ready', finalTotal: 12000 })
+  })
+})
+
+describe('ME-03: reabrir preparación (ready → preparing)', () => {
+  const readyOrder = (): Order => {
+    const prepared = items(preparing(), [
+      { type: 'pick', itemId: 'prod_leche', picked: true },
+      { type: 'weight', itemId: 'prod_carne', kilosReal: 1.237 },
+    ])
+    return applyStatusChange(prepared, { status: 'ready' }, ctx)
+  }
+
+  it('vuelve a preparación con versión y actor, conservando ítems, marcas, pesos, total y snapshots', () => {
+    const ready = readyOrder()
+    const reopenCtx = { actorId: 'acc_owner', now: '2026-09-03T12:30:00.000Z' }
+    const reopened = applyStatusChange(ready, { status: 'preparing' }, reopenCtx)
+    expect(reopened).toMatchObject({
+      status: 'preparing', version: ready.version + 1, updatedBy: 'acc_owner', updatedAt: reopenCtx.now,
+      items: ready.items, finalTotal: ready.finalTotal, estimatedTotal: ready.estimatedTotal, shippingCost: ready.shippingCost,
+    })
+    // Corregir un peso tras reabrir recalcula el total y listo vuelve a fijarlo.
+    const corrected = items(reopened, [{ type: 'weight', itemId: 'prod_carne', kilosReal: 1.5 }])
+    expect(applyStatusChange(corrected, { status: 'ready' }, ctx).finalTotal).toBe(45000)
+  })
+
+  it('solo desde ready: en camino, entregado y cancelado no retroceden', () => {
+    // Confirmado → preparando es el avance normal, no una reapertura.
+    for (const status of ['received', 'in_delivery'] as const) {
+      expect(issuePaths(() => applyStatusChange(order({ status }), { status: 'preparing' }, ctx))).toEqual(['status'])
+    }
+    for (const status of ['delivered', 'cancelled'] as const) {
+      expect(rejection(() => applyStatusChange(order({ status }), { status: 'preparing' }, ctx)).message).toContain('no admite cambios')
+    }
   })
 })

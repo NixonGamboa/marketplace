@@ -80,10 +80,18 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     return dto.version
   }
   const errorOf = (res: MockResponse) => bodyOf(res) as { error: string; message: string; issues?: { path: string }[] }
-  /** Avanza por la máquina común con la versión que devuelve cada respuesta. */
+  /** ME-03: marca las líneas de peso fijo (las de peso variable se marcan al pesarlas). */
+  const pickFixed = async (id: string, current: OrderDto): Promise<OrderDto> => {
+    const changes = current.items.filter((item) => !item.is_variable_weight).map((item) => ({ type: 'pick', itemId: item.id, picked: true }))
+    return ok(await items(world.operator, id, { expectedVersion: current.version, changes }))
+  }
+  /** Avanza por la máquina común con la versión que devuelve cada respuesta; alista antes de listo. */
   const advance = async (id: string, steps: string[]): Promise<OrderDto> => {
     let current = await read(world.operator, id)
-    for (const next of steps) current = ok(await status(world.operator, id, { status: next, expectedVersion: current.version }))
+    for (const next of steps) {
+      if (next === 'ready') current = await pickFixed(id, current)
+      current = ok(await status(world.operator, id, { status: next, expectedVersion: current.version }))
+    }
     return current
   }
   /** Fila tal como quedó en la BD (solo PostgreSQL), leída sin el adapter. */
@@ -170,9 +178,9 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     const preparing = await advance(id, ['confirmed', 'preparing'])
     expect(preparing).toMatchObject({ status: 'preparing', version: 3 })
 
-    const notWeighed = await status(world.operator, id, { status: 'ready', expectedVersion: 3 })
-    expect(statusOf(notWeighed)).toBe(400)
-    expect(errorOf(notWeighed).issues?.map((issue) => issue.path)).toEqual(['items.1.kilosReal'])
+    const notPicked = await status(world.operator, id, { status: 'ready', expectedVersion: 3 })
+    expect(statusOf(notPicked)).toBe(400)
+    expect(errorOf(notPicked).issues?.map((issue) => issue.path)).toEqual(['items.0.picked', 'items.1.picked'])
 
     const edited = ok(await items(world.owner, id, {
       expectedVersion: 3,
@@ -189,20 +197,25 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     ])
     expect(edited.originalItems?.map(({ id: item, qty }) => [item, qty])).toEqual([['prod_leche', 2], ['prod_carne', 1]])
 
-    const ready = ok(await status(world.operator, id, { status: 'ready', expectedVersion: 4 }))
-    expect(ready).toMatchObject({ status: 'ready', version: 5, finalTotal: 36214 })
-    expect(statusOf(await status(world.operator, id, { status: 'in_delivery', expectedVersion: 5 }))).toBe(400)
-    expect(statusOf(await items(world.operator, id, { expectedVersion: 5, changes: [{ type: 'remove', itemId: 'prod_queso' }] }))).toBe(400)
+    // El sustituto entra sin alistar: listo sigue bloqueado hasta marcarlo.
+    const pending = await status(world.operator, id, { status: 'ready', expectedVersion: 4 })
+    expect(errorOf(pending).issues?.map((issue) => issue.path)).toEqual(['items.0.picked'])
+    ok(await items(world.operator, id, { expectedVersion: 4, changes: [{ type: 'pick', itemId: 'prod_queso', picked: true }] }))
 
-    const delivered = ok(await status(world.owner, id, { status: 'delivered', expectedVersion: 5 }))
-    expect(delivered).toMatchObject({ status: 'delivered', version: 6, finalTotal: 36214, estimatedTotal: 42000 })
+    const ready = ok(await status(world.operator, id, { status: 'ready', expectedVersion: 5 }))
+    expect(ready).toMatchObject({ status: 'ready', version: 6, finalTotal: 36214 })
+    expect(statusOf(await status(world.operator, id, { status: 'in_delivery', expectedVersion: 6 }))).toBe(400)
+    expect(statusOf(await items(world.operator, id, { expectedVersion: 6, changes: [{ type: 'remove', itemId: 'prod_queso' }] }))).toBe(400)
+
+    const delivered = ok(await status(world.owner, id, { status: 'delivered', expectedVersion: 6 }))
+    expect(delivered).toMatchObject({ status: 'delivered', version: 7, finalTotal: 36214, estimatedTotal: 42000 })
 
     const customerView = await read(world.customer, id)
     expect(customerView).toEqual(delivered)
     expect(JSON.stringify(customerView)).not.toContain(world.owner.id)
 
     expect(await row(id) ?? { status: 'delivered' }).toMatchObject(driver === 'postgres'
-      ? { status: 'delivered', total: 42000, final_total: 36214, shipping_cost: 0, version: 6, updated_by: world.owner.id,
+      ? { status: 'delivered', total: 42000, final_total: 36214, shipping_cost: 0, version: 7, updated_by: world.owner.id,
           cancellation_reason: null, has_cancelled_at: false, updated_after_created: true }
       : { status: 'delivered' })
   })
@@ -318,13 +331,14 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     expect(await read(world.owner, id)).toEqual(winner)
     expect(versionOf(winner)).toBe(versionOf(prepared) + 1)
 
+    const picked = await pickFixed(id, winner)
     const transitions = await Promise.all([
-      status(world.operator, id, { status: 'ready', expectedVersion: winner.version }),
-      status(world.owner, id, { status: 'cancelled', expectedVersion: winner.version, reason: 'Cancelación simultánea' }),
+      status(world.operator, id, { status: 'ready', expectedVersion: picked.version }),
+      status(world.owner, id, { status: 'cancelled', expectedVersion: picked.version, reason: 'Cancelación simultánea' }),
     ])
     expect(transitions.map(statusOf).sort()).toEqual([200, 409])
     const after = await read(world.owner, id)
-    expect(versionOf(after)).toBe(versionOf(winner) + 1)
+    expect(versionOf(after)).toBe(versionOf(picked) + 1)
     expect(['ready', 'cancelled']).toContain(after.status)
   })
 
@@ -451,9 +465,12 @@ describe.each(['memory', 'postgres'] as const)('ciclo de pedido T-12 por HTTP (%
     expect(stored).toMatchObject({ total: 42000, shipping_cost: null, version: 2, updated_after_created: true })
     expect(stored?.items).toEqual([
       { id: 'prod_leche', name: 'Leche entera 1L', priceAtMoment: 4500, qty: 2 },
-      { id: 'prod_carne', name: 'Carne molida', priceAtMoment: 22000, qty: 1, is_variable_weight: true, kilosRequested: 1.5, kilosReal: 1.5 },
+      { id: 'prod_carne', name: 'Carne molida', priceAtMoment: 22000, qty: 1, is_variable_weight: true, kilosRequested: 1.5, kilosReal: 1.5, picked: true },
     ])
-    expect(ok(await status(world.operator, id, { status: 'ready', expectedVersion: 2 })).status).toBe('ready')
+    // Fila legacy: recibió su referencia en la migración y queda en efectivo.
+    expect(await orders.findById(id)).toMatchObject({ paymentMethod: 'cash', reference: expect.any(Number) })
+    const picked = await pickFixed(id, weighed)
+    expect(ok(await status(world.operator, id, { status: 'ready', expectedVersion: picked.version })).status).toBe('ready')
   })
 
   it('CHECK de 0006: versión positiva y motivo solo con fecha en pedidos cancelados, aun por SQL directo', async () => {

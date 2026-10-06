@@ -1,7 +1,7 @@
 import type { RateLimitRule } from '../auth/AuthRepository.js'
 import type { Order } from './Order.js'
 import { z } from 'zod'
-import { entityIdSchema, orderDtoSchema } from '../../../../shared/contracts/index.js'
+import { DEFAULT_PAYMENT_METHOD, entityIdSchema, orderDtoSchema } from '../../../../shared/contracts/index.js'
 import { DomainError } from '../../shared/errors.js'
 
 export interface OrderCreationIdentity {
@@ -12,7 +12,10 @@ export interface OrderCreationIdentity {
 
 export interface StoredOrderCreation {
   fingerprint: string
-  /** Snapshot inmutable de creación; los cambios posteriores de estado no alteran el retry. */
+  /**
+   * Snapshot inmutable de creación; los cambios posteriores de estado no alteran el retry. Lleva la
+   * referencia y el método de pago guardados en el pedido (columnas inmutables), no en el snapshot.
+   */
   order: Order
 }
 
@@ -56,6 +59,9 @@ export function decodeCreationOrder(value: unknown): Order {
     deliveryType: dto.deliveryType, deliveryData: dto.deliveryData,
     substitutionPreference: dto.substitutionPreference, estimatedTotal: dto.estimatedTotal,
     createdAt: dto.createdAt,
+    // Snapshots anteriores a ME-01 no guardaban método: esos pedidos son en efectivo.
+    paymentMethod: dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD,
+    ...(dto.reference !== undefined ? { reference: dto.reference } : {}),
     // Snapshots anteriores a T-12 no guardaban versión: todo pedido nace en la 1.
     version: dto.version ?? 1,
     ...(dto.customerPhone !== undefined ? { customerPhone: dto.customerPhone } : {}),

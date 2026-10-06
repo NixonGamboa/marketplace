@@ -4,6 +4,7 @@ import type {
   OrderItemDto,
   OrderProcessingNoticeDto,
   OrderStatus,
+  PaymentMethod,
   SubstitutionPref,
 } from '../../../../shared/contracts/index.js'
 
@@ -29,6 +30,13 @@ export interface Order {
   deliveryType: DeliveryType
   deliveryData: DeliveryDataDto
   substitutionPreference: SubstitutionPref
+  /** Método elegido al pedir (ME-01); inmutable. Pedidos anteriores: `cash` (default de la columna). */
+  paymentMethod: PaymentMethod
+  /**
+   * Referencia comercial por tienda (ME-04), asignada por la base de datos al insertar e inmutable.
+   * Ausente solo antes de persistir el pedido.
+   */
+  reference?: number
   /** Snapshot del envío; ausente en pedidos legacy. */
   shippingCost?: number
   /** Estimación original (ítems con peso solicitado + envío). */

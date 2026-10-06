@@ -1,3 +1,9 @@
+/**
+ * CONGELADO: `shared/contracts/orders.ts` tal como se publicó en `mvp-1.0.1` (commit 6bce877), con las
+ * rutas de import ajustadas y el `orderListResponseSchema` de `orderList.ts` de esa versión al final.
+ * Es lo que valida una PWA o un admin anterior que sigue en caché: no se edita. Las primitivas que importa
+ * (`common`, `store`, `orderEnums`, `orderPricing`) no cambiaron desde esa versión.
+ */
 import { z } from 'zod'
 import {
   canonicalMobileSchema,
@@ -5,16 +11,15 @@ import {
   entityIdSchema,
   isoUtcSchema,
   mobileInputSchema,
-} from './common.js'
+} from '../../../../shared/contracts/common.js'
 import {
   DELIVERY_TYPE_VALUES,
   ORDER_STATUS_VALUES,
-  PAYMENT_METHOD_VALUES,
   SUBSTITUTION_PREF_VALUES,
   TIME_SLOT_VALUES,
-} from './orderEnums.js'
-import { isGramPrecision } from './orderPricing.js'
-import { localDateSchema, orderProcessingNoticeSchema } from './store.js'
+} from '../../../../shared/contracts/orderEnums.js'
+import { isGramPrecision } from '../../../../shared/contracts/orderPricing.js'
+import { localDateSchema, orderProcessingNoticeSchema } from '../../../../shared/contracts/store.js'
 
 /**
  * Contrato único de pedidos. DTO de cliente/público, NO el modelo interno.
@@ -84,7 +89,6 @@ interface WeightRuleItem {
   is_variable_weight?: boolean | undefined
   kilosRequested?: number | undefined
   kilosReal?: number | undefined
-  picked?: true | undefined
 }
 
 const refineWeightRules = (item: WeightRuleItem, ctx: z.RefinementCtx): void => {
@@ -96,7 +100,6 @@ const refineWeightRules = (item: WeightRuleItem, ctx: z.RefinementCtx): void => 
       issue('kilosRequested', 'Requerido en productos de peso variable')
     }
     if (item.qty !== 1) issue('qty', 'En peso variable qty debe ser 1')
-    if (item.picked && item.kilosReal === undefined) issue('picked', 'Un producto de peso variable se alista con su peso real')
     return
   }
   if (item.kilosRequested !== undefined) {
@@ -120,8 +123,6 @@ export const orderItemInputSchema = z
 /**
  * Ítem persistido/expuesto: snapshot + peso real pesado por el aliado (`kilosReal`).
  * `substitutedFor`: ID del producto pedido originalmente cuando esta línea lo sustituye (T-12).
- * `picked` (ME-03, contrato v2): el personal ya lo alistó; ausente = sin alistar. En peso variable
- * exige el peso real: guardarlo marca la línea y borrarlo la desmarca; desmarcar conserva el peso.
  */
 export const orderItemSchema = z
   .object({
@@ -129,7 +130,6 @@ export const orderItemSchema = z
     unit: unitSnapshotSchema.optional(),
     kilosReal: kilosSchema.optional(),
     substitutedFor: entityIdSchema.optional(),
-    picked: z.literal(true).optional(),
   })
   .strict()
   .superRefine(refineWeightRules)
@@ -211,8 +211,6 @@ export const createOrderRequestSchema = z
     deliveryData: deliveryDataSchema,
     customerName: customerNameSchema,
     customerPhone: mobileInputSchema,
-    /** Cómo pagará al recibir o recoger (ME-01). Opcional: sin elegir es `cash`, como los clientes anteriores. */
-    paymentMethod: z.enum(PAYMENT_METHOD_VALUES).optional(),
     /** LEGACY ignorado: el envío lo cotiza el servidor con las reglas de la tienda. */
     shippingCost: copAmountSchema.optional(),
   })
@@ -258,20 +256,8 @@ export const updateOrderStatusRequestSchema = z
     }
   })
 
-/**
- * Peso real de una línea de peso variable. Un peso válido la marca como alistada; `null` (ME-03) borra
- * el peso y la desmarca.
- */
 const weightChangeSchema = z
-  .object({ type: z.literal('weight'), itemId: entityIdSchema, kilosReal: kilosSchema.nullable() })
-  .strict()
-
-/**
- * Marca de alistado (ME-03). Desmarcar conserva el peso; marcar una línea de peso variable exige
- * que ya tenga su peso real. No cambia importes.
- */
-const pickChangeSchema = z
-  .object({ type: z.literal('pick'), itemId: entityIdSchema, picked: z.boolean() })
+  .object({ type: z.literal('weight'), itemId: entityIdSchema, kilosReal: kilosSchema })
   .strict()
 
 /**
@@ -288,7 +274,7 @@ const removeChangeSchema = z
 /**
  * Sustituye la línea `itemId` por `productId` del catálogo de la misma tienda. Nombre, unidad,
  * precio y peso variable salen del catálogo; `qty`/`kilosRequested` siguen las reglas de creación
- * y `kilosReal` permite registrar el peso del sustituto; el sustituto siempre entra sin alistar (ME-03).
+ * y `kilosReal` permite pesar el sustituto en el mismo cambio.
  */
 const substituteChangeSchema = z
   .object({
@@ -304,7 +290,6 @@ const substituteChangeSchema = z
 
 export const orderItemChangeSchema = z.discriminatedUnion('type', [
   weightChangeSchema,
-  pickChangeSchema,
   removeChangeSchema,
   substituteChangeSchema,
 ])
@@ -340,18 +325,8 @@ export const updateOrderItemsRequestSchema = z
   .strict()
 
 /**
- * Referencia comercial del pedido (ME-04): consecutiva por tienda, asignada por la base de datos al
- * guardarlo y nunca cambia. Admite saltos. Es solo un nombre legible: no autoriza ni reemplaza `orderId`.
- */
-export const orderReferenceSchema = z.number().int().min(1).max(2_147_483_647)
-
-/** «Pedido #001248»: seis cifras con ceros a la izquierda; desde 1 000 000 se muestra completo, sin cortar. */
-export const formatOrderReference = (reference: number): string => `Pedido #${String(reference).padStart(6, '0')}`
-
-/**
  * Respuesta de POST /api/orders. `processingNotice` y `timeSlotDate` son el snapshot persistido con el
  * pedido (iguales en reintentos idempotentes); el aviso falta si se recibió con la tienda atendiendo.
- * `reference` (contrato v2) es la misma en cada reintento.
  */
 export const orderConfirmationSchema = z
   .object({
@@ -360,7 +335,6 @@ export const orderConfirmationSchema = z
     estimatedTotal: copAmountSchema,
     processingNotice: orderProcessingNoticeSchema.optional(),
     timeSlotDate: localDateSchema.optional(),
-    reference: orderReferenceSchema.optional(),
   })
   .strict()
 
@@ -407,10 +381,6 @@ export const orderDtoSchema = z
      * entrega ni recogida. Ausente sin franja, con fecha desconocida (cierre manual) y en pedidos anteriores.
      */
     timeSlotDate: localDateSchema.optional(),
-    /** Referencia comercial (contrato v2); el servidor siempre la envía. Opcional solo por datos demo. */
-    reference: orderReferenceSchema.optional(),
-    /** Método de pago elegido (contrato v2); el servidor siempre lo envía (`cash` en pedidos anteriores). */
-    paymentMethod: z.enum(PAYMENT_METHOD_VALUES).optional(),
   })
   .strict()
   .superRefine(refineDeliveryRules)
@@ -442,14 +412,6 @@ export const orderDtoSchema = z
     }
   })
 
-/**
- * Líneas que impiden pasar a `ready` (ME-03): toda línea vigente (las retiradas ya no están en `items`)
- * debe estar alistada y, si es de peso variable, tener su peso real.
- */
-export const pendingPickItems = <T extends Pick<WeightRuleItem, 'is_variable_weight' | 'kilosReal' | 'picked'>>(
-  items: readonly T[],
-): T[] => items.filter((item) => item.picked !== true || (item.is_variable_weight === true && item.kilosReal === undefined))
-
 export type OrderItemInput = z.infer<typeof orderItemInputSchema>
 export type OrderItemDto = z.infer<typeof orderItemSchema>
 export type DeliveryDataDto = z.infer<typeof deliveryDataSchema>
@@ -459,3 +421,10 @@ export type OrderItemChange = z.infer<typeof orderItemChangeSchema>
 export type UpdateOrderItemsRequest = z.infer<typeof updateOrderItemsRequestSchema>
 export type OrderConfirmationDto = z.infer<typeof orderConfirmationSchema>
 export type OrderDto = z.infer<typeof orderDtoSchema>
+
+export const orderListResponseSchema = z
+  .object({
+    items: z.array(orderDtoSchema).max(100),
+    nextCursor: z.string().min(1).max(512).nullable(),
+  })
+  .strict()

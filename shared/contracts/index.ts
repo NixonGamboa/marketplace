@@ -1,6 +1,7 @@
 export * from './auth.js'
 export * from './catalog.js'
 export * from './common.js'
+export * from './contractVersion.js'
 export * from './errors.js'
 export * from './media.js'
 export * from './orderEnums.js'

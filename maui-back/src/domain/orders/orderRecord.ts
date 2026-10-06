@@ -3,6 +3,7 @@ import {
   entityIdSchema,
   isDeliveryType,
   isOrderStatus,
+  isPaymentMethod,
   isSubstitutionPref,
   isTimeSlot,
   normalizeColombianMobile,
@@ -12,6 +13,7 @@ import type {
   DeliveryDataDto,
   DeliveryType,
   OrderItemDto,
+  PaymentMethod,
   SubstitutionPref,
 } from '../../../../shared/contracts/index.js'
 import type { Order, OrderItemAdjustment } from './Order.js'
@@ -26,6 +28,8 @@ import type { Order, OrderItemAdjustment } from './Order.js'
  *  - sustitución `ask|allow|none` → `call_me|similar|remove`.
  *  - `total` legacy (solo ítems, sin envío) → `estimatedTotal`; `shipping_cost`/`final_total` NULL = desconocido.
  *  - `customer_phone` se normaliza a canónico (`57…`); si no es recuperable se omite.
+ *  - `payment_method` y `reference_number` (0008, ME-01/ME-04): la migración da `cash` y una referencia
+ *    a todas las filas; la referencia la asigna la base de datos al insertar.
  */
 
 export interface LegacyOrderItem {
@@ -68,6 +72,10 @@ export interface StoredOrderRecord {
   itemAdjustments: OrderItemAdjustment[] | null
   cancellationReason: string | null
   cancelledAt: string | null
+  /** Columna `payment_method` (0008): `cash` por defecto, también en filas anteriores. */
+  paymentMethod: string
+  /** Columna `reference_number` (0008): `null` solo antes de insertar; el trigger la asigna. */
+  referenceNumber: number | null
 }
 
 const LEGACY_SUBSTITUTION: Record<string, SubstitutionPref> = {
@@ -117,6 +125,11 @@ export const substitutionFromStored = (value: string): SubstitutionPref => {
   return mapped
 }
 
+const paymentMethodFromStored = (value: string): PaymentMethod => {
+  if (!isPaymentMethod(value)) throw new Error(`Método de pago desconocido: ${value}`)
+  return value
+}
+
 const deliveryTypeFromStored = (value: string): DeliveryType => {
   if (!isDeliveryType(value)) throw new Error(`Modalidad de entrega desconocida: ${value}`)
   return value
@@ -156,6 +169,8 @@ export const orderFromRecord = (record: StoredOrderRecord): Order => {
     deliveryType,
     deliveryData: deliveryDataFromRecord(record, deliveryType),
     substitutionPreference: substitutionFromStored(record.substitutionPreference),
+    paymentMethod: paymentMethodFromStored(record.paymentMethod),
+    ...(record.referenceNumber !== null ? { reference: record.referenceNumber } : {}),
     ...(record.shippingCost !== null ? { shippingCost: record.shippingCost } : {}),
     estimatedTotal: record.total,
     ...(record.finalTotal !== null ? { finalTotal: record.finalTotal } : {}),
@@ -195,4 +210,6 @@ export const orderToRecord = (order: Order): StoredOrderRecord => ({
   itemAdjustments: order.itemAdjustments ?? null,
   cancellationReason: order.cancellationReason ?? null,
   cancelledAt: order.cancelledAt ?? null,
+  paymentMethod: order.paymentMethod,
+  referenceNumber: order.reference ?? null,
 })

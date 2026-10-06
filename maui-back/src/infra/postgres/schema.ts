@@ -64,9 +64,17 @@ export const ordersTable = pgTable(
     itemAdjustments: jsonb('item_adjustments').$type<OrderItemAdjustment[]>(),
     cancellationReason: text('cancellation_reason'),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'string' }),
+    // Añadidas en 0008 (ME-01/ME-04). Filas previas: efectivo y referencia por orden de creación.
+    paymentMethod: text('payment_method').notNull().default('cash'),
+    /** Asignada por el trigger `maui_assign_order_reference` al insertar; inmutable. */
+    referenceNumber: integer('reference_number').notNull(),
   },
   (t) => ({
     versionValid: check('orders_version_positive', sql`${t.version} >= 1`),
+    paymentMethodValid: check('orders_payment_method_valid', sql`${t.paymentMethod} in ('cash', 'qr', 'bre_b')`),
+    referencePositive: check('orders_reference_positive', sql`${t.referenceNumber} >= 1`),
+    // ME-04: la unicidad por tienda la garantiza la base de datos, no el contador.
+    storeReference: uniqueIndex('orders_store_reference_unique').on(t.storeId, t.referenceNumber),
     // Cancelaciones legacy no tienen motivo; uno nuevo siempre va con fecha y estado cancelado.
     cancellationShape: check(
       'orders_cancellation_shape',
@@ -78,6 +86,18 @@ export const ordersTable = pgTable(
     byCustomerRecent: index('orders_by_customer_recent').on(t.customerId, t.createdAt.desc(), t.id.desc()),
   }),
 )
+
+/**
+ * Último número de referencia asignado por tienda (ME-04). Solo lo escribe el trigger de `orders`, que
+ * bloquea la fila hasta el fin de la transacción: dos creaciones simultáneas no comparten número y un
+ * rollback no deja huecos (los saltos se aceptan). Nunca baja, así un número borrado no se reutiliza.
+ */
+export const orderReferenceCountersTable = pgTable('order_reference_counters', {
+  storeId: text('store_id').primaryKey(),
+  lastValue: integer('last_value').notNull(),
+}, (t) => ({
+  lastValuePositive: check('order_reference_counters_positive', sql`${t.lastValue} >= 1`),
+}))
 
 /**
  * Cuentas (T-05). Cliente: `phone` único (contacto no verificado), sin email ni tienda.

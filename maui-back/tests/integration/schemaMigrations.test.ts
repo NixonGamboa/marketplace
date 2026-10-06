@@ -99,7 +99,7 @@ describe('migraciones y esquema PostgreSQL', () => {
     it('las funciones transaccionales existen, se ejecutan con los privilegios de quien las llama y fijan search_path', async () => {
       const functions = await rows<{ name: string; definer: boolean; config: string[] | null }>(`
         select proname as name, prosecdef as definer, proconfig as config from pg_proc where pronamespace = 'public'::regnamespace order by proname`)
-      expect(functions.map(fn => fn.name)).toEqual(['maui_commit_order', 'maui_commit_order_audited'])
+      expect(functions.map(fn => fn.name)).toEqual(['maui_assign_order_reference', 'maui_commit_order', 'maui_commit_order_audited'])
       for (const fn of functions) {
         expect(fn.definer, fn.name).toBe(false)
         expect(fn.config, fn.name).toEqual(['search_path=pg_catalog'])

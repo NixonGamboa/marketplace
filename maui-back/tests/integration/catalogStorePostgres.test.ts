@@ -53,11 +53,11 @@ describe('catálogo y tienda sobre PostgreSQL embebido con adapters reales', () 
       `select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
     )
     expect(rows.map((r) => r.table_name)).toEqual([
-      'audit_events', 'auth_accounts', 'auth_rate_limits', 'auth_sessions', 'catalog_categories', 'catalog_products', 'order_creations', 'orders', 'stores',
+      'audit_events', 'auth_accounts', 'auth_rate_limits', 'auth_sessions', 'catalog_categories', 'catalog_products', 'order_creations', 'order_reference_counters', 'orders', 'stores',
     ])
     const orderColumns = await embedded.pg.query(`select column_name from information_schema.columns where table_name = 'orders'`)
-    // 18 columnas previas intactas; 0006 (T-12) añade 6 al final.
-    expect(orderColumns.rows).toHaveLength(24)
+    // 18 columnas previas intactas; 0006 (T-12) añade 6 y 0008 (ME-01/ME-04) 2 al final.
+    expect(orderColumns.rows).toHaveLength(26)
   })
 
   it('tienda: JSONB y columnas ida y vuelta; inicialización idempotente; versión condicionada', async () => {

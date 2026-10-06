@@ -1,4 +1,5 @@
-import { issuesFromZodError, updateOrderItemsRequestSchema } from '../../../../shared/contracts/index.js'
+import { issuesFromZodError, updateOrderItemsRequestSchema, type OrderItemChange } from '../../../../shared/contracts/index.js'
+import type { OrderAuditChanges } from '../../domain/audit/orderAudit.js'
 import type { CatalogRepository } from '../../domain/catalog/CatalogRepository.js'
 import type { Order } from '../../domain/orders/Order.js'
 import { assertCanManageOrder, type OrderActor } from '../../domain/orders/orderAccess.js'
@@ -33,11 +34,18 @@ export const updateOrderItems = async (
 
   const next = applyItemChanges(current, changes, catalog, context)
   const used = products.flatMap((product) => (product ? [{ id: product.id, version: product.version }] : []))
-  return commitOrderChange(deps, current, next, used, changes.map(change => ({
-    type: change.type, itemId: change.itemId,
-    ...(change.type === 'substitute' ? { productId: change.productId, qty: change.qty,
-      ...(change.kilosRequested !== undefined ? { kilosRequested: change.kilosRequested } : {}) } : {}),
-    ...('kilosReal' in change && change.kilosReal !== undefined ? { kilosReal: change.kilosReal } : {}),
-    ...('customerContacted' in change ? { customerContacted: change.customerContacted ?? false } : {}),
-  })))
+  return commitOrderChange(deps, current, next, used, auditedChanges(changes))
 }
+
+/**
+ * Detalle permitido por el contrato de auditoría v1, que el admin anterior sigue leyendo: las marcas de
+ * alistado no tienen entrada (el evento conserva actor, fecha y versiones) y un peso borrado es un
+ * cambio `weight` sin `kilosReal`.
+ */
+const auditedChanges = (changes: readonly OrderItemChange[]): OrderAuditChanges => changes.flatMap(change => change.type === 'pick' ? [] : [{
+  type: change.type, itemId: change.itemId,
+  ...(change.type === 'substitute' ? { productId: change.productId, qty: change.qty,
+    ...(change.kilosRequested !== undefined ? { kilosRequested: change.kilosRequested } : {}) } : {}),
+  ...('kilosReal' in change && change.kilosReal !== undefined && change.kilosReal !== null ? { kilosReal: change.kilosReal } : {}),
+  ...('customerContacted' in change ? { customerContacted: change.customerContacted ?? false } : {}),
+}])

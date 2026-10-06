@@ -1,8 +1,12 @@
 import {
+  toV1OrderConfirmation,
+  toV1OrderDto,
+  toV1OrderList,
   orderConfirmationSchema,
   orderDtoSchema,
   orderListResponseSchema,
   type DeliveryDataDto,
+  type ContractVersion,
   type OrderConfirmationDto,
   type OrderListResponse,
   type OrderDto,
@@ -21,6 +25,7 @@ const toItemDto = (item: OrderItemDto): OrderItemDto => ({
   ...(item.kilosRequested !== undefined ? { kilosRequested: item.kilosRequested } : {}),
   ...(item.kilosReal !== undefined ? { kilosReal: item.kilosReal } : {}),
   ...(item.substitutedFor !== undefined ? { substitutedFor: item.substitutedFor } : {}),
+  ...(item.picked === true ? { picked: true as const } : {}),
 })
 
 const toDeliveryDataDto = (data: DeliveryDataDto): DeliveryDataDto => ({
@@ -58,6 +63,8 @@ export const toOrderDto = (order: Order): OrderDto =>
     ...(order.cancelledAt !== undefined ? { cancelledAt: order.cancelledAt } : {}),
     ...(order.processingNotice !== undefined ? { processingNotice: order.processingNotice } : {}),
     ...(order.timeSlotDate !== undefined ? { timeSlotDate: order.timeSlotDate } : {}),
+    ...(order.reference !== undefined ? { reference: order.reference } : {}),
+    paymentMethod: order.paymentMethod,
   })
 
 /** Página del listado: cada pedido sale por el mismo DTO canónico que el detalle. */
@@ -72,4 +79,18 @@ export const toOrderConfirmation = (order: Order): OrderConfirmationDto =>
     estimatedTotal: order.estimatedTotal,
     ...(order.processingNotice !== undefined ? { processingNotice: order.processingNotice } : {}),
     ...(order.timeSlotDate !== undefined ? { timeSlotDate: order.timeSlotDate } : {}),
+    ...(order.reference !== undefined ? { reference: order.reference } : {}),
   })
+
+/**
+ * Respuestas según el contrato negociado (`contractVersionFrom`): v2 completo o la forma v1 exacta que
+ * siguen validando las apps anteriores. Siempre se valida primero el DTO v2.
+ */
+export const toOrderDtoFor = (order: Order, version: ContractVersion): OrderDto =>
+  version === 2 ? toOrderDto(order) : toV1OrderDto(toOrderDto(order))
+
+export const toOrderListResponseFor = (page: { items: Order[]; nextCursor: string | null }, version: ContractVersion): OrderListResponse =>
+  version === 2 ? toOrderListResponse(page) : toV1OrderList(toOrderListResponse(page))
+
+export const toOrderConfirmationFor = (order: Order, version: ContractVersion): OrderConfirmationDto =>
+  version === 2 ? toOrderConfirmation(order) : toV1OrderConfirmation(toOrderConfirmation(order))

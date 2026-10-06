@@ -2,6 +2,29 @@
 
 Backend real de MAUI. Vercel Functions + Neon Postgres.
 
+## Pago, alistado, reapertura y referencia (ME-01, ME-03, ME-04)
+
+Contrato v2 negociado con `X-Maui-Contract: 2`; sin la cabecera las respuestas de pedidos conservan la forma
+de 1.0.1 para las PWA/admin en caché (ver [contratos](../shared/contracts/README.md)). Reglas del servidor:
+
+- **Pago:** `paymentMethod` se guarda en `orders.payment_method` (inmutable, `cash` por defecto). La huella de
+  idempotencia omite `cash`, de modo que los reintentos de clientes anteriores no cambian; otro método con la
+  misma clave es 409 `IDEMPOTENCY_KEY_REUSED`.
+- **Alistado:** la marca vive en cada ítem (`items` JSONB), solo en `preparing`, con la misma versión
+  optimista (409) y auditoría. Pasar a `ready` exige cada línea vigente marcada y pesada (400 con
+  `items.N.picked`); no hay excepción. `ready` → `preparing` lo hacen owner/operator con `expectedVersion`,
+  conservando ítems, marcas, pesos, total, snapshots e historial.
+- **Referencia:** el trigger `orders_assign_reference` la asigna dentro del INSERT con un upsert sobre
+  `order_reference_counters` (bloquea la fila de la tienda hasta el commit; sin MAX+1). Índice único
+  `(store_id, reference_number)`; el contador nunca baja, así un número borrado no se reutiliza (se aceptan
+  saltos); un UPDATE de la referencia o de la tienda falla. Reintento idempotente: mismo número.
+
+Migración aditiva `0008_orders_payment_reference`, idempotente sentencia a sentencia (el migrador Neon HTTP no
+usa transacción común): columnas, numeración de los pedidos anteriores por tienda y orden de creación en un
+único bloque bajo `LOCK`, trigger y redefinición de `maui_commit_order` con la misma firma. El snapshot de
+creación conserva la forma anterior: la API 1.0.1 sigue funcionando sobre el esquema nuevo. Pendiente aplicarla
+en Neon test con la verificación de destino/ledger habitual.
+
 ## Observabilidad y recuperación de test (T-21)
 
 Las 12 Functions añaden `X-Request-Id` y logs JSON saneados de status/latencia, pedidos

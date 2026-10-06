@@ -31,7 +31,7 @@ describe('auditoría memory y contrato seguro', () => {
     expect((await list()).items.filter(event => event.action === 'updated')).toHaveLength(1)
     expect((await list()).items.find(event => event.action === 'updated')).toMatchObject({ actorId: actor.id, metadata: { fields: ['price'], previousVersion: 1, version: 2 } })
     const order = { ...internalOrder(), id: 'audit-order', storeId: actor.storeId }
-    await orders.create(order)
+    const stored = await orders.create(order)
     expect((await list()).items.find(event => event.entityId === order.id)).toMatchObject({ actorKind: 'system', actorId: null, metadata: { version: order.version } })
     const before = (await list()).items.length
     const spy = vi.spyOn(audit, 'append').mockImplementation(() => { throw new AuditPersistenceError() })
@@ -41,7 +41,7 @@ describe('auditoría memory y contrato seguro', () => {
       await expect(orders.saveChange({ expected: order, next: { ...order, status: 'confirmed', version: 2, updatedBy: actor.id }, products: [] })).rejects.toBeInstanceOf(AuditPersistenceError)
       expect(await catalog.findProduct(actor.storeId, product.id)).toEqual(updated)
       expect(await store.findSettings(actor.storeId)).toEqual(settings)
-      expect(await orders.findById(order.id)).toEqual(order)
+      expect(await orders.findById(order.id)).toEqual(stored)
       expect((await list()).items).toHaveLength(before)
     } finally { spy.mockRestore() }
   })

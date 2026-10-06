@@ -196,7 +196,7 @@ describe('resultado reproducible', () => {
     const world = await startSeedWorld()
     try {
       const journal = JSON.parse(readFileSync(new URL('../../src/infra/postgres/migrations/meta/_journal.json', import.meta.url), 'utf8')) as { entries: unknown[] }
-      expect(journal.entries).toHaveLength(8)
+      expect(journal.entries).toHaveLength(9)
       expect(await world.deps.inspector.schemaStatus()).toEqual({ missing: [], ledgerEntries: null })
       const preflight = await inspectSeed(world.deps.inspector)
       expect(preflight.conflicts).toEqual([])
