@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, ShoppingBag } from 'lucide-react'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { Order } from '@/types/orderService'
 import { phoneLast4 } from '@/lib/phone'
 import { playNewOrderSound } from '@/lib/audio'
@@ -90,7 +91,7 @@ export function NewOrderAlert() {
               <ShoppingBag className="w-4 h-4 shrink-0" aria-hidden />
               <span>
                 Nuevo pedido: <strong>{order.customerName}{phoneSuffix}</strong>
-                <span className="ml-2 opacity-75 font-normal">{order.orderId}</span>
+                <span className="ml-2 opacity-75 font-normal">{orderReferenceLabel(order)}</span>
               </span>
             </button>
             <button

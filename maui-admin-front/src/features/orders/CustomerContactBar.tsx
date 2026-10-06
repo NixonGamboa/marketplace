@@ -2,49 +2,28 @@
  * @spec ADR-007, §12, TASK-017 — Barra de contacto con el cliente.
  * Usa SÓLO order.customerPhone — nunca merchant.whatsapp (ADR-007).
  * Si customerPhone está ausente muestra un hint informativo.
+ * Contactar es siempre una acción secundaria (ME-03): la acción principal del pedido vive en el pie.
  */
 import { Phone, Copy } from 'lucide-react'
 import type { OrderStatus } from '@/types/orderService'
 import { normalizePhone, formatPhonePretty } from '@/lib/phone'
 import { copyToClipboard } from '@/lib/clipboard'
 import { useToast } from '@/ui/Toast'
+import { messageForStatus } from './orderPresentation'
 import { WhatsAppLink } from './WhatsAppLink'
-
-/** Mensaje de WhatsApp adaptado al estado del pedido (ADR-007). */
-export function messageForStatus(status: OrderStatus, orderId: string): string {
-  switch (status) {
-    case 'received':
-      return `Tu pedido ${orderId} fue recibido. Si necesito consultarte alguna sustitución te aviso.`
-    case 'confirmed':
-      return `Tu pedido ${orderId} fue confirmado y estamos alistándolo.`
-    case 'preparing':
-      return `Tu pedido ${orderId} ya está en preparación.`
-    case 'ready':
-      return `Tu pedido ${orderId} está listo para recoger o ser enviado.`
-    case 'in_delivery':
-      return `Tu pedido ${orderId} va en camino.`
-    case 'delivered':
-      return `Tu pedido ${orderId} fue entregado. ¡Gracias por tu compra!`
-    case 'cancelled':
-      return `Tu pedido ${orderId} fue cancelado. Escríbenos si necesitas ayuda.`
-    default:
-      return `Actualización sobre tu pedido ${orderId}.`
-  }
-}
 
 interface CustomerContactBarProps {
   customerName: string
   customerPhone?: string
-  orderId: string
+  /** Referencia comercial («Pedido #001248»), la misma que ve el cliente en todos los canales. */
+  reference: string
   status: OrderStatus
 }
 
-export function CustomerContactBar({
-  customerName,
-  customerPhone,
-  orderId,
-  status,
-}: CustomerContactBarProps) {
+const SECONDARY_LINK =
+  'inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50'
+
+export function CustomerContactBar({ customerName, customerPhone, reference, status }: CustomerContactBarProps) {
   const toast = useToast()
   const normalized = customerPhone ? normalizePhone(customerPhone) : ''
   const pretty = customerPhone ? formatPhonePretty(customerPhone) : ''
@@ -57,40 +36,23 @@ export function CustomerContactBar({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+    <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
       <div className="mb-3">
         <p className="font-semibold text-gray-900">{customerName}</p>
         {customerPhone
-          ? <p className="text-sm text-gray-600 mt-0.5">{pretty}</p>
-          : <p className="text-xs text-gray-400 mt-0.5 italic">Sin teléfono en el pedido</p>
-        }
+          ? <p className="mt-0.5 text-sm text-gray-600">{pretty}</p>
+          : <p className="mt-0.5 text-xs italic text-gray-400">Sin teléfono en el pedido</p>}
       </div>
 
       {customerPhone ? (
         <div className="flex flex-wrap gap-2">
-          {/* CTA primario: WhatsApp al cliente */}
-          <WhatsAppLink
-            phone={normalized}
-            message={messageForStatus(status, orderId)}
-            label="WhatsApp"
-          />
-
-          {/* CTA primario: llamar */}
-          <a
-            href={`tel:${normalized}`}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
-          >
-            <Phone className="w-4 h-4" aria-hidden />
+          <WhatsAppLink phone={normalized} message={messageForStatus(status, reference)} />
+          <a href={`tel:${normalized}`} className={SECONDARY_LINK}>
+            <Phone className="h-4 w-4" aria-hidden />
             Llamar
           </a>
-
-          {/* CTA secundario: copiar teléfono */}
-          <button
-            type="button"
-            onClick={handleCopyPhone}
-            className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium rounded-xl transition"
-          >
-            <Copy className="w-4 h-4" aria-hidden />
+          <button type="button" onClick={handleCopyPhone} className={SECONDARY_LINK}>
+            <Copy className="h-4 w-4" aria-hidden />
             Copiar teléfono
           </button>
         </div>

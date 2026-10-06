@@ -1,282 +1,363 @@
 /**
  * @spec §12, §13, CU-3..5, US-4/5, ADR-006, ADR-007, TASK-017
- * Detalle de un pedido: pesos reales, cancelación, contacto cliente, picking list.
+ * Detalle de un pedido según su estado (ME-03): una acción principal al pie, contacto secundario, cancelar en
+ * una zona aparte y, en «Preparando», una sola lista de alistamiento con guardado automático.
  */
-import { useEffect, useLayoutEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { calculateOrderTotals } from '@shared/contracts'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { OrderStatus } from '@/types/orderService'
-import { isCancelled as isOrderCancelled, isTerminal, type AdminOrder } from '@/types/adminOrder'
+import { isCancelled as isOrderCancelled, type AdminOrder } from '@/types/adminOrder'
 import type { Product } from '@/types/catalog'
 import { isDemoMode, orderRepo, catalogRepo } from '@/services'
 import { errorMessage, isConflict, isNotFound } from '@/lib/errorMessage'
 import { RealOrderReceipt } from '@/components/orders/RealOrderReceipt'
-import { describeTimeSlot } from '@shared/receipts'
 import { useSession } from '@/auth/useSession'
 import { useToast } from '@/ui/Toast'
+import { ConfirmDialog } from '@/ui/ConfirmDialog'
 import { latestOrder, orderPollingInterval, startOrderPolling } from '@/lib/orderPolling'
 import { Spinner } from '@/ui/Spinner'
-import { WeightInput } from '@/ui/WeightInput'
 import { Tabs } from '@/ui/Tabs'
 import { StatusBadge } from './StatusBadge'
 import { CustomerContactBar } from './CustomerContactBar'
 import { PickingListView } from './PickingListView'
-import { ItemChangesPanel } from './ItemChangesPanel'
+import { CancelSection } from './CancelSection'
+import { MissingItemDialog } from './MissingItemDialog'
+import { OrderActionFooter } from './OrderActionFooter'
+import { OrderItemsSection, OrderOverview } from './OrderOverview'
+import { PreparationChecklist } from './PreparationChecklist'
+import { focusRow } from './rowFocus'
+import { usePreparationEditor, type PreparationApi } from './usePreparationEditor'
+import {
+  canCancelOrder,
+  canReopenOrder,
+  directDeliveryAction,
+  handoverMessage,
+  handoverTitle,
+  primaryAction,
+  type OrderAction,
+} from './orderActions'
+import { formatCop, itemDisplayName } from './orderPresentation'
 
-// ---------------------------------------------------------------------------
-// State-machine de transiciones
-// ---------------------------------------------------------------------------
+type DetailTab = 'detail' | 'picking' | 'receipt'
 
-const TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
-  received: 'confirmed',
-  confirmed: 'preparing',
-  preparing: 'ready',
-  ready: 'delivered',
-  in_delivery: 'delivered',
+const REOPEN_ACTION: OrderAction = { status: 'preparing', label: 'Reabrir preparación' }
+
+const TRANSITION_TOASTS: Record<OrderStatus, string> = {
+  received: 'Pedido recibido',
+  confirmed: 'Pedido confirmado',
+  preparing: 'Preparación iniciada',
+  ready: 'Pedido listo',
+  in_delivery: 'Salió a domicilio',
+  delivered: 'Pedido entregado',
+  cancelled: 'Pedido cancelado',
 }
 
-const TRANSITION_LABELS: Record<string, string> = {
-  received: 'Confirmar pedido',
-  confirmed: 'Marcar como preparando',
-  preparing: 'Marcar como listo',
-  ready: 'Marcar como entregado',
-  in_delivery: 'Marcar como entregado',
+const PENDING_AT_CONFIRM = 'Hay cambios sin guardar. Revísalos antes de marcar el pedido como listo.'
+
+const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+
+/** Los pedidos cerrados se abren en el comprobante; el resto, en el detalle. */
+const defaultTabFor = (order: AdminOrder): DetailTab =>
+  !isDemoMode && (order.status === 'delivered' || isOrderCancelled(order)) ? 'receipt' : 'detail'
+
+const preparationApi: PreparationApi = {
+  changeItems: (orderId, changes, expectedVersion) => orderRepo.changeItems(orderId, changes, expectedVersion),
+  getById: (orderId) => orderRepo.getById(orderId),
 }
 
-// ---------------------------------------------------------------------------
-// Formatters
-// ---------------------------------------------------------------------------
-
-const dateFormatter = new Intl.DateTimeFormat('es-CO', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-const currencyFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-})
+/** Total que la confirmación de «Listo» muestra: el del servidor o, si aún no llegó, el de los pesos guardados. */
+const finalTotalOf = (order: AdminOrder): number =>
+  order.finalTotal ?? calculateOrderTotals(order.items, order.shippingCost ?? 0).finalTotal ?? order.estimatedTotal
 
 // ---------------------------------------------------------------------------
-// CancelSection — separado para mantener la longitud del padre acotada
+// Vista del pedido ya cargado
 // ---------------------------------------------------------------------------
 
-interface CancelSectionProps {
-  orderId: string
-  by: string
-  /** Versión que el usuario está viendo: el servidor rechaza (409) si otro cambio ganó. */
-  version: number | undefined
-  onCancelled(order: AdminOrder): void
-  onConflict(): void
+interface OrderDetailViewProps {
+  order: AdminOrder
+  productNames: Record<string, string>
+  loadError: string | null
+  tab: DetailTab
+  onTab(tab: DetailTab): void
+  onOrder(order: AdminOrder): void
+  /** Relee el pedido en segundo plano, sin vaciar la pantalla ni perder lo escrito. */
+  onRefresh(): void
 }
 
-function CancelSection({ orderId, by, version, onCancelled, onConflict }: CancelSectionProps) {
-  const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState('')
-  const [busy, setBusy] = useState(false)
+function OrderDetailView({ order, productNames, loadError, tab, onTab, onOrder, onRefresh }: OrderDetailViewProps) {
+  const { session } = useSession()
   const toast = useToast()
-  const valid = reason.trim().length >= 5
+  const by = session?.user.email ?? 'demo'
+  const reference = orderReferenceLabel(order)
 
-  async function handleConfirm() {
-    if (!valid) return
+  const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState<OrderAction | null>(null)
+  const [missingItemId, setMissingItemId] = useState<string | null>(null)
+  // Un segundo toque o un doble manejador no pueden enviar la misma transición dos veces.
+  const transitionLock = useRef(false)
+
+  const editor = usePreparationEditor(order, onOrder, preparationApi)
+
+  const names = useMemo<Record<string, string>>(
+    () => Object.fromEntries(order.items.map((item) => [item.id, itemDisplayName(item, productNames)])),
+    [order.items, productNames],
+  )
+
+  async function runTransition(action: OrderAction) {
+    if (transitionLock.current) return
+    transitionLock.current = true
     setBusy(true)
     try {
-      const updated = await orderRepo.cancel(orderId, reason, by, version)
-      onCancelled(updated as AdminOrder)
-      toast.success('Pedido cancelado')
-      setOpen(false)
+      const updated = await orderRepo.updateStatus(order.orderId, action.status, by, editor.latest().version)
+      onOrder(updated)
+      toast.success(action === REOPEN_ACTION ? 'Preparación reabierta' : TRANSITION_TOASTS[action.status])
     } catch (err) {
-      toast.error(errorMessage(err, 'Error al cancelar'))
-      if (isConflict(err)) {
-        setOpen(false)
-        onConflict()
-      }
+      toast.error(errorMessage(err, 'No se pudo actualizar el estado'))
+      if (isConflict(err)) onRefresh()
     } finally {
+      transitionLock.current = false
       setBusy(false)
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium rounded-lg transition"
-      >
-        Cancelar pedido
-      </button>
-    )
+  function handleAction(action: OrderAction) {
+    if (action.confirmation) setConfirming(action)
+    else void runTransition(action)
   }
 
+  function handleConfirmed() {
+    const action = confirming
+    setConfirming(null)
+    if (!action) return
+    // Algo pudo quedar pendiente después de abrir la confirmación: «Listo» cierra la edición, así que se reevalúa ahora.
+    if (action.confirmation === 'ready' && editor.pendingNow().length > 0) {
+      toast.error(PENDING_AT_CONFIRM)
+      return
+    }
+    void runTransition(action)
+  }
+
+  const isCancelled = isOrderCancelled(order)
+  const preparing = order.status === 'preparing' && !isCancelled
+  const primary = primaryAction(order)
+  const secondary = directDeliveryAction(order)
+  const pendingNames = editor.pending.map((row) => names[row.itemId] ?? 'Producto')
+  const blocked = preparing && editor.pending.length > 0
+    ? {
+        text: `Faltan ${editor.pending.length}: ${pendingNames.join(', ')}`,
+        onJump: () => focusRow(editor.pending[0].itemId, editor.pending[0].issue),
+      }
+    : null
+  // Si un cambio queda pendiente con la confirmación de «Listo» abierta, esta se cierra: no se cierra la edición a medias.
+  const hasPending = editor.pending.length > 0
+  const readyConfirmationOpen = confirming?.confirmation === 'ready'
+  useEffect(() => {
+    if (readyConfirmationOpen && hasPending) {
+      setConfirming(null)
+      toast.error(PENDING_AT_CONFIRM)
+    }
+  }, [readyConfirmationOpen, hasPending, toast])
+
+  // Fuera de «Preparando» la lista no se muestra: lo que no llegó a guardarse se avisa en vez de desaparecer.
+  const unsaved = preparing ? undefined : Object.values(editor.rows).find((row) => row.phase === 'error')
+  const missingItem = missingItemId ? order.items.find((item) => item.id === missingItemId) : undefined
+
+  const tabItems = [
+    { value: 'detail', label: 'Detalle' },
+    { value: 'picking', label: 'Lista de picking' },
+    ...(isDemoMode ? [] : [{ value: 'receipt', label: 'Comprobante' }]),
+  ]
+  const resolvedItems = order.items.map((item) => ({
+    id: item.id,
+    name: names[item.id],
+    qty: item.qty,
+    isVariable: Boolean(item.is_variable_weight),
+    kilosRequested: item.kilosRequested,
+    kilosReal: item.kilosReal,
+    priceAtMoment: item.priceAtMoment,
+  }))
+
   return (
-    <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-      <p className="text-sm font-medium text-red-800 mb-2">Motivo de cancelación (mín. 5 caracteres)</p>
-      <textarea
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        rows={3}
-        className="w-full text-sm border border-red-200 rounded-lg p-2 focus:outline-none focus:border-red-400 resize-none"
-        placeholder="Ej: Cliente no contestó, producto sin stock..."
-        aria-label="Motivo de cancelación"
-      />
-      {!valid && reason.length > 0 && (
-        <p className="text-xs text-red-600 mt-1">Mínimo 5 caracteres</p>
-      )}
-      <div className="flex gap-2 mt-3">
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={!valid || busy}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition"
-        >
-          {busy ? 'Cancelando...' : 'Confirmar cancelación'}
-        </button>
-        <button
-          type="button"
-          onClick={() => { setOpen(false); setReason('') }}
-          className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition"
-        >
-          Volver
-        </button>
+    <article aria-label={`Detalle del pedido ${reference}`}>
+      {loadError && <p role="status" className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{loadError}</p>}
+      <div className="mb-5">
+        <Link to="/pedidos" className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Volver a pedidos
+        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">{reference}</h2>
+            <p className="mt-0.5 text-sm text-gray-500">{dateFormatter.format(new Date(order.createdAt))}</p>
+          </div>
+          <StatusBadge status={order.status} />
+        </div>
       </div>
-    </div>
+
+      {unsaved?.phase === 'error' && (
+        <p role="alert" className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          Hay cambios que no se guardaron. {unsaved.message}
+        </p>
+      )}
+
+      <CustomerContactBar
+        customerName={order.customerName}
+        customerPhone={order.customerPhone}
+        reference={reference}
+        status={order.status}
+      />
+
+      {isCancelled && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-700">Pedido cancelado</p>
+          {order.cancellationReason && <p className="mt-0.5 text-sm text-red-600">Motivo: {order.cancellationReason}</p>}
+          {order.cancelledAt && <p className="mt-0.5 text-xs text-red-600">Cancelado: {dateFormatter.format(new Date(order.cancelledAt))}</p>}
+        </div>
+      )}
+
+      <Tabs items={tabItems} value={tab} onChange={(value) => onTab(value as DetailTab)} />
+
+      <div className="mt-4">
+        {tab === 'detail' && (
+          <div className="space-y-4">
+            <OrderOverview order={order} />
+            {preparing && (
+              <PreparationChecklist
+                order={order}
+                names={names}
+                editor={editor}
+                canResolveMissing={!isDemoMode}
+                onMissing={setMissingItemId}
+              />
+            )}
+            <OrderItemsSection
+              order={order}
+              names={names}
+              listed={order.status !== 'received' && !preparing}
+            />
+            {canCancelOrder(order) && (
+              <CancelSection
+                orderId={order.orderId}
+                by={by}
+                version={order.version}
+                onCancelled={onOrder}
+                onConflict={onRefresh}
+              />
+            )}
+          </div>
+        )}
+
+        {tab === 'receipt' && !isDemoMode && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <RealOrderReceipt key={`${order.orderId}-${order.version ?? 0}`} orderId={order.orderId} />
+          </div>
+        )}
+
+        {tab === 'picking' && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <PickingListView order={order} items={resolvedItems} />
+          </div>
+        )}
+      </div>
+
+      <OrderActionFooter
+        primary={primary}
+        secondary={secondary}
+        canReopen={canReopenOrder(order, session?.user.role)}
+        busy={busy}
+        blocked={blocked}
+        onAction={handleAction}
+        onReopen={() => void runTransition(REOPEN_ACTION)}
+      />
+
+      <ConfirmDialog
+        open={confirming !== null}
+        title={confirming?.confirmation === 'ready' ? 'Marcar pedido como listo' : handoverTitle(order)}
+        message={confirming?.confirmation === 'ready'
+          ? `Total final: ${formatCop(finalTotalOf(order))}. Al continuar se cierran los productos y los pesos; puedes corregirlos con «Reabrir preparación» antes de que el pedido salga o se entregue.`
+          : handoverMessage(order)}
+        confirmLabel="Confirmar"
+        cancelLabel="Volver"
+        onConfirm={handleConfirmed}
+        onCancel={() => setConfirming(null)}
+      />
+
+      {missingItem && (
+        <MissingItemDialog
+          order={order}
+          item={missingItem}
+          name={names[missingItem.id]}
+          reference={reference}
+          editor={editor}
+          onClose={() => setMissingItemId(null)}
+          onApplied={(decision) => {
+            setMissingItemId(null)
+            toast.success(decision === 'remove' ? 'Producto quitado' : 'Producto sustituido')
+          }}
+        />
+      )}
+    </article>
   )
 }
 
 // ---------------------------------------------------------------------------
-// OrderDetailPage
+// OrderDetailPage — carga y sondeo
 // ---------------------------------------------------------------------------
-
-type DetailTab = 'detail' | 'picking' | 'receipt'
 
 export function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
+  // Cada pedido arranca con estado propio: pestaña, errores y borradores no se arrastran de otro pedido.
+  return orderId ? <OrderDetailLoader key={orderId} orderId={orderId} /> : null
+}
+
+function OrderDetailLoader({ orderId }: { orderId: string }) {
   const { session } = useSession()
-  const toast = useToast()
 
   const [order, setOrder] = useState<AdminOrder | null>(null)
   const [productNames, setProductNames] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<{ notFound: boolean; message: string } | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
-  const [activeTab, setActiveTab] = useState<DetailTab>('detail')
-  // Pesos locales: id → kilos
-  const [localWeights, setLocalWeights] = useState<Record<string, number>>({})
-  const [advanceBusy, setAdvanceBusy] = useState(false)
-  const [weightsBusy, setWeightsBusy] = useState(false)
-
-  const by = session?.user.email ?? 'demo'
+  // La pestaña se decide al abrir según el estado; la actualización automática no la cambia.
+  const [tab, setTab] = useState<DetailTab | null>(null)
+  const poll = useRef<{ refresh(): void } | null>(null)
+  const loading = order === null && loadError === null
 
   // El sondeo no pisa una versión posterior ni borra el último estado cuando falla.
   useEffect(() => {
-    if (!orderId) return
     const controller = new AbortController()
-    setOrder(null)
-    setLoading(true)
     setLoadError(null)
-    const poll = startOrderPolling(async (signal) => {
+    const polling = startOrderPolling(async (signal) => {
       const received = await orderRepo.getById(orderId, { signal })
       if (signal.aborted || controller.signal.aborted) return
       setOrder((current) => latestOrder(current, received))
+      setTab((current) => current ?? defaultTabFor(received))
       setLoadError(null)
-      setLoading(false)
       // Los snapshots reales ya traen nombres; solo el demo necesita resolver el catálogo.
       const ids = [...new Set(received.items.filter((item) => !item.name).map((item) => item.id))]
       if (ids.length === 0) return
       const products = await Promise.all(ids.map((id) => catalogRepo.getProduct(id)))
       if (signal.aborted || controller.signal.aborted) return
       const names: Record<string, string> = {}
-      products.forEach((product: Product | null, index) => { names[ids[index]] = product?.name ?? ids[index] })
+      products.forEach((product: Product | null, index) => { if (product) names[ids[index]] = product.name })
       setProductNames(names)
     }, (failure) => {
       if (controller.signal.aborted) return
       setLoadError({ notFound: isNotFound(failure), message: errorMessage(failure, 'No pudimos actualizar el pedido; mostramos el último estado.') })
-      setLoading(false)
     }, isDemoMode ? null : orderPollingInterval())
-    return () => { controller.abort(); poll.stop() }
+    poll.current = polling
+    return () => { controller.abort(); polling.stop(); poll.current = null }
   }, [orderId, session?.user.email, session?.expiresAt, reloadToken])
 
-  // Un 409 significa que otro cambio ganó: se recarga el pedido vigente (los pesos sin guardar se descartan).
-  const reloadOrder = useCallback(() => setReloadToken((value) => value + 1), [])
-
-  // Sincronizar antes de mostrar los inputs: un efecto tardío borraría una edición inmediata.
-  useLayoutEffect(() => {
-    if (!order) return
-    const initial: Record<string, number> = {}
-    for (const item of order.items) {
-      if (item.is_variable_weight && item.kilosReal != null) {
-        initial[item.id] = item.kilosReal
-      }
-    }
-    setLocalWeights(initial)
-  }, [order])
-
-  const handleWeightChange = useCallback((itemId: string, kilos: number) => {
-    setLocalWeights((prev) => ({ ...prev, [itemId]: kilos }))
-  }, [])
-
-  const variableItems = order?.items.filter((i) => i.is_variable_weight) ?? []
-  const allWeightsSet = variableItems.length === 0
-    || variableItems.every((i) => (localWeights[i.id] ?? 0) > 0)
-
-  /** Pesos a enviar: el demo reescribe todos; el servidor solo recibe los que cambiaron (cada envío sube la versión). */
-  function weightsToSend(current: AdminOrder) {
-    return variableItems
-      .filter((i) => isDemoMode || localWeights[i.id] !== current.items.find((c) => c.id === i.id)?.kilosReal)
-      .map((i) => ({ itemId: i.id, kilos: localWeights[i.id] ?? 0 }))
-  }
-
-  async function handleSaveWeights() {
-    if (!order) return
-    const weights = weightsToSend(order)
-    if (weights.length === 0) return
-    setWeightsBusy(true)
-    try {
-      const updated = await orderRepo.setRealWeights(order.orderId, weights, by, order.version)
-      setOrder(updated as AdminOrder)
-      toast.success('Pesos guardados')
-    } catch (err) {
-      toast.error(errorMessage(err, 'No se pudieron guardar los pesos'))
-      if (isConflict(err)) reloadOrder()
-    } finally {
-      setWeightsBusy(false)
-    }
-  }
-
-  async function handleTransition(next: OrderStatus) {
-    if (!order) return
-    setAdvanceBusy(true)
-    let current: AdminOrder = order
-    try {
-      // Si avanzamos a "ready" y hay items variables, guardar pesos primero
-      if (order.status === 'preparing' && variableItems.length > 0) {
-        const weights = weightsToSend(order)
-        if (weights.length > 0) {
-          const weighed = await orderRepo.setRealWeights(order.orderId, weights, by, order.version)
-          current = (weighed ?? order) as AdminOrder
-          setOrder(current)
-        }
-      }
-      const updated = await orderRepo.updateStatus(order.orderId, next, by, current.version)
-      setOrder(updated as AdminOrder)
-      toast.success(`Estado cambiado a ${next}`)
-    } catch (err) {
-      toast.error(errorMessage(err, 'Error al actualizar estado'))
-      if (isConflict(err)) reloadOrder()
-    } finally {
-      setAdvanceBusy(false)
-    }
-  }
-
-  function handleAdvance() {
-    const next = order ? TRANSITIONS[order.status] : undefined
-    if (next) void handleTransition(next)
-  }
+  const refresh = useCallback(() => poll.current?.refresh(), [])
+  const retryLoad = useCallback(() => setReloadToken((value) => value + 1), [])
+  const handleOrder = useCallback((next: AdminOrder) => setOrder((current) => latestOrder(current, next)), [])
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
+      <div className="flex items-center justify-center py-20">
         <Spinner size={32} />
       </div>
     )
@@ -286,277 +367,34 @@ export function OrderDetailPage() {
     const retryable = loadError !== null && !loadError.notFound
     return (
       <div className="py-16 text-center">
-        <p role={retryable ? 'alert' : undefined} className="text-gray-600 mb-4">
+        <p role={retryable ? 'alert' : undefined} className="mb-4 text-gray-600">
           {retryable ? loadError.message : 'Pedido no encontrado.'}
         </p>
         {retryable && (
           <button
             type="button"
-            onClick={reloadOrder}
-            className="mb-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition"
+            onClick={retryLoad}
+            className="mb-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
           >
             Reintentar
           </button>
         )}
-        <Link to="/pedidos" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+        <Link to="/pedidos" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
           ← Volver a pedidos
         </Link>
       </div>
     )
   }
 
-  const isCancelled = isOrderCancelled(order)
-  // Cancelar solo hasta «listo»; en camino y los estados finales no se cancelan (contrato común).
-  const canCancel = !isTerminal(order) && order.status !== 'in_delivery'
-  const { lat, lng } = order.deliveryData
-  const hasValidCoordinates = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90
-    && typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180
-  const nextStatus = TRANSITIONS[order.status]
-  const isPreparingWithVariables = order.status === 'preparing' && variableItems.length > 0
-  const canAdvance = !isCancelled && !!nextStatus && (!isPreparingWithVariables || allWeightsSet)
-
-  const weightsEditable = isDemoMode ? !isCancelled && order.status !== 'delivered' : order.status === 'preparing'
-  const canMarkInDelivery = !isDemoMode && order.status === 'ready' && order.deliveryType === 'delivery'
-  const pendingWeights = !isDemoMode && order.status === 'preparing' && weightsToSend(order).length > 0
-  const itemNames: Record<string, string> = Object.fromEntries(
-    order.items.map((item) => [item.id, item.name ?? productNames[item.id] ?? item.id]),
-  )
-  const removedOriginals = (order.originalItems ?? []).filter((original) => !order.items.some((item) => item.id === original.id))
-
-  const resolvedItems = order.items.map((item) => ({
-    id: item.id,
-    name: itemNames[item.id],
-    qty: item.qty,
-    isVariable: Boolean(item.is_variable_weight),
-    kilosRequested: item.kilosRequested,
-    kilosReal: localWeights[item.id] ?? item.kilosReal,
-    priceAtMoment: item.priceAtMoment,
-  }))
-
-  const tabItems = [
-    { value: 'detail', label: 'Detalle' },
-    { value: 'picking', label: 'Lista de picking' },
-    ...(isDemoMode ? [] : [{ value: 'receipt', label: 'Comprobante' }]),
-  ]
-
   return (
-    <article aria-label={`Detalle del pedido ${order.orderId}`}>
-      {loadError && <p role="status" className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{loadError.message}</p>}
-      {/* Navegación */}
-      <div className="mb-5">
-        <Link
-          to="/pedidos"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3"
-        >
-          <ArrowLeft className="w-4 h-4" aria-hidden />
-          Volver a pedidos
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{order.orderId}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {dateFormatter.format(new Date(order.createdAt))}
-            </p>
-          </div>
-          <StatusBadge status={order.status} />
-        </div>
-      </div>
-
-      {/* Contacto con el cliente (ADR-007: sólo customerPhone) */}
-      <CustomerContactBar
-        customerName={order.customerName}
-        customerPhone={order.customerPhone}
-        orderId={order.orderId}
-        status={order.status}
-      />
-
-      {/* Aviso de cancelación */}
-      {isCancelled && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-          <p className="text-sm font-semibold text-red-700">Pedido cancelado</p>
-          {order.cancellationReason && (
-            <p className="text-sm text-red-600 mt-0.5">{order.cancellationReason}</p>
-          )}
-        </div>
-      )}
-
-      {/* Tabs: Detalle | Picking */}
-      <Tabs
-        items={tabItems}
-        value={activeTab}
-        onChange={(v) => setActiveTab(v as DetailTab)}
-      />
-
-      <div className="mt-4">
-        {activeTab === 'detail' && (
-          <div className="space-y-4">
-            {/* Modalidad de entrega */}
-            <section
-              aria-labelledby="delivery-heading"
-              className="bg-white rounded-xl border border-gray-200 p-4"
-            >
-              <h3 id="delivery-heading" className="font-semibold text-gray-800 mb-2">
-                Modalidad
-              </h3>
-              <p className="text-sm text-gray-700">
-                {order.deliveryType === 'pickup' ? 'Retiro en tienda' : 'Domicilio'}
-              </p>
-              {order.deliveryType === 'pickup' && order.deliveryData.timeSlot && (
-                <p className="mt-1 text-sm text-gray-600">
-                  Franja de recogida: {describeTimeSlot(order.deliveryData.timeSlot, order.timeSlotDate)}
-                </p>
-              )}
-              {order.deliveryType === 'delivery' && order.deliveryData.address && (
-                <p className="mt-1 text-sm text-gray-600">Dirección o referencia: {order.deliveryData.address}</p>
-              )}
-              {order.deliveryType === 'delivery' && hasValidCoordinates && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-sm font-medium text-indigo-700 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  Abrir ubicación en Google Maps
-                </a>
-              )}
-            </section>
-
-            {/* Items */}
-            <section
-              aria-labelledby="items-heading"
-              className="bg-white rounded-xl border border-gray-200 p-4"
-            >
-              <h3 id="items-heading" className="font-semibold text-gray-800 mb-3">
-                Items ({order.items.length})
-              </h3>
-              <ul className="divide-y divide-gray-100" role="list">
-                {resolvedItems.map((item) => (
-                  <li key={item.id} className="py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-sm text-gray-800 font-medium">
-                        {item.name}
-                        {order.items.find((candidate) => candidate.id === item.id)?.substitutedFor && (
-                          <span className="ml-2 text-xs font-normal text-indigo-700">Sustituto</span>
-                        )}
-                      </span>
-                      <span className="text-sm text-gray-600 shrink-0">
-                        {item.isVariable
-                          ? `${currencyFormatter.format(item.priceAtMoment)}/kg`
-                          : `${item.qty} × ${currencyFormatter.format(item.priceAtMoment)}`}
-                      </span>
-                    </div>
-
-                    {/* WeightInput para items de peso variable */}
-                    {item.isVariable && (
-                      <div className="mt-2 max-w-[180px]">
-                        <WeightInput
-                          id={`weight-${item.id}`}
-                          label="Peso real"
-                          value={item.kilosReal ?? null}
-                          suggested={item.kilosRequested}
-                          onChange={(kg) => handleWeightChange(item.id, kg)}
-                          disabled={!weightsEditable}
-                        />
-                        {(item.kilosReal ?? 0) > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Subtotal: {currencyFormatter.format((item.kilosReal ?? 0) * item.priceAtMoment)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {removedOriginals.length > 0 && (
-                <p className="mt-3 text-xs text-gray-500">
-                  Quitado o sustituido respecto al pedido original:{' '}
-                  {removedOriginals.map((original) => original.name ?? original.id).join(', ')}
-                </p>
-              )}
-              <p className="mt-3 text-right font-semibold text-gray-900">
-                {order.finalTotal != null ? 'Total final' : 'Total estimado'}: {currencyFormatter.format(order.finalTotal ?? order.estimatedTotal)}
-              </p>
-            </section>
-
-            {/* Avanzar estado */}
-            {!isCancelled && (
-              <section
-                aria-labelledby="actions-heading"
-                className="bg-white rounded-xl border border-gray-200 p-4"
-              >
-                <h3 id="actions-heading" className="font-semibold text-gray-800 mb-3">
-                  Acciones
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {nextStatus && (
-                    <button
-                      type="button"
-                      onClick={handleAdvance}
-                      disabled={!canAdvance || advanceBusy}
-                      title={isPreparingWithVariables && !allWeightsSet
-                        ? 'Registra los pesos de todos los productos variables primero'
-                        : undefined}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition"
-                    >
-                      {advanceBusy ? 'Guardando...' : TRANSITION_LABELS[order.status]}
-                    </button>
-                  )}
-                  {pendingWeights && (
-                    <button
-                      type="button"
-                      onClick={handleSaveWeights}
-                      disabled={weightsBusy || advanceBusy}
-                      className="px-4 py-2 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 text-sm font-medium rounded-lg transition"
-                    >
-                      {weightsBusy ? 'Guardando pesos...' : 'Guardar pesos'}
-                    </button>
-                  )}
-                  {canMarkInDelivery && (
-                    <button
-                      type="button"
-                      onClick={() => void handleTransition('in_delivery')}
-                      disabled={advanceBusy}
-                      className="px-4 py-2 border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50 text-sm font-medium rounded-lg transition"
-                    >
-                      Marcar en camino
-                    </button>
-                  )}
-                  {canCancel && (
-                    <CancelSection
-                      orderId={order.orderId}
-                      by={by}
-                      version={order.version}
-                      onCancelled={setOrder}
-                      onConflict={reloadOrder}
-                    />
-                  )}
-                </div>
-              </section>
-            )}
-
-            {!isDemoMode && !isCancelled && order.status === 'preparing' && (
-              <ItemChangesPanel
-                order={order}
-                names={itemNames}
-                onApplied={setOrder}
-                onConflict={reloadOrder}
-              />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'receipt' && !isDemoMode && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <RealOrderReceipt key={`${order.orderId}-${order.version ?? 0}`} orderId={order.orderId} />
-          </div>
-        )}
-
-        {activeTab === 'picking' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <PickingListView order={order} items={resolvedItems} />
-          </div>
-        )}
-      </div>
-    </article>
+    <OrderDetailView
+      order={order}
+      productNames={productNames}
+      loadError={loadError?.message ?? null}
+      tab={tab ?? defaultTabFor(order)}
+      onTab={setTab}
+      onOrder={handleOrder}
+      onRefresh={refresh}
+    />
   )
 }

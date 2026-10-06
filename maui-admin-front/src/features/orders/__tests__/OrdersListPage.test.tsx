@@ -14,6 +14,7 @@ import type { AdminOrder } from '@/types/adminOrder'
 const fixture: AdminOrder[] = [
   {
     orderId: 'MAUI-001',
+    reference: 1,
     userId: 'u1',
     status: 'received',
     items: [],
@@ -40,6 +41,7 @@ const fixture: AdminOrder[] = [
   },
   {
     orderId: 'MAUI-003',
+    reference: 3,
     userId: 'u3',
     status: 'received',
     items: [],
@@ -125,8 +127,8 @@ describe('OrdersListPage', () => {
     const base = fixture[0]!
     vi.mocked(orderRepo.list).mockResolvedValue([
       ...fixture,
-      { ...base, orderId: 'MAUI-005', status: 'in_delivery', customerName: 'Pedro En Camino' },
-      { ...base, orderId: 'MAUI-006', status: 'cancelled', customerName: 'Sara Cancelada' },
+      { ...base, orderId: 'MAUI-005', reference: 5, status: 'in_delivery', customerName: 'Pedro En Camino' },
+      { ...base, orderId: 'MAUI-006', reference: 6, status: 'cancelled', customerName: 'Sara Cancelada' },
     ])
     await renderPage()
 
@@ -139,13 +141,13 @@ describe('OrdersListPage', () => {
     await act(async () => {
       fireEvent.click(inDeliveryTab)
     })
-    expect(screen.getByRole('link', { name: /Pedido MAUI-005 de Pedro En Camino/ })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Pedido MAUI-006 de Sara Cancelada/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Pedido #000005 de Pedro En Camino, estado En camino/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Pedido #000006 de Sara Cancelada, estado Cancelado/ })).not.toBeInTheDocument()
 
     await act(async () => {
       fireEvent.click(screen.getByRole('tab', { name: /Cancelados/i }))
     })
-    expect(screen.getByRole('link', { name: /Pedido MAUI-006 de Sara Cancelada/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Pedido #000006 de Sara Cancelada, estado Cancelado/ })).toBeInTheDocument()
   })
 
   it('AC-2: búsqueda "0101" (4 dígitos) filtra por sufijo de teléfono', async () => {
@@ -166,12 +168,23 @@ describe('OrdersListPage', () => {
     expect(screen.queryByText(/Carlos Ruiz/)).not.toBeInTheDocument()
   })
 
-  it('AC-4: búsqueda "MAUI-001" filtra por orderId', async () => {
+  it('AC-4: la búsqueda usa la referencia comercial visible, no el identificador interno', async () => {
     await renderPage()
-    await typeSearch('MAUI-001')
+    await typeSearch('#000001')
 
     expect(screen.getByText('Juan García · …0101')).toBeInTheDocument()
     expect(screen.queryByText(/Carlos Ruiz/)).not.toBeInTheDocument()
+    expect(screen.getByText('Pedido #000001')).toBeInTheDocument()
+
+    await typeSearch('MAUI-001')
+    expect(screen.queryByText(/Juan García/)).not.toBeInTheDocument()
+  })
+
+  it('ME-04: la fila enlaza con el identificador interno pero no lo muestra', async () => {
+    await renderPage()
+    const link = screen.getByRole('link', { name: /Pedido #000001 de Juan García/ })
+    expect(link).toHaveAttribute('href', '/pedidos/MAUI-001')
+    expect(screen.queryByText('MAUI-001')).not.toBeInTheDocument()
   })
 
   it('AC-5: fila sin customerPhone NO muestra " · …"', async () => {

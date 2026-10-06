@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { AdminOrder } from '@/types/adminOrder'
 import { phoneLast4 } from '@/lib/phone'
 import { StatusBadge } from './StatusBadge'
+import { ORDER_STATUS_LABELS } from './orderPresentation'
 
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -33,7 +35,7 @@ export function OrderRow({ order, activeStatus }: OrderRowProps) {
       <Link
         to={`/pedidos/${order.orderId}`}
         className="flex items-center justify-between gap-3 bg-white border border-gray-200 hover:border-indigo-200 hover:shadow-sm rounded-xl px-4 py-3 transition"
-        aria-label={`Pedido ${order.orderId} de ${order.customerName}, estado ${order.status}`}
+        aria-label={`${orderReferenceLabel(order)} de ${order.customerName}, estado ${ORDER_STATUS_LABELS[order.status]}`}
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Dot de pulso para received */}
@@ -44,7 +46,7 @@ export function OrderRow({ order, activeStatus }: OrderRowProps) {
             <p className="text-sm font-semibold text-gray-900 truncate">
               {order.customerName}{phoneSuffix}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5 font-mono">{order.orderId}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{orderReferenceLabel(order)}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">

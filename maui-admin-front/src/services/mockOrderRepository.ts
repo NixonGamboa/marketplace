@@ -8,6 +8,7 @@
 // - Mutaciones registran evento en el audit log.
 // - Delays simulan latencia de red (300–800ms).
 
+import type { OrderItemChange } from '@shared/contracts'
 import type { OrderStatus, CartItem } from '@/types/orderService'
 import { isCancelled, type AdminOrder } from '@/types/adminOrder'
 import { randomDelay } from './delay'
@@ -38,6 +39,11 @@ export interface OrderRepository {
   updateStatus(orderId: string, next: OrderStatus, by: string, expectedVersion?: number): Promise<AdminOrder>
   setRealWeights(orderId: string, weights: RealWeightInput[], by: string, expectedVersion?: number): Promise<AdminOrder>
   cancel(orderId: string, reason: string, by: string, expectedVersion?: number): Promise<AdminOrder>
+  /**
+   * Cambios de ítems en preparación (marca de alistado, peso real, quitar, sustituir). El demo solo admite
+   * marcas y pesos; quitar y sustituir existen únicamente en el repository real.
+   */
+  changeItems(orderId: string, changes: OrderItemChange[], expectedVersion?: number): Promise<AdminOrder>
 }
 
 function readAll(): Record<string, AdminOrder> {
@@ -71,6 +77,20 @@ function computeFinalTotal(items: CartItem[], shippingCost = 0): number | undefi
 
 function isValidWeight(weight: number | undefined): weight is number {
   return typeof weight === 'number' && Number.isFinite(weight) && weight > 0
+}
+
+/** Misma regla que el servidor: un peso válido marca la línea, borrarlo la desmarca y desmarcar conserva el peso. */
+function applyPickOrWeight(item: CartItem, change: Extract<OrderItemChange, { type: 'weight' | 'pick' }>): CartItem {
+  const { picked: _picked, kilosReal: _kilosReal, ...bare } = item
+  if (change.type === 'weight') {
+    if (!item.is_variable_weight) throw new Error('El peso real solo aplica a productos de peso variable')
+    if (change.kilosReal === null) return bare
+    if (!isValidWeight(change.kilosReal)) throw new Error('El peso real debe ser mayor que cero')
+    return { ...bare, kilosReal: change.kilosReal, picked: true }
+  }
+  if (!change.picked) return item.kilosReal === undefined ? bare : { ...bare, kilosReal: item.kilosReal }
+  if (item.is_variable_weight && item.kilosReal === undefined) throw new Error('Registra el peso real para alistar este producto')
+  return { ...item, picked: true }
 }
 
 function matchesText(order: AdminOrder, q: string): boolean {
@@ -180,6 +200,31 @@ export const mockOrderRepository: OrderRepository = {
       targetId: orderId,
       meta: { weights },
     })
+    return updated
+  },
+
+  async changeItems(orderId, changes) {
+    await randomDelay()
+    const orders = readAll()
+    const current = orders[orderId]
+    if (!current) throw new Error(`Pedido ${orderId} no encontrado`)
+    if (current.status !== 'preparing') throw new Error('Los productos solo se modifican mientras el pedido se prepara')
+    let items = current.items
+    for (const change of changes) {
+      if (change.type === 'remove' || change.type === 'substitute') {
+        throw new Error('Quitar o sustituir productos no está disponible en el modo demo')
+      }
+      items = items.map((item) => (item.id === change.itemId ? applyPickOrWeight(item, change) : item))
+    }
+    const updated: AdminOrder = {
+      ...current,
+      items,
+      finalTotal: computeFinalTotal(items, current.shippingCost ?? 0),
+      version: (current.version ?? 1) + 1,
+      updatedAt: new Date().toISOString(),
+    }
+    orders[orderId] = updated
+    writeAll(orders)
     return updated
   },
 

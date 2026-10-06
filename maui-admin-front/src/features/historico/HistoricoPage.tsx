@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { Calendar, Inbox } from 'lucide-react'
 import { ORDER_LIST_LIMITS } from '@shared/contracts'
 import { ORDER_STATUS_VALUES } from '@shared/contracts'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { OrderStatus } from '@/types/orderService'
 import { isDemoMode } from '@/services'
 import { FieldError } from '@/ui/FieldError'
@@ -192,8 +193,8 @@ export function HistoricoPage() {
             <tbody className="divide-y divide-gray-100">
               {orders.map((o) => (
                 <tr key={o.orderId} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-mono text-xs text-indigo-700">
-                    <Link to={`/pedidos/${o.orderId}`}>{o.orderId}</Link>
+                  <td className="px-4 py-2 text-xs text-indigo-700">
+                    <Link to={`/pedidos/${o.orderId}`}>{orderReferenceLabel(o)}</Link>
                   </td>
                   <td className="px-4 py-2 text-gray-800">{o.customerName}</td>
                   <td className="px-4 py-2 text-gray-500">

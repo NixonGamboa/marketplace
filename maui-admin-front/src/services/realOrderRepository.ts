@@ -1,4 +1,6 @@
 import {
+  CONTRACT_VERSION_HEADER,
+  CURRENT_CONTRACT_VERSION,
   IDEMPOTENCY_KEY_HEADER,
   createOrderRequestSchema,
   idempotencyKeySchema,
@@ -9,7 +11,6 @@ import {
   updateOrderItemsRequestSchema,
   updateOrderStatusRequestSchema,
   ORDER_LIST_LIMITS,
-  type OrderItemChange,
 } from '@shared/contracts'
 import type { AdminOrder } from '@/types/adminOrder'
 import type { OrderConfirmation, OrderPayload } from '@/types/orderService'
@@ -31,8 +32,6 @@ export interface RealOrderRepository extends OrderRepository {
   listPage(filter?: OrderListFilterInput, page?: OrderPageRequest, options?: RequestOptions): Promise<OrderPage>
   /** Creación de cliente con clave de idempotencia estable entre reintentos (el servidor rechaza personal con 403). */
   submit(payload: OrderPayload, idempotencyKey: string, options?: RequestOptions): Promise<OrderConfirmation>
-  /** Quitar, sustituir o pesar ítems en bloque (solo en preparación); `expectedVersion` es la versión leída. */
-  changeItems(orderId: string, changes: OrderItemChange[], expectedVersion: number): Promise<AdminOrder>
 }
 
 /** Las mutaciones exigen la versión que vio el usuario: sin ella no hay control de concurrencia. */
@@ -44,6 +43,12 @@ const requireVersion = (expectedVersion: number | undefined): number => {
 }
 
 const orderPath = (orderId: string): string => `/orders/${encodeURIComponent(orderId)}`
+
+/**
+ * Sin esta cabecera la API responde la forma v1 (sin referencia, método de pago ni marcas de alistado):
+ * va en TODAS las peticiones de pedidos.
+ */
+export const ORDER_CONTRACT_HEADERS = { [CONTRACT_VERSION_HEADER]: CURRENT_CONTRACT_VERSION } as const
 
 /** Tope de `list()` completo: 25 páginas × 100. Más allá se exige filtrar o paginar con `listPage`. */
 const MAX_LIST_PAGES = 25
@@ -57,6 +62,7 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
     ))
     return client.request({
       path: '/orders',
+      headers: ORDER_CONTRACT_HEADERS,
       query,
       schema: orderListResponseSchema,
       ...(options?.signal ? { signal: options.signal } : {}),
@@ -67,7 +73,8 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
     client.request({
       method: 'PATCH',
       path: orderPath(orderId),
-      body: validateRequest(updateOrderItemsRequestSchema, { expectedVersion, changes }),
+      headers: ORDER_CONTRACT_HEADERS,
+      body: validateRequest(updateOrderItemsRequestSchema, { expectedVersion: requireVersion(expectedVersion), changes }),
       schema: orderDtoSchema,
     })
 
@@ -88,14 +95,14 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
     },
 
     async getById(orderId, options) {
-      return client.request({ path: orderPath(orderId), schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
+      return client.request({ path: orderPath(orderId), headers: ORDER_CONTRACT_HEADERS, schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
     },
 
     async submit(payload, idempotencyKey, options) {
       return client.request({
         method: 'POST',
         path: '/orders',
-        headers: { [IDEMPOTENCY_KEY_HEADER]: validateRequest(idempotencyKeySchema, idempotencyKey) },
+        headers: { ...ORDER_CONTRACT_HEADERS, [IDEMPOTENCY_KEY_HEADER]: validateRequest(idempotencyKeySchema, idempotencyKey) },
         body: validateRequest(createOrderRequestSchema, payload),
         schema: orderConfirmationSchema,
         ...(options?.signal ? { signal: options.signal } : {}),
@@ -107,6 +114,7 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
       return client.request({
         method: 'PATCH',
         path: `${orderPath(orderId)}/status`,
+        headers: ORDER_CONTRACT_HEADERS,
         body: validateRequest(updateOrderStatusRequestSchema, { status: next, expectedVersion: requireVersion(expectedVersion) }),
         schema: orderDtoSchema,
       })
@@ -116,7 +124,7 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
       return changeItems(
         orderId,
         weights.map(({ itemId, kilos }) => ({ type: 'weight', itemId, kilosReal: kilos })),
-        requireVersion(expectedVersion),
+        expectedVersion,
       )
     },
 
@@ -124,6 +132,7 @@ export const createRealOrderRepository = (client: ApiClient = apiClient): RealOr
       return client.request({
         method: 'PATCH',
         path: `${orderPath(orderId)}/status`,
+        headers: ORDER_CONTRACT_HEADERS,
         body: validateRequest(updateOrderStatusRequestSchema, { status: 'cancelled', expectedVersion: requireVersion(expectedVersion), reason }),
         schema: orderDtoSchema,
       })
