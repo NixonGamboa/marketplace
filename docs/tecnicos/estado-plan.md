@@ -14,9 +14,9 @@ Encargo actual del usuario: ejecutar el [plan UX](plan-mejoras-ux-20261005.md), 
 | Paso | Estado | Cierre pendiente |
 |---|---|---|
 | 1-2: contratos y backend | Local verificado y revisión crítica Codex cerrada; commit `9857ed6` | 1.255 tests backend, 552 del área, typecheck y drift en verde. Corregido sustituto con peso que se marcaba solo. Migración cloud aún no aplicada; PGlite no prueba contención real entre instancias |
-| 3: PWA | En curso, ejecutor `/root/me_pwa` | Selector pago, mensaje relativo con seis casos, referencia comercial; depende de 1-2 ya en verde |
-| 4: admin | Pendiente, secuencial tras PWA | Vistas por estado, alistamiento/autoguardado/409, reabrir y referencias |
-| 5: entrega | Preparación de aislamiento de solo lectura/TEMP por `/root/me_release`; ejecución pendiente de consumidores | Gates/CI, E2E real, un PR, tag mvp-1.0.2 y deployment del mismo SHA; bitácora. Preservar pedidos humanos y no simular un seed limpio |
+| 3: PWA | Local verificado y revisión Codex cerrada; commit `62386ff`, ejecutor `/root/me_pwa` cerrado | 329 tests PWA y 18 wire backend; typecheck/lint/build/drift en verde. Selector y reintentos, seis casos de reloj y refresh de comprobante al pasar medianoche, referencia/pago/WhatsApp y cabecera v2. E2E real pendiente |
+| 4: admin | Implementación parcial Sonnet/high conservada; proceso terminó por cuota. Diagnóstico de gates por `/root/me_admin_gates` | Vistas por estado, alistamiento/autoguardado/409, reabrir y referencias aún sin cierre ni revisión crítica. Claude100% ventana; Codex96%. Se conserva checkpoint y capacidad incluida; no créditos/API/reset de cuenta |
+| 5: entrega | Clone aislado `br-withered-hall-auqtmv5q` creado y migrado, guard60/60 y typecheck E2E en verde; Preview/full pendientes de admin y SHA final | Solo0008 en clone, ledger9/9 y hashes canónicos; baseline12pedidos/11creaciones/90auditorías+catálogo/tienda intacta, dev con mismos hashes. Incidente412 por suspensión free y401 transitorio diagnosticados; sin creación parcial y segundo intento corregido válido. Sin reset/seed, migración dev ni escrituras Vercel. Gates/CI/E2E/PR/tag/deploy y bitácora final pendientes |
 
 ### Segunda fase: primera barrida de la prueba manual — 2026-10-05
 
