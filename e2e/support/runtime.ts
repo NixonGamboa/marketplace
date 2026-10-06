@@ -5,6 +5,8 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+// @ts-expect-error módulo .mjs de guards sin declaraciones
+import { baselineDigest, fixtureLedgerEntry } from '../../scripts/e2e-baseline.mjs'
 
 export const LOCAL_DIR = fileURLToPath(new URL('../../orquestacion-local/', import.meta.url))
 export const ARTIFACTS_DIR = `${LOCAL_DIR}e2e-artifacts/`
@@ -18,6 +20,13 @@ export interface StoreOverrideRecord {
 
 /** Cambio técnico persistente sobre tienda o producto: se registra ANTES de mutar y se restaura siempre. */
 export interface FixtureRecord {
+  fixtureId?: string
+  runId?: string
+  readyStamp?: string
+  actorId?: string
+  startedAt?: string
+  restoredAt?: string
+  restoreDisposition?: 'verified' | 'skipped'
   kind: 'store' | 'product'
   id: string
   /** Valores previos de los campos que se tocan. */
@@ -36,6 +45,8 @@ export interface RuntimeRecord {
   previewSha: string | null
   readyStamp: string | null
   orders: { key: string; orderId?: string }[]
+  /** Identidad explícita del pedido smoke; otras suites también crean pedidos antes que él. */
+  smokeOrderId?: string
   override?: StoreOverrideRecord
   fixtures?: FixtureRecord[]
   sessionsClosed?: boolean
@@ -58,6 +69,7 @@ export function carryOver(previewSha: string | null, readyStamp: string | null, 
     block: 'T-22', phase: 'prepared', startedAt: new Date().toISOString(),
     previewSha, readyStamp,
     orders: sameReady ? previous!.orders : [],
+    ...(sameReady && previous?.smokeOrderId ? { smokeOrderId: previous.smokeOrderId } : {}),
     findings: sameReady ? previous!.findings : [],
     ...(previous?.override && (!previous.override.restored || sameReady) ? { override: previous.override } : {}),
     ...(pendingFixtures.length > 0 ? { fixtures: pendingFixtures } : {}),
@@ -75,4 +87,15 @@ export function saveRuntime(record: RuntimeRecord, phase?: string): void {
   if (phase) record.phase = phase
   mkdirSync(LOCAL_DIR, { recursive: true })
   writeFileSync(RUNTIME_FILE, JSON.stringify(record, null, 2))
+  const ledgerPath = `${LOCAL_DIR}e2e-fixture-ledger.private.json`
+  let ledger: { record: FixtureRecord; hash: string }[] = []
+  try { ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  for (const fixture of record.fixtures ?? []) {
+    if (!fixture.fixtureId || !fixture.runId) continue
+    const last = [...ledger].reverse().find((entry) => entry.record.fixtureId === fixture.fixtureId)
+    if (!last || baselineDigest(last.record) !== baselineDigest(fixture)) ledger.push(fixtureLedgerEntry(fixture, ledger))
+  }
+  if (ledger.length) writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2))
 }

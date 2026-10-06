@@ -190,7 +190,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
   })
 
   test('pedido entregado del smoke persiste en una sesión nueva de cliente', async ({ browser }) => {
-    const delivered = runtime.orders.find((order) => order.orderId)
+    const delivered = runtime.orders.find((order) => order.orderId === runtime.smokeOrderId)
     expect(delivered, 'full ejecuta primero el smoke y conserva sus IDs').toBeDefined()
     const order = await readOrder(delivered!.orderId!)
     expect(order.status).toBe('delivered')
@@ -266,7 +266,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
       expect(confirmation.processingNotice).toEqual({ kind: 'unscheduled', reason: 'override_closed' })
       expect(confirmation.timeSlotDate, 'cierre manual: no hay fecha de reapertura, no se inventa fecha de franja').toBeUndefined()
       expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
-      await expect(noticeBanner()).toContainText('Lo procesaremos cuando retomemos la atención.')
+      await expect(noticeBanner()).toContainText('en nuestro próximo horario de atención')
       await expect(noticeBanner()).not.toContainText(/entreg|recog|\d:\d\d/i)
       expect((await readOrder(latestOrderId)).processingNotice).toEqual(confirmation.processingNotice)
     } finally { await fixtures.restore() }
@@ -291,8 +291,8 @@ test.describe('resiliencia y reglas reales @completo', () => {
       // Mañana abre 08:00–18:00: la franja elegida cae ese día; la fecha la fijó el servidor, no el cliente.
       expect(confirmation.timeSlotDate).toBe(tomorrowDate.toISOString().slice(0, 10))
       expect((await readOrder(latestOrderId)).timeSlotDate).toBe(confirmation.timeSlotDate)
-      await expect(noticeBanner()).toContainText('Comenzaremos a procesarlo el')
-      await expect(noticeBanner()).toContainText('a las 8:00 a. m.')
+      await expect(noticeBanner()).toContainText('mañana a primera hora, desde las 8 a. m.')
+      await expect(noticeBanner()).not.toContainText(/lunes|martes|miércoles|jueves|viernes|sábado|domingo|\d{4}-\d{2}-\d{2}/i)
       await expect(noticeBanner()).not.toContainText(/entreg|recog/i)
       expect((await readOrder(latestOrderId)).processingNotice).toEqual({ kind: 'scheduled', reason: 'day_closed', startsAt })
       expect((await ownIds()).filter((id) => !before.includes(id))).toEqual([latestOrderId])
@@ -360,7 +360,8 @@ test.describe('resiliencia y reglas reales @completo', () => {
       if (route.request().method() !== 'POST' || intercepted) return route.fallback()
       intercepted = true
       firstKey = route.request().headers()['idempotency-key'] ?? ''
-      const response = await route.fetch({ headers: { ...route.request().headers(), ...apiHeaders(dest) } })
+      expect(route.request().headers()['x-maui-contract'], 'opt-in real de la PWA').toBe('2')
+      const response = await route.fetch()
       persistedStatus = response.status()
       if (persistedStatus === 201) persistedId = orderConfirmationSchema.parse(await response.json()).orderId
       // DEFAULT_TIMEOUT_MS = 15 s: retener 17 s fuerza el timeout del cliente DESPUÉS del commit.
@@ -491,8 +492,8 @@ test.describe('resiliencia y reglas reales @completo', () => {
     const original = await readOrder(id)
     await adminOpenOrderFromList(admin.page, id)
     await admin.page.getByRole('button', { name: 'Confirmar pedido' }).click()
-    await admin.page.getByRole('button', { name: 'Marcar como preparando' }).click()
-    await admin.page.getByRole('button', { name: `Sustituir ${fixed.name}`, exact: true }).click()
+    await admin.page.getByRole('button', { name: 'Comenzar preparación' }).click()
+    await admin.page.getByRole('button', { name: `Falta ${fixed.name}`, exact: true }).click()
     const modal = admin.page.getByRole('dialog')
     await modal.getByLabel('Producto sustituto').selectOption(substitute.id)
     await modal.getByRole('button', { name: 'Aplicar cambio' }).click()
@@ -507,7 +508,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
     expect(changed.estimatedTotal, 'la estimación original no cambia').toBe(original.estimatedTotal)
     expect(changed.finalTotal).toBe(substitute.price)
     await admin.page.reload()
-    await expect(admin.page.getByText('Sustituto', { exact: true }).first()).toBeVisible()
+    await expect(admin.page.getByRole('list', { name: 'Productos sustituidos o retirados' })).toContainText('Sustituido por')
     await cancelOnCurrentPage('Cancelación después de sustitución técnica E2E')
     await customer.page.reload()
     expect((await readOrder(id)).status).toBe('cancelled')
@@ -527,7 +528,7 @@ test.describe('resiliencia y reglas reales @completo', () => {
       await admin.page.goto('/admin/catalogo')
       await expect(admin.page.getByRole('heading', { name: 'Catálogo' })).toBeVisible()
       await admin.page.getByLabel('Buscar productos').fill(fixed.name)
-      const row = () => admin.page.getByRole('row').filter({ has: admin.page.getByText(fixed.id, { exact: true }) })
+      const row = () => admin.page.getByRole('row').filter({ has: admin.page.getByText(fixed.name, { exact: true }) })
       await expect(row()).toBeVisible()
       await row().getByRole('button', { name: 'Editar', exact: true }).click()
       const modal = admin.page.getByRole('dialog')

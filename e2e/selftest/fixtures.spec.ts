@@ -39,7 +39,7 @@ test.describe('fixtures técnicos', () => {
       patchProduct: async (id, patch) => { snapshots.push(JSON.stringify(runtime.fixtures)); return api.patchProduct(id, patch) },
     }
     await new TechnicalFixtures(guarded, runtime, () => undefined).product('p1', { inStock: false })
-    expect(JSON.parse(snapshots[0]!)).toEqual([{ kind: 'product', id: 'p1', original: { inStock: true }, applied: { inStock: false }, versionBefore: 3, restored: false }])
+    expect(JSON.parse(snapshots[0]!)).toMatchObject([{ kind: 'product', id: 'p1', original: { inStock: true }, applied: { inStock: false }, versionBefore: 3, restored: false }])
     expect(products.get('p1')!.inStock).toBe(false)
   })
 

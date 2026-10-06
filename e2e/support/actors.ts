@@ -115,6 +115,7 @@ export async function sanitizedShot(page: Page, name: string): Promise<string | 
 export function apiHeaders(dest: Destination): Record<string, string> {
   return {
     Origin: dest.authOrigin,
+    'X-Maui-Contract': '2',
     ...(dest.bypassToken ? { 'x-vercel-protection-bypass': dest.bypassToken } : {}),
   }
 }

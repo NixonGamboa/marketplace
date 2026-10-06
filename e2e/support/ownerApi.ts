@@ -7,7 +7,7 @@
 import { expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
 import {
   authSessionResponseSchema, auditListResponseSchema, staffCatalogResponseSchema, staffProductDtoSchema, storeDtoSchema,
-  type StaffProductDto, type StoreDto, type UpdateProductRequest, type UpdateStoreSettingsRequest,
+  type AuditEvent, type StaffProductDto, type StoreDto, type UpdateProductRequest, type UpdateStoreSettingsRequest,
 } from '../../shared/contracts/index.js'
 import { apiHeaders } from './actors.js'
 import type { Credentials, Destination } from './env.js'
@@ -21,7 +21,7 @@ export interface OwnerApi extends FixtureApi {
   storeId: string
   /** Devuelve el override que una corrida anterior interrumpida dejó aplicado; no cambia el horario por su cuenta. */
   restoreInterruptedOverride(runtime: RuntimeRecord): Promise<void>
-  orderAudit(orderId: string): Promise<{ action: string }[]>
+  orderAudit(orderId: string): Promise<AuditEvent[]>
   close(): Promise<void>
 }
 
@@ -74,6 +74,7 @@ export async function openOwnerApi(playwright: Playwright, dest: Destination, cr
   }
 
   return {
+    actorId: session.account.id,
     request,
     storeId: (await readStaffStore()).storeId,
     readStaffStore,
