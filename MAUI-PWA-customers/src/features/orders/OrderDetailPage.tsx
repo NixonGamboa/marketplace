@@ -9,11 +9,11 @@
   TASK-014 · AC-1 · AC-2 · AC-3 · AC-4
 */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, MapPin, Clock, AlertCircle, Moon } from 'lucide-react'
-import { describeTimeSlot, processingNoticeMessage } from '@shared/receipts'
+import { describeTimeSlot, processingNoticeMessage, orderReferenceLabel, paymentMethodLabel, paymentOnReceiptMessage } from '@shared/receipts'
 
 import { orderService } from '../../services/index'
 import { MERCHANT_NAME, WA_MESSAGES } from '../../config/app'
@@ -94,7 +94,7 @@ interface ErrorStateProps {
   onRetry?: () => void
 }
 
-function ErrorState({ orderId, message, onRetry }: ErrorStateProps) {
+function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
     <main className="min-h-screen bg-brand-bg flex flex-col items-center justify-center px-6 text-center gap-4">
       <AlertCircle
@@ -103,7 +103,7 @@ function ErrorState({ orderId, message, onRetry }: ErrorStateProps) {
         aria-hidden
       />
       <h1 className="text-xl font-semibold text-brand-dark">
-        {orderId ? `Pedido ${orderId}` : 'Pedido no encontrado'}
+        Pedido no encontrado
       </h1>
       <p className="text-brand-muted text-sm max-w-xs">{message}</p>
       {onRetry && (
@@ -130,6 +130,7 @@ function ErrorState({ orderId, message, onRetry }: ErrorStateProps) {
 export default function OrderDetailPage() {
   const merchantPhone = useStoreContactPhone()
   const [showReceipt, setShowReceipt] = useState(false)
+  const [now, setNow] = useState(() => new Date())
   // AC-1 — useParams
   const { orderId } = useParams<{ orderId: string }>()
 
@@ -138,6 +139,13 @@ export default function OrderDetailPage() {
   const demo = isDemoMode()
   const queryKey = ['order', demo ? 'demo' : userId, expiresAt, orderId]
   const active = useOrderPollingAvailability(queryKey)
+  useEffect(() => {
+    if (!active) return
+    const refresh = () => setNow(new Date())
+    const timer = setInterval(refresh, 30_000)
+    window.addEventListener('focus', refresh)
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh) }
+  }, [active])
   // Cada cuenta, sesión y pedido tiene su propia consulta cancelable.
   const { data: order, isLoading, error, refetch } = useQuery({
     queryKey:                   queryKey,
@@ -189,7 +197,7 @@ export default function OrderDetailPage() {
   const isPickup        = order.deliveryType === 'pickup'
   const totalItems      = order.items.reduce((sum, item) => sum + item.qty, 0)
   const whatsappHref    = merchantPhone
-    ? merchantWhatsAppUrl(merchantPhone, WA_MESSAGES[order.status](order.orderId))
+    ? merchantWhatsAppUrl(merchantPhone, WA_MESSAGES[order.status](orderReferenceLabel(order)))
     : null
 
   // Build timestamps for OrderTimeline: map updatedAt to current status
@@ -201,17 +209,14 @@ export default function OrderDetailPage() {
 
   return (
     <main
-      aria-label={`Detalle del pedido ${order.orderId}`}
+      aria-label={`Detalle de ${orderReferenceLabel(order)}`}
       className="min-h-screen bg-brand-bg px-4 pt-6 pb-36 max-w-lg mx-auto animate-fade-in"
     >
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="mb-4">
         <h1 className="text-lg font-bold text-brand-dark leading-tight">
-          Pedido{' '}
-          <span className="text-brand-primary font-mono tracking-wide">
-            {order.orderId}
-          </span>
+          <span className="text-brand-primary">{orderReferenceLabel(order)}</span>
         </h1>
         <p className="mt-1 text-xs text-brand-muted">
           <time dateTime={order.createdAt}>{formatDate(order.createdAt)}</time>
@@ -232,19 +237,19 @@ export default function OrderDetailPage() {
           className="mb-3 flex items-start gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary-light px-4 py-3"
         >
           <Moon size={18} aria-hidden className="mt-0.5 shrink-0 text-brand-primary" />
-          <p className="text-sm font-medium text-brand-dark">{processingNoticeMessage(order.processingNotice)}</p>
+          <p className="text-sm font-medium text-brand-dark">{processingNoticeMessage(order.processingNotice, order.status, now)}</p>
         </div>
       )}
 
       {/* ── Payment notice ─────────────────────────────────────────────────── */}
-      {/* AC-2 — mensaje pago efectivo */}
+      {/* El cobro se hace al recibir o recoger; no afirma un pago realizado. */}
       <div
         role="status"
         className="mb-3 flex items-start gap-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-3 shadow-card"
       >
         <span aria-hidden className="text-lg leading-none">✅</span>
         <p className="text-sm font-medium text-brand-dark">
-          Pagas en efectivo cuando llegue tu pedido
+          {paymentOnReceiptMessage(order.deliveryType)}
         </p>
       </div>
 
@@ -265,6 +270,7 @@ export default function OrderDetailPage() {
         className="mb-3 rounded-xl border border-brand-border bg-brand-surface px-4 py-4 shadow-card space-y-3"
       >
         <h2 className="text-sm font-semibold text-brand-dark">Resumen</h2>
+        <p className="text-sm text-brand-dark">Pago: {paymentMethodLabel(order.paymentMethod)}</p>
 
         {/* Products count + total */}
         <div className="flex items-center justify-between">
@@ -342,7 +348,7 @@ export default function OrderDetailPage() {
           </button>
           {showReceipt && (
             <div className="mt-3 text-sm text-brand-dark">
-              <RealOrderReceipt key={`${order.orderId}-${order.updatedAt ?? ''}`} orderId={order.orderId} />
+              <RealOrderReceipt key={`${order.orderId}-${order.updatedAt ?? ''}`} orderId={order.orderId} refreshToken={now.getTime()} />
             </div>
           )}
         </section>
@@ -355,7 +361,7 @@ export default function OrderDetailPage() {
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Contactar a ${MERCHANT_NAME} por WhatsApp sobre el pedido ${order.orderId}`}
+          aria-label={`Contactar a ${MERCHANT_NAME} por WhatsApp sobre ${orderReferenceLabel(order)}`}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-whatsapp px-6 py-4 text-sm font-bold text-white shadow-brand-md hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-whatsapp active:scale-[0.98] transition-all"
         >
           <MessageCircle size={20} aria-hidden />

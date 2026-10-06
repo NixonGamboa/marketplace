@@ -4,6 +4,7 @@ import {
   AUDIT_FIELD_VALUES, apiErrorSchema, auditListResponseSchema, authSessionResponseSchema, categoryDtoSchema, orderConfirmationSchema, orderDtoSchema,
   orderListResponseSchema, productDtoSchema, publicCatalogResponseSchema, staffCatalogResponseSchema, staffProductDtoSchema, storeDtoSchema, updateCategoryRequestSchema,
   updateProductRequestSchema, updateStoreSettingsRequestSchema, type OrderDto,
+  CONTRACT_VERSION_HEADER, CURRENT_CONTRACT_VERSION, formatOrderReference,
 } from '../../../shared/contracts/index.js'
 import { customerReceiptFrom, staffReceiptFrom } from '../../../shared/receipts/index.js'
 import { STORE, startHttpWorld, type Actor, type HttpWorld, type WireResponse } from './httpWorld.js'
@@ -176,19 +177,24 @@ describe('contratos serializados entre PWA, admin y API', () => {
       ] }))
       await patchStatus(id, actors.operator, 5, { status: 'ready' })
 
-      const dto = await order(actors.customer, id)
+      // El harness recibe las cabeceras como Node: nombres en minúsculas.
+      const headers = { [CONTRACT_VERSION_HEADER.toLowerCase()]: CURRENT_CONTRACT_VERSION }
+      const dto = read(orderDtoSchema, await world.fetch('GET', `/api/orders/${id}`, { cookie: actors.customer.cookie, headers }))
       // 2 × 4.800 + 22.000 × 1,234 kg = 9.600 + 27.148; la estimación original conserva 2 × 4.500 + 22.000.
       expect(dto).toMatchObject({ status: 'ready', estimatedTotal: 31000, finalTotal: 36748 })
       const store = read(storeDtoSchema, await get('/api/store'))
 
       const customer = customerReceiptFrom(dto, store)
       expect(customer.receipt).toMatchObject({ orderId: id, status: 'ready', estimatedTotal: 31000, finalTotal: 36748 })
-      expect(customer.receipt.text).toContain(`Pedido ${id}`)
+      expect(dto.reference).toBeGreaterThan(0)
+      expect(customer.receipt.text).toContain(formatOrderReference(dto.reference!))
+      expect(customer.receipt.text).toContain('Pago: Efectivo')
+      expect(customer.receipt.text).not.toContain(id)
       expect(customer.receipt.text).toContain('Estado: Listo')
       expect(customer.receipt.text).toMatch(/Total estimado original: \$\s?31\.000/)
       expect(customer.receipt.text).toMatch(/Total final: \$\s?36\.748/)
       expect(customer.receipt.text).toMatch(/Leche entera 1L: 2 × 1 L; \$\s?4\.500 por unidad — \$\s?9\.000/)
-      expect(customer.receipt.text).toMatch(/Leche deslactosada 1L: 2 × 1 L; \$\s?4\.800 por unidad; sustituye producto prod_leche — \$\s?9\.600/)
+      expect(customer.receipt.text).toMatch(/Leche deslactosada 1L: 2 × 1 L; \$\s?4\.800 por unidad; producto sustituto — \$\s?9\.600/)
       expect(customer.receipt.text).toMatch(/Carne molida: 1 kg solicitados; 1,234 kg reales; \$\s?22\.000\/kg — \$\s?27\.148/)
       expect(customer.receipt.text).toContain('Los ítems vigentes reflejan sustituciones o retiros realizados por la tienda.')
       expect(customer.receipt.text).not.toMatch(/3001234567|573001234567|Dolores/)
@@ -197,7 +203,7 @@ describe('contratos serializados entre PWA, admin y API', () => {
       const toStore = waTarget(customer.contact!.url)
       expect(toStore).toMatchObject({ origin: 'https://wa.me', phone: '573107654321' })
       expect(toStore.text).toBe(`Hola, consulto por este pedido de MAUI:\n${customer.receipt.text}`)
-      const staff = staffReceiptFrom(read(orderDtoSchema, await get(`/api/orders/${id}`, actors.operator)))
+      const staff = staffReceiptFrom(read(orderDtoSchema, await world.fetch('GET', `/api/orders/${id}`, { cookie: actors.operator.cookie, headers })))
       expect(waTarget(staff.contact!.url)).toMatchObject({ origin: 'https://wa.me', phone: '573001234567' })
       expect(staff.receipt.text).toBe(customer.receipt.text)
       expect(staff.contact!.label).toBe('Contactar al cliente')

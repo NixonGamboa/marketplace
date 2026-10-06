@@ -25,6 +25,7 @@ describe('historial real: filtros en el servidor antes de paginar', () => {
     const { service, fetchImpl } = serviceWith(json(page))
     const result = await service.listPage({ q: '  ord-1 ', status: 'delivered', from: '2026-10-01', to: '2026-10-02', limit: 20, cursor: 'cursor_1' })
     expect(result).toEqual(page)
+    expect(requestAt(fetchImpl).headers['X-Maui-Contract']).toBe('2')
     expect(new URL(requestAt(fetchImpl).url, 'https://pwa.test').pathname).toBe('/api/orders')
     expect(queryOf(fetchImpl)).toEqual({
       q: 'ord-1', status: 'delivered', limit: '20', cursor: 'cursor_1',

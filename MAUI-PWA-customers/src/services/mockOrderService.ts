@@ -179,6 +179,7 @@ export const mockOrderService: OrderService = {
       deliveryData:           payload.deliveryData,
       substitutionPreference: payload.substitutionPreference,
       customerName:           payload.customerName,
+      paymentMethod:          payload.paymentMethod ?? 'cash',
       customerPhone,
       shippingCost,
       estimatedTotal,

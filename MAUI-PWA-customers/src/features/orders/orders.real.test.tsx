@@ -22,6 +22,7 @@ import OrderDetailPage from './OrderDetailPage'
 
 const order = (orderId: string, overrides: Partial<Order> = {}): Order => ({
   orderId,
+  reference: ({ 'ord-1': 1, 'ord-2': 2, 'ord-de-ana': 3, 'ord-de-beto': 4 } as Record<string, number>)[orderId] ?? 5,
   userId: 'usr-1',
   status: 'received',
   items: [{ id: 'queso', qty: 1, priceAtMoment: 15000 }],
@@ -41,7 +42,7 @@ beforeEach(() => {
   mocks.getStore.mockResolvedValue({ contactPhone: '573105550101' })
   useAuthStore.setState({ user: { id: 'usr-1', name: 'Ana', phone: '573105550101', isAuthenticated: true }, isAuthenticated: true, sessionStatus: 'ready' })
 })
-afterEach(() => { cleanup(); useAuthStore.setState({ user: null, isAuthenticated: false }) })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); useAuthStore.setState({ user: null, isAuthenticated: false }) })
 
 describe('RealOrdersPage (servicio simulado)', () => {
   const renderPage = (qc = client()) => render(
@@ -51,7 +52,9 @@ describe('RealOrdersPage (servicio simulado)', () => {
   it('pide la primera página al servidor con el tamaño de página y sin filtros', async () => {
     mocks.listPage.mockResolvedValue({ items: [order('ord-1')], nextCursor: null })
     renderPage()
-    expect(await screen.findByText('Pedido ord-1')).toBeInTheDocument()
+    expect(await screen.findByText('Pedido #000001')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Pedido #000001, estado/ })).toHaveAttribute('href', '/pedidos/ord-1')
+    expect(screen.queryByText(/ord-1/)).toBeNull()
     expect(mocks.listPage).toHaveBeenCalledWith({ limit: 20 }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     expect(screen.queryByRole('button', { name: 'Cargar más' })).toBeNull()
   })
@@ -90,10 +93,10 @@ describe('RealOrdersPage (servicio simulado)', () => {
       .mockResolvedValueOnce({ items: [order('ord-1')], nextCursor: 'cursor-1' })
       .mockResolvedValueOnce({ items: [order('ord-2')], nextCursor: null })
     renderPage()
-    await screen.findByText('Pedido ord-1')
+    await screen.findByText('Pedido #000001')
     fireEvent.click(screen.getByRole('button', { name: 'Cargar más' }))
-    expect(await screen.findByText('Pedido ord-2')).toBeInTheDocument()
-    expect(screen.getByText('Pedido ord-1')).toBeInTheDocument()
+    expect(await screen.findByText('Pedido #000002')).toBeInTheDocument()
+    expect(screen.getByText('Pedido #000001')).toBeInTheDocument()
     expect(mocks.listPage).toHaveBeenLastCalledWith({ limit: 20, cursor: 'cursor-1' }, expect.anything())
   })
 
@@ -105,21 +108,21 @@ describe('RealOrdersPage (servicio simulado)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('El servicio no está disponible')
     expect(screen.queryByText('Aún no has hecho pedidos')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
-    expect(await screen.findByText('Pedido ord-1')).toBeInTheDocument()
+    expect(await screen.findByText('Pedido #000001')).toBeInTheDocument()
   })
 
   it('la caché es por cuenta: otra persona nunca ve los pedidos de la anterior', async () => {
     const qc = client()
     mocks.listPage.mockResolvedValueOnce({ items: [order('ord-de-ana')], nextCursor: null })
     const first = renderPage(qc)
-    await screen.findByText('Pedido ord-de-ana')
+    await screen.findByText('Pedido #000003')
     first.unmount()
 
     useAuthStore.setState({ user: { id: 'usr-2', name: 'Beto', phone: '573105550102', isAuthenticated: true } })
     mocks.listPage.mockResolvedValueOnce({ items: [order('ord-de-beto', { userId: 'usr-2' })], nextCursor: null })
     renderPage(qc)
-    expect(await screen.findByText('Pedido ord-de-beto')).toBeInTheDocument()
-    expect(screen.queryByText('Pedido ord-de-ana')).toBeNull()
+    expect(await screen.findByText('Pedido #000004')).toBeInTheDocument()
+    expect(screen.queryByText('Pedido #000003')).toBeNull()
   })
 })
 
@@ -133,14 +136,26 @@ describe('OrderDetailPage real (servicio simulado)', () => {
   )
 
   describe('aviso de procesamiento (PM-03)', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-06T02:00:00Z')) })
     const scheduled = { kind: 'scheduled', reason: 'after_closing', startsAt: '2026-10-06T13:00:00.000Z' } as const
     const unscheduled = { kind: 'unscheduled', reason: 'override_closed' } as const
+
+    it('al recuperar foco tras medianoche, el mismo snapshot cambia de mañana a hoy', async () => {
+      vi.setSystemTime(new Date('2026-10-06T04:59:00Z'))
+      mocks.getById.mockResolvedValue(order('ord-1', { processingNotice: scheduled }))
+      renderDetail()
+      expect(await screen.findByText(/mañana a primera hora/)).toBeInTheDocument()
+      vi.setSystemTime(new Date('2026-10-06T05:01:00Z'))
+      fireEvent(window, new Event('focus'))
+      expect(await screen.findByText(/hoy desde las 8 a. m./)).toBeInTheDocument()
+      expect(screen.queryByText(/mañana a primera hora/)).toBeNull()
+    })
 
     it('recogida con franja: muestra la fecha fijada por el servidor, aparte del aviso, sin «esta mañana»', async () => {
       mocks.getById.mockResolvedValue(order('ord-1', { deliveryData: { timeSlot: 'morning' }, timeSlotDate: '2026-10-07', processingNotice: scheduled }))
       renderDetail()
       expect(await screen.findByText('Franja de recogida: por la mañana · miércoles, 7 de octubre')).toBeInTheDocument()
-      expect(screen.getByText(/Comenzaremos a procesarlo el martes, 6 de octubre/)).toBeInTheDocument()
+      expect(screen.getByText(/Comenzaremos a prepararlo/)).toBeInTheDocument()
       expect(screen.queryByText(/esta mañana|esta tarde/i)).toBeNull()
     })
 
@@ -154,7 +169,7 @@ describe('OrderDetailPage real (servicio simulado)', () => {
       mocks.getById.mockResolvedValue(order('ord-1', { processingNotice: scheduled }))
       renderDetail()
       const notice = await screen.findByText(/¡Recibimos tu pedido!/)
-      expect(notice).toHaveTextContent('Comenzaremos a procesarlo el martes, 6 de octubre a las 8:00 a. m.')
+      expect(notice).toHaveTextContent('Comenzaremos a prepararlo')
       expect(notice).not.toHaveTextContent(/entreg|recog/i)
       expect(notice.closest('[role="status"]')).not.toBeNull()
     })
@@ -163,7 +178,7 @@ describe('OrderDetailPage real (servicio simulado)', () => {
       mocks.getById.mockResolvedValue(order('ord-1', { processingNotice: unscheduled }))
       renderDetail()
       const notice = await screen.findByText(/¡Recibimos tu pedido!/)
-      expect(notice).toHaveTextContent('Lo procesaremos cuando retomemos la atención.')
+      expect(notice).toHaveTextContent('en nuestro próximo horario de atención.')
       expect(notice).not.toHaveTextContent(/\d:\d\d/)
     })
 
@@ -186,6 +201,9 @@ describe('OrderDetailPage real (servicio simulado)', () => {
     renderDetail()
     const link = await screen.findByRole('link', { name: /Contactar a Leche y Miel/ })
     expect(link).toHaveAttribute('href', expect.stringContaining('https://wa.me/573105550101?text='))
+    expect(new URL(link.getAttribute('href')!).searchParams.get('text')).toContain('Pedido #000001')
+    expect(new URL(link.getAttribute('href')!).searchParams.get('text')).not.toContain('ord-1')
+    expect(screen.getByRole('heading', { name: 'Pedido #000001' })).toBeInTheDocument()
     window.localStorage.clear()
   })
 

@@ -179,6 +179,22 @@ const orderServiceWith = (responses: Array<Response | Error>, sessionResponses =
 const keyOf = (fetchImpl: ReturnType<typeof clientWith>['fetchImpl'], index: number) => requestAt(fetchImpl, index).headers['Idempotency-Key']
 
 describe('pedidos reales: creación e idempotencia', () => {
+  it('negocia v2 y conserva clave entre cash omitido/explícito y reintentos; cambiar método crea intención', async () => {
+    const { service, fetchImpl } = orderServiceWith([new Error('corte'), new Error('corte'), new Error('corte'), json(confirmation, 201)])
+    await rejection(service.submit(payload()))
+    await rejection(service.submit(payload({ paymentMethod: 'cash' })))
+    await rejection(service.submit(payload({ paymentMethod: 'qr' })))
+    await service.submit(payload({ paymentMethod: 'qr' }))
+    expect([1, 2, 3, 4].map((index) => keyOf(fetchImpl, index))).toEqual(['clave-intencion-0001', 'clave-intencion-0001', 'clave-intencion-0002', 'clave-intencion-0002'])
+    for (const index of [1, 2, 3, 4]) {
+      const request = requestAt(fetchImpl, index)
+      expect(request.headers['X-Maui-Contract']).toBe('2')
+      expect(request.credentials).toBe('same-origin')
+      expect(request.cache).toBe('no-store')
+    }
+    expect(requestAt(fetchImpl, 2).body).not.toHaveProperty('paymentMethod')
+    expect(requestAt(fetchImpl, 3).body).toHaveProperty('paymentMethod', 'qr')
+  })
   it('exige sesión del servidor y no envía nada sin ella', async () => {
     const { service, fetchImpl } = orderServiceWith([apiProblem(401, 'UNAUTHENTICATED', 'Sesión inválida')], false)
     expect(await rejection(service.submit(payload()))).toMatchObject({ kind: 'unauthenticated' })
@@ -306,6 +322,7 @@ describe('pedidos reales: lectura y paginación', () => {
     const service = createRealOrderService(client, createRealAuthService(client), createCheckoutIntents(memoryStorage()))
     expect(await service.getById('ord-1')).toEqual(order)
     expect(requestAt(fetchImpl).url).toBe('/api/orders/ord-1')
+    expect(requestAt(fetchImpl).headers['X-Maui-Contract']).toBe('2')
   })
 
   it.each([

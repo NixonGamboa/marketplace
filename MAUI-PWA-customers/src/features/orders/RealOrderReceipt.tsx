@@ -5,10 +5,12 @@ import { realReceiptService, type ReceiptService } from '@/services/realReceiptS
 interface Props {
   orderId: string
   service?: ReceiptService
+  /** Reloj del seguimiento activo: actualiza también el texto relativo del comprobante abierto. */
+  refreshToken?: number
 }
 type LoadState = { orderId: string; result?: ReceiptResult; failed?: boolean }
 /** Punto de integración real para detalle/seguimiento; no consume datos de la demo. */
-export function RealOrderReceipt({ orderId, service = realReceiptService }: Props) {
+export function RealOrderReceipt({ orderId, service = realReceiptService, refreshToken }: Props) {
   const [state, setState] = useState<LoadState>({ orderId })
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
@@ -19,7 +21,7 @@ export function RealOrderReceipt({ orderId, service = realReceiptService }: Prop
       () => { if (active) setState({ orderId, failed: true }) },
     )
     return () => { active = false; controller.abort() }
-  }, [orderId, service, attempt])
+  }, [orderId, service, attempt, refreshToken])
   const current = state.orderId === orderId ? state : { orderId }
   if (current.failed) return <section aria-label="Comprobante del pedido">
     <p role="alert">No se pudo consultar el pedido. Verifica tu sesión y conexión.</p>

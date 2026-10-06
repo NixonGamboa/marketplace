@@ -1,5 +1,7 @@
 import {
   IDEMPOTENCY_KEY_HEADER,
+  CONTRACT_VERSION_HEADER,
+  CURRENT_CONTRACT_VERSION,
   ORDER_LIST_LIMITS,
   createOrderRequestSchema,
   listOrdersQuerySchema,
@@ -70,7 +72,7 @@ export const createRealOrderService = (
       const confirmation = await client.request({
         method: 'POST',
         path: '/orders',
-        headers: { [IDEMPOTENCY_KEY_HEADER]: key },
+        headers: { [IDEMPOTENCY_KEY_HEADER]: key, [CONTRACT_VERSION_HEADER]: CURRENT_CONTRACT_VERSION },
         body: request,
         schema: orderConfirmationSchema,
         ...(options?.signal ? { signal: options.signal } : {}),
@@ -92,6 +94,7 @@ export const createRealOrderService = (
     ))
     return client.request({
       path: '/orders',
+      headers: { [CONTRACT_VERSION_HEADER]: CURRENT_CONTRACT_VERSION },
       query,
       schema: orderListResponseSchema,
       ...(options?.signal ? { signal: options.signal } : {}),
@@ -118,7 +121,7 @@ export const createRealOrderService = (
     },
 
     getById(orderId, options) {
-      return client.request({ path: `/orders/${encodeURIComponent(orderId)}`, schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
+      return client.request({ path: `/orders/${encodeURIComponent(orderId)}`, headers: { [CONTRACT_VERSION_HEADER]: CURRENT_CONTRACT_VERSION }, schema: orderDtoSchema, ...(options?.signal ? { signal: options.signal } : {}) })
     },
 
     /** El alcance lo fija la sesión del servidor; un `userId` ajeno se rechaza en lugar de ignorarse. */

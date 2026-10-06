@@ -50,13 +50,13 @@ export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
 // ─── Mensajes WhatsApp (cliente → comerciante) ────────────────────────────────
 
 export const WA_MESSAGES: Record<OrderStatus, (id: string) => string> = {
-  received:  (id) => `Hola, acabo de hacer mi pedido ${id}. ¿Pueden confirmarlo?`,
-  confirmed: (id) => `Hola, sobre mi pedido ${id} ¿alguna actualización?`,
-  preparing: (id) => `Hola, sobre mi pedido ${id} ¿cuánto falta?`,
-  ready:     (id) => `Hola, sobre mi pedido ${id} listo para entrega`,
-  in_delivery: (id) => `Hola, sobre mi pedido ${id} ¿cuánto falta para que llegue?`,
-  delivered: (id) => `Hola, sobre mi pedido ${id}`,
-  cancelled: (id) => `Hola, sobre mi pedido ${id} cancelado`,
+  received:  (id) => `Hola, acabo de hacer ${id}. ¿Pueden confirmarlo?`,
+  confirmed: (id) => `Hola, sobre ${id} ¿alguna actualización?`,
+  preparing: (id) => `Hola, sobre ${id} ¿cuánto falta?`,
+  ready:     (id) => `Hola, sobre ${id} listo para entrega`,
+  in_delivery: (id) => `Hola, sobre ${id} ¿cuánto falta para que llegue?`,
+  delivered: (id) => `Hola, sobre ${id}`,
+  cancelled: (id) => `Hola, sobre ${id} cancelado`,
 }
 
 // ─── Demo ─────────────────────────────────────────────────────────────────────
