@@ -57,13 +57,14 @@ test.describe.serial('celular local en checkout @completo', () => {
     expect(fixed, 'el seed debe incluir un producto de peso fijo disponible').toBeDefined()
     await addProduct(page, fixed.name_display ?? fixed.name)
     await preparePickupCheckout(page, credentials.customer.phone)
+    // El helper termina en Pago (paso 3); el celular vive en Entrega (paso 2).
+    await page.getByRole('button', { name: 'Volver al paso anterior' }).click()
 
     const phone = page.getByLabel(PHONE_LABEL)
     await expect(phone).toHaveValue(nationalPhoneDigits(credentials.customer.phone))
     await expect(phone).toHaveAttribute('inputmode', 'numeric')
 
     // Una entrada incompleta no se reescribe y bloquea el avance hasta corregirla.
-    await page.getByRole('button', { name: 'Volver al paso anterior' }).click()
     const editable = page.getByLabel(PHONE_LABEL)
     await editable.fill('311')
     await expect(editable).toHaveValue('311')

@@ -267,7 +267,8 @@ test.describe.serial('ME pago, preparación y referencia reales @completo', () =
     await expect(admin.page.getByRole('button', { name: 'Reabrir preparación' })).toHaveCount(0)
     const delivered = await readOrder()
     const forbidden = await owner.request.patch(`/api/orders/${orderId}/status`, { data: { status: 'preparing', expectedVersion: delivered.version } })
-    expect(forbidden.status()).toBe(409)
+    // Pedido terminal con la versión actual: el servidor lo rechaza por validación (400); 409 es solo versión/estado vencidos.
+    expect(forbidden.status()).toBe(400)
   })
 
   test('ocho POST concurrentes de dos clientes: números únicos por tienda, retry estable y acceso cruzado denegado', async () => {

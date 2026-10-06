@@ -73,3 +73,50 @@ test('SQL propio exige ocho pedidos entre dos clientes y unicidad real de refere
   const duplicate = structuredClone(current); duplicate.order_creations.push(duplicate.order_creations[0]!)
   expect(verifyOwnOrders(original, duplicate, runtime).checks.creationsExactlyOne).toBe(false)
 })
+
+// Formulario admin completo: el audit lista 14 campos aunque el fixture solo capturó `price`.
+const FORM_FIELDS = ['name', 'name_display', 'name_legal', 'price', 'originalPrice', 'unit', 'imageUrl', 'categoryId', 'inStock', 'is_variable_weight', 'badge', 'description', 'nutritionalInfo', 'availability']
+const fullProduct = () => ({ id: 'p', version: 4, updated_at: beforeAt, price: 500, name: 'Original', display_name: null, legal_name: 'Legal', original_price: null, unit: 'u', image_url: 'x',
+  category_id: 'c', in_stock: true, is_variable_weight: false, badge: null, currency: 'COP', description: 'd', nutritional_info: { kcal: 1 }, availability_label: null, active: true, archived_at: null })
+const formState = (mutate?: (current: ReturnType<typeof full>, events: ReturnType<typeof event>[]) => void) => {
+  const events = [event(5), { ...event(6), metadata: { version: 6, previousVersion: 5, fields: FORM_FIELDS } }, event(7)]
+  const current = full(); Object.assign(current.catalog_products[0]!, { version: 7, updated_at: afterAt })
+  mutate?.(current, events); Reflect.set(current, 'audit_events', [...current.audit_events, ...events]); return current
+}
+const full = () => ({ ...base(), catalog_products: [fullProduct()] as Record<string, unknown>[] })
+const fullBase = () => full()
+const withRecord = (r = record()) => [r]
+
+test('formulario de 14 campos con baseline completa, ledger contiguo y valores restaurados acepta solo metadata', () => {
+  expect(comparePreservedBaseline(fullBase(), formState(), withRecord())).toMatchObject({ checks: { catalog_products: true }, technicalChanges: [{ table: 'catalog_products', previousVersion: 4, version: 7 }] })
+  expect(comparePreservedBaseline(fullBase(), formState()).checks.catalog_products).toBe(false)
+})
+
+test('formulario completo rechaza campo desconocido, valor de negocio cambiado, columna ausente, hueco, actor, ventana y ledger alterado', () => {
+  const rejected: Array<(current: ReturnType<typeof full>, events: ReturnType<typeof event>[]) => void> = [
+    (_c, e) => { e[1]!.metadata.fields = [...FORM_FIELDS, 'weeklySchedule'] },
+    (_c, e) => { e[1]!.metadata.fields = [...FORM_FIELDS, 'unknownField'] },
+    (c) => { c.catalog_products[0]!.name = 'Cambiado' },
+    (c) => { c.catalog_products[0]!.nutritional_info = { kcal: 2 } },
+    (c) => { delete c.catalog_products[0]!.legal_name },
+    (_c, e) => { e.splice(1, 1) },
+    (_c, e) => { e[1]!.actor_id = 'other' },
+    (_c, e) => { e[1]!.created_at = '2026-10-07T00:00:00Z' },
+    (_c, e) => { e.push({ ...event(6), id: 'dup-6' }) },
+  ]
+  for (const mutate of rejected) expect(comparePreservedBaseline(fullBase(), formState(mutate), withRecord()).checks.catalog_products).toBe(false)
+  // Una columna ausente también en la baseline no cuenta como valor restaurado.
+  const noColumn = fullBase(); delete noColumn.catalog_products[0]!.legal_name
+  expect(comparePreservedBaseline(noColumn, formState((c) => { delete c.catalog_products[0]!.legal_name }), withRecord()).checks.catalog_products).toBe(false)
+  // Ledger alterado: la cadena deja de verificarse y no hay registros que respalden la metadata.
+  const entries = [fixtureLedgerEntry(record())], consumed = { stamps: [{ stamp: 'stamp-1', runId: 'run-1' }] }
+  entries[0]!.record.original = { price: 1 }
+  expect(() => verifiedFixtureRecords(entries, consumed)).toThrow(/Ledger/)
+})
+
+test('el guard de store conserva el criterio previo: campo ausente del fixture no se admite', () => {
+  const store = { ...base(), stores: [{ id: 's', version: 3, updated_at: beforeAt, created_at: beforeAt, name: 'Original', contact_phone: 'x' }] }
+  const current = structuredClone(store); Object.assign(current.stores[0]!, { version: 4, updated_at: afterAt })
+  Reflect.set(current, 'audit_events', [...current.audit_events, { id: 's-4', entity: 'store', entity_id: 's', action: 'updated', actor_kind: 'account', actor_id: 'owner-test', created_at: afterAt, metadata: { version: 4, previousVersion: 3, fields: ['contactPhone'] } }])
+  expect(comparePreservedBaseline(store, current, [{ ...record(), kind: 'store', id: 's', original: { name: 'Original' } }]).checks.stores).toBe(false)
+})

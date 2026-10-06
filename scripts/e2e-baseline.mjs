@@ -27,6 +27,19 @@ export function verifiedFixtureRecords(entries, consumed) {
     consumed.stamps.some((entry) => entry.runId === record.runId && entry.stamp === record.readyStamp))
 }
 
+/**
+ * Campo del PATCH de producto (contrato `updateProductRequestSchema`) -> columna SQL real de `catalog_products`.
+ * El formulario admin envía el producto completo: el audit lista todos los campos aunque el fixture solo
+ * capturó los que cambió. Un campo ausente de `original` solo se admite si está en este mapa, su columna
+ * existe en la fila original y en la actual, y el valor restaurado es idéntico al de la baseline inmutable.
+ */
+export const PRODUCT_FIELD_COLUMNS = Object.freeze({
+  name: 'name', name_display: 'display_name', name_legal: 'legal_name', price: 'price', originalPrice: 'original_price',
+  unit: 'unit', imageUrl: 'image_url', categoryId: 'category_id', inStock: 'in_stock', is_variable_weight: 'is_variable_weight',
+  badge: 'badge', currency: 'currency', description: 'description', nutritionalInfo: 'nutritional_info',
+  availability: 'availability_label', active: 'active', archived: 'archived_at',
+})
+
 /** Solo metadata de filas realmente tocadas, restauradas y respaldadas por audit/versiones SQL. */
 function fixtureMetadataAllowed(table, before, after, records, audits) {
   const entity = table === 'stores' ? 'store' : table === 'catalog_products' ? 'product' : null
@@ -42,7 +55,10 @@ function fixtureMetadataAllowed(table, before, after, records, audits) {
     event.actor_kind === 'account' && touched.some((record) => event.actor_id === record.actorId &&
       Date.parse(event.created_at) >= Date.parse(record.startedAt) - 2_000 && Date.parse(event.created_at) <= Date.parse(record.restoredAt) + 2_000 &&
       Array.isArray(event.metadata.fields) && event.metadata.fields.length > 0 &&
-      event.metadata.fields.every((field) => Object.hasOwn(record.original, field))))
+      event.metadata.fields.every((field) => Object.hasOwn(record.original, field) ||
+        (entity === 'product' && Object.hasOwn(PRODUCT_FIELD_COLUMNS, field) &&
+          Object.hasOwn(before, PRODUCT_FIELD_COLUMNS[field]) && Object.hasOwn(after, PRODUCT_FIELD_COLUMNS[field]) &&
+          same(before[PRODUCT_FIELD_COLUMNS[field]], after[PRODUCT_FIELD_COLUMNS[field]])))))
 }
 
 /** Todas las filas humanas se buscan por identidad privada y se comparan íntegras, aunque haya pedidos nuevos. */
