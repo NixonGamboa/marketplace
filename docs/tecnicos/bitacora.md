@@ -1,6 +1,6 @@
-# MAUI — Bitácora de entregas
+# MAUI — Índice de entregas
 
-El estado y la evidencia técnicos se mantienen en [estado-plan.md](estado-plan.md); los ejecutores, modelos y cuotas en [ejecucion-ia.json](ejecucion-ia.json). Esta bitácora registra los cortes de entrega sin duplicar la evidencia.
+La bitácora local de este incremento está en `docs/bitacora/2026-10-05-me01-me04-mejoras-ux.md`, carpeta ignorada por Git según la política del repositorio. El estado y la evidencia técnicos se mantienen en [estado-plan.md](estado-plan.md); los ejecutores, modelos y cuotas en [ejecucion-ia.json](ejecucion-ia.json). Este índice registra los cortes de entrega sin duplicar la evidencia.
 
 | Fecha (America/Bogota) | Versión | Estado y alcance | Registro |
 |---|---|---|---|

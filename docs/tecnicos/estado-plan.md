@@ -9,14 +9,14 @@
 
 ### Mejoras UX ME-01 a ME-04 — 2026-10-05
 
-Encargo actual del usuario: ejecutar el [plan UX](plan-mejoras-ux-20261005.md), Codex solo orquesta, publicar `mvp-1.0.2` y verificar Vercel test; actualizar la bitácora. Una feature desde develop `6bce87725a4a6c39ff576cfa30cc9ef87f782052`, un solo PR. Implementación secuencial por Claude `9e509c67-8f78-4d47-b90c-d29f1c6df188`, Opus/high inicial; modelo canónico y cuotas en el [registro de sesiones](ejecucion-ia.json). Codex reserva revisión crítica de contratos, permisos, estados, importes, concurrencia y numeración, además de Git/CI/documentación. El encargo autoriza merge a develop y deployment test tras gates; no autoriza Production ni acciones destructivas. Para este lote el plan pide E2E real nuevo, sin extender la excepción sin E2E de 1.0.1; no reset/seed. Migración nueva aditiva, preservar datos de prueba.
+Encargo actual del usuario: ejecutar el [plan UX](plan-mejoras-ux-20261005.md), Codex solo orquesta, publicar `mvp-1.0.2` y verificar Vercel test; actualizar la bitácora. Una feature desde develop `6bce87725a4a6c39ff576cfa30cc9ef87f782052`, un solo PR. Contratos/backend por Claude `9e509c67-8f78-4d47-b90c-d29f1c6df188`, Opus/high inicial y corrección delimitada Sonnet/medium. Tras medir 84 % de ventana Claude consumida, los consumidores se reasignan a un ejecutor Codex con contexto mínimo; modelo canónico y cuotas en el [registro de sesiones](ejecucion-ia.json). Codex reserva revisión crítica de contratos, permisos, estados, importes, concurrencia y numeración, además de Git/CI/documentación. El encargo autoriza merge a develop y deployment test tras gates; no autoriza Production ni acciones destructivas. Para este lote el plan pide E2E real nuevo, sin extender la excepción sin E2E de 1.0.1; no reset/seed. Migración nueva aditiva, preservar datos de prueba.
 
 | Paso | Estado | Cierre pendiente |
 |---|---|---|
-| 1-2: contratos y backend | En curso; escritor único Claude en checkout aislado | Gates de contratos/Postgres embebido y revisión crítica antes de consumidores; migración cloud aún no aplicada |
-| 3: PWA | Pendiente de 1-2 en verde | Selector pago, mensaje relativo con seis casos, referencia comercial |
-| 4: admin | Pendiente de 1-2 en verde | Vistas por estado, alistamiento/autoguardado/409, reabrir y referencias |
-| 5: entrega | Pendiente | Gates/CI, E2E real, un PR, tag mvp-1.0.2 y deployment del mismo SHA; bitácora |
+| 1-2: contratos y backend | Local verificado y revisión crítica Codex cerrada; commit `9857ed6` | 1.255 tests backend, 552 del área, typecheck y drift en verde. Corregido sustituto con peso que se marcaba solo. Migración cloud aún no aplicada; PGlite no prueba contención real entre instancias |
+| 3: PWA | En curso, ejecutor `/root/me_pwa` | Selector pago, mensaje relativo con seis casos, referencia comercial; depende de 1-2 ya en verde |
+| 4: admin | Pendiente, secuencial tras PWA | Vistas por estado, alistamiento/autoguardado/409, reabrir y referencias |
+| 5: entrega | Preparación de aislamiento de solo lectura/TEMP por `/root/me_release`; ejecución pendiente de consumidores | Gates/CI, E2E real, un PR, tag mvp-1.0.2 y deployment del mismo SHA; bitácora. Preservar pedidos humanos y no simular un seed limpio |
 
 ### Segunda fase: primera barrida de la prueba manual — 2026-10-05
 

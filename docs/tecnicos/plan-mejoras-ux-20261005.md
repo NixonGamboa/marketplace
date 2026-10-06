@@ -1,6 +1,6 @@
 # MAUI: plan de mejoras UX ME-01 a ME-04 (2026-10-05)
 
-**Estado: planificado. No hay nada ejecutado, desplegado ni certificado.** Los requisitos, textos y criterios están en [mejoras de la prueba manual](mejoras-prueba-manual-20261005.md), que separa lo confirmado por el usuario de las propuestas. Las cuatro decisiones operativas de QR, entrega de datos de cobro, horario guardado y alistamiento completo fueron confirmadas explícitamente por el usuario el 2026-10-05; las demás propuestas conservan su carácter de opciones de implementación. Principio: «la simplicidad del sistema es la que garantiza el éxito y disminuye la fricción».
+**Estado: en ejecución.** Contratos y backend verificados localmente; PWA en curso. El despliegue y la certificación de este lote siguen pendientes. El estado y la evidencia se mantienen en [estado-plan.md](estado-plan.md#mejoras-ux-me-01-a-me-04--2026-10-05). Los requisitos, textos y criterios están en [mejoras de la prueba manual](mejoras-prueba-manual-20261005.md), que separa lo confirmado por el usuario de las propuestas. Las cuatro decisiones operativas de QR, entrega de datos de cobro, horario guardado y alistamiento completo fueron confirmadas explícitamente por el usuario el 2026-10-05; las demás propuestas conservan su carácter de opciones de implementación. Principio: «la simplicidad del sistema es la que garantiza el éxito y disminuye la fricción».
 
 ## Alcance
 
