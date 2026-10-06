@@ -39,6 +39,16 @@ export const SUBSTITUTION_PREF_VALUES = ['call_me', 'similar', 'remove'] as cons
 
 export type SubstitutionPref = (typeof SUBSTITUTION_PREF_VALUES)[number]
 
+/**
+ * Cómo pagará el cliente al recibir o recoger (ME-01). Solo es un registro: no hay pasarela ni
+ * verificación de pago. Los pedidos anteriores y los creados sin elegir son `cash`.
+ */
+export const PAYMENT_METHOD_VALUES = ['cash', 'qr', 'bre_b'] as const
+
+export type PaymentMethod = (typeof PAYMENT_METHOD_VALUES)[number]
+
+export const DEFAULT_PAYMENT_METHOD: PaymentMethod = 'cash'
+
 export const TIME_SLOT_VALUES = ['morning', 'afternoon', 'asap'] as const
 
 export type TimeSlot = (typeof TIME_SLOT_VALUES)[number]
@@ -54,6 +64,9 @@ export const isSubstitutionPref = (value: string): value is SubstitutionPref =>
 
 export const isTimeSlot = (value: string): value is TimeSlot =>
   (TIME_SLOT_VALUES as readonly string[]).includes(value)
+
+export const isPaymentMethod = (value: string): value is PaymentMethod =>
+  (PAYMENT_METHOD_VALUES as readonly string[]).includes(value)
 
 /**
  * Flujo: received → confirmed → preparing → ready → delivered.
@@ -80,11 +93,19 @@ export const allowedNextStatuses = (
     ? ['in_delivery', 'delivered', 'cancelled']
     : TRANSITIONS[current]
 
+/**
+ * «Reabrir preparación» (ME-03): única vuelta atrás, de `ready` a `preparing`, para corregir productos
+ * o pesos antes de salir o entregar. Es una corrección, no un avance: no figura en `allowedNextStatuses`.
+ */
+export const canReopenPreparation = (current: OrderStatus): boolean => current === 'ready'
+
 export const canTransition = (
   current: OrderStatus,
   next: OrderStatus,
   deliveryType: DeliveryType,
-): boolean => allowedNextStatuses(current, deliveryType).includes(next)
+): boolean =>
+  allowedNextStatuses(current, deliveryType).includes(next) ||
+  (next === 'preparing' && canReopenPreparation(current))
 
 /** Entregado y cancelado: inmutables (sin transiciones ni cambios de ítems). */
 export const isTerminalOrderStatus = (status: OrderStatus): boolean =>

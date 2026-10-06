@@ -1,9 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
+  CONTRACT_VERSION_HEADER,
   buildApiError,
+  contractVersionFrom,
   entityIdSchema,
   issuesFromZodError,
   listOrdersQuerySchema,
+  type ContractVersion,
   type ListOrdersQuery,
 } from '../../shared/contracts/index.js'
 import { CatalogPersistenceError } from '../../maui-back/src/domain/catalog/errors.js'
@@ -12,8 +15,21 @@ import { OrderPersistenceError } from '../../maui-back/src/domain/orders/orderCr
 import type { AuthConfig } from '../../maui-back/src/infra/auth/config.js'
 import type { AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { ValidationError } from '../../maui-back/src/shared/errors.js'
-import { AuthRequestError, authenticateRequest, failAuth, requireTrustedOrigin } from './auth.js'
+import { AuthRequestError, authenticateRequest, failAuth, prepareAuthResponse, requireTrustedOrigin } from './auth.js'
 import { jsonResponse } from './response.js'
+
+/**
+ * Cabeceras comunes de pedidos: sin caché y variación por la cabecera de contrato, porque la misma URL
+ * responde v1 o v2 según la app que la pide (`contractVersionFrom`).
+ */
+export const prepareOrderResponse = (res: VercelResponse): void => {
+  prepareAuthResponse(res)
+  res.setHeader('Vary', `Cookie, Origin, ${CONTRACT_VERSION_HEADER}`)
+}
+
+/** Contrato que entiende la app: las anteriores no envían la cabecera y reciben la forma v1. */
+export const contractVersionOf = (req: VercelRequest): ContractVersion =>
+  contractVersionFrom(req.headers[CONTRACT_VERSION_HEADER.toLowerCase()])
 
 /** Tope del cuerpo JSON de pedidos: 50 ítems con snapshot y dirección caben con holgura. */
 export const MAX_ORDER_BODY_BYTES = 32 * 1024

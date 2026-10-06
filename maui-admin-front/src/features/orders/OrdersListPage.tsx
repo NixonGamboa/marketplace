@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Inbox } from 'lucide-react'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { OrderStatus } from '@/types/orderService'
 import type { AdminOrder } from '@/types/adminOrder'
 import { isCancelled } from '@/types/adminOrder'
@@ -47,7 +48,7 @@ function applySearch(orders: AdminOrder[], query: string): AdminOrder[] {
   return orders.filter(
     (o) =>
       o.customerName.toLowerCase().includes(lower) ||
-      o.orderId.toLowerCase().includes(lower),
+      orderReferenceLabel(o).toLowerCase().includes(lower),
   )
 }
 

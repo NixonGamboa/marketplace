@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   AlertCircle,
   ShoppingCart,
-  Banknote,
   MessageCircle,
   StickyNote,
   ChevronRight,
@@ -21,7 +20,6 @@ import {
   Lock,
   MapPin,
   Clock,
-  ShieldCheck,
 } from 'lucide-react'
 
 import { useCartStore } from '@/stores/cartStore'
@@ -34,6 +32,8 @@ import type { OrderPayload } from '@/types/orderService'
 
 import { useCheckoutStore, useIsCheckoutReady, useIsDeliveryReady, normalizeCustomerPhone, localCustomerPhone, mapCartItemsToOrderItems } from './checkoutStore'
 import { isDemoMode } from '@/config/mode'
+import { paymentMethodLabel } from '@shared/receipts'
+import { PaymentSelector } from './PaymentSelector'
 import DeliverySelector from './DeliverySelector'
 import { SubstitutionSelector } from './SubstitutionSelector'
 import { calculateShipping, type ShippingQuote, type ShippingRules } from './shipping'
@@ -476,6 +476,7 @@ interface StepPagoProps {
 
 function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: StepPagoProps) {
   const cartTotal      = useCartStore((s) => s.total)
+  const paymentMethod = useCheckoutStore((s) => s.paymentMethod)
   const customerPhone  = useCheckoutStore((s) => s.customerPhone)
   const deliveryMode   = useCheckoutStore((s) => s.deliveryMode)
   const address        = useCheckoutStore((s) => s.address)
@@ -500,6 +501,8 @@ function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: Step
       <h2 id="step-pago-heading" className="sr-only">
         Confirmación y pago
       </h2>
+
+      <PaymentSelector disabled={isSubmitting} />
 
       {/* Mini-resumen de lo elegido */}
       <div className="rounded-2xl border border-brand-border bg-white px-5 py-4 shadow-card space-y-3">
@@ -536,6 +539,8 @@ function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: Step
           </p>
         </div>
 
+        <p className="text-sm text-brand-dark">Pago: {paymentMethodLabel(paymentMethod)}</p>
+
         {/* Totales con envío */}
         <div className="pt-2 border-t border-brand-border space-y-1">
           <div className="flex justify-between text-xs text-brand-muted">
@@ -559,14 +564,6 @@ function StepPago({ animClass, submitError, isSubmitting, rules, blocked }: Step
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Pago en efectivo */}
-      <div className="flex items-center gap-2 rounded-xl bg-brand-primary-light px-3 py-2.5">
-        <Banknote size={18} aria-hidden="true" className="shrink-0 text-brand-primary" />
-        <p className="text-xs font-semibold text-brand-primary">
-          Pagas en efectivo cuando llegue tu pedido
-        </p>
       </div>
 
       {blocked && <BlockedNotice blocked={blocked} rules={rules} />}
@@ -699,6 +696,7 @@ export default function CheckoutPage() {
         lng:      checkout.lng      ?? undefined,
         timeSlot: checkout.timeSlot ?? undefined,
       },
+      paymentMethod: checkout.paymentMethod,
       customerName: user?.name ?? 'Cliente',
       customerPhone,
       shippingCost: getCheckoutShipping(cartTotal, checkout.deliveryMode, rules.shipping).cost,
@@ -834,10 +832,6 @@ export default function CheckoutPage() {
               aria-label="Señales de confianza"
               className="flex items-center justify-between gap-2 px-1"
             >
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-brand-muted">
-                <ShieldCheck size={13} aria-hidden="true" className="text-brand-primary" />
-                Pago seguro
-              </span>
               <span className="flex items-center gap-1.5 text-[11px] font-medium text-brand-muted">
                 <Lock size={13} aria-hidden="true" className="text-brand-primary" />
                 Datos protegidos

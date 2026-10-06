@@ -1,3 +1,4 @@
+import { orderReferenceLabel } from '@shared/receipts'
 import { Link } from 'react-router-dom'
 import type { Order } from '@/types/orderService'
 import { STATUS_BADGE, formatOrderDate, formatPrice } from './orderDisplay'
@@ -28,10 +29,10 @@ export function OrderCard({ order }: { order: Order }) {
     <Link
       to={`/pedidos/${order.orderId}`}
       className="block bg-white rounded-2xl border border-brand-border shadow-card p-5 min-h-20 hover:border-brand-primary/40 hover:shadow-card-hover hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-      aria-label={`Pedido ${order.orderId}, estado: ${badge.label}`}
+      aria-label={`${orderReferenceLabel(order)}, estado: ${badge.label}`}
     >
       <p className="text-sm font-semibold text-brand-dark truncate">
-        Pedido {order.orderId}
+        {orderReferenceLabel(order)}
       </p>
       <p className="text-xs text-brand-muted mt-0.5">
         {formatOrderDate(order.createdAt)}

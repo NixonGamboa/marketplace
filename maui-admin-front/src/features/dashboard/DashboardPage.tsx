@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertCircle, Inbox } from 'lucide-react'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { OrderStatus } from '@/types/orderService'
 import type { AdminOrder } from '@/types/adminOrder'
 import { isDemoMode, orderRepo } from '@/services'
@@ -208,7 +209,7 @@ export function DashboardPage() {
                       <p className="text-sm font-semibold text-amber-900">
                         {order.customerName}{phoneSuffix}
                       </p>
-                      <p className="text-xs text-amber-700 mt-0.5">{order.orderId}</p>
+                      <p className="text-xs text-amber-700 mt-0.5">{orderReferenceLabel(order)}</p>
                     </div>
                     <p className="text-xs text-amber-600 shrink-0">
                       {timeFormatter.format(new Date(order.createdAt))}

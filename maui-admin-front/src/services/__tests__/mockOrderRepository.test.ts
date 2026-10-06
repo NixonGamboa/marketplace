@@ -176,4 +176,45 @@ describe('mockOrderRepository', () => {
       expect(events[0].meta).toMatchObject({ from: 'received', to: 'confirmed' })
     })
   })
+
+  describe('changeItems (marcas y pesos del demo)', () => {
+    const preparing = () => seedOrders([baseOrder({ status: 'preparing', version: 3 })])
+    const item = (order: AdminOrder, id: string) => order.items.find((candidate) => candidate.id === id)!
+
+    it('un peso válido marca la línea y sube la versión', async () => {
+      preparing()
+      const updated = await mockOrderRepository.changeItems('MAUI-1', [{ type: 'weight', itemId: 'queso', kilosReal: 0.75 }])
+      expect(item(updated, 'queso')).toMatchObject({ kilosReal: 0.75, picked: true })
+      expect(updated.version).toBe(4)
+      expect(updated.finalTotal).toBe(33000)
+    })
+
+    it('desmarcar conserva el peso y borrarlo desmarca', async () => {
+      preparing()
+      await mockOrderRepository.changeItems('MAUI-1', [{ type: 'weight', itemId: 'queso', kilosReal: 0.75 }])
+      const unpicked = await mockOrderRepository.changeItems('MAUI-1', [{ type: 'pick', itemId: 'queso', picked: false }])
+      expect(item(unpicked, 'queso')).toMatchObject({ kilosReal: 0.75 })
+      expect(item(unpicked, 'queso').picked).toBeUndefined()
+      const cleared = await mockOrderRepository.changeItems('MAUI-1', [{ type: 'weight', itemId: 'queso', kilosReal: null }])
+      expect(item(cleared, 'queso').kilosReal).toBeUndefined()
+      expect(item(cleared, 'queso').picked).toBeUndefined()
+    })
+
+    it('un peso variable no se marca sin su peso real; uno fijo sí', async () => {
+      preparing()
+      await expect(mockOrderRepository.changeItems('MAUI-1', [{ type: 'pick', itemId: 'queso', picked: true }]))
+        .rejects.toThrow(/peso real/i)
+      const marked = await mockOrderRepository.changeItems('MAUI-1', [{ type: 'pick', itemId: 'leche-1l', picked: true }])
+      expect(item(marked, 'leche-1l').picked).toBe(true)
+    })
+
+    it('solo en preparación y sin quitar ni sustituir en el demo', async () => {
+      seedOrders([baseOrder({ status: 'confirmed' })])
+      await expect(mockOrderRepository.changeItems('MAUI-1', [{ type: 'pick', itemId: 'leche-1l', picked: true }]))
+        .rejects.toThrow(/preparaci|prepara/i)
+      preparing()
+      await expect(mockOrderRepository.changeItems('MAUI-1', [{ type: 'remove', itemId: 'leche-1l' }]))
+        .rejects.toThrow(/demo/i)
+    })
+  })
 })

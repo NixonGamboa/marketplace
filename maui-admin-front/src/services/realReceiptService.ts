@@ -2,6 +2,7 @@ import { entityIdSchema, orderDtoSchema } from '@shared/contracts'
 import { staffReceiptFrom, type ReceiptResult } from '@shared/receipts'
 import { apiClient, type ApiClient } from './http/apiClient'
 import { validateRequest } from './http/validateRequest'
+import { ORDER_CONTRACT_HEADERS } from './realOrderRepository'
 
 export interface ReceiptService {
   load(orderId: string, signal?: AbortSignal): Promise<ReceiptResult>
@@ -10,7 +11,7 @@ export interface ReceiptService {
 export const createRealReceiptService = (client: ApiClient = apiClient): ReceiptService => ({
   async load(orderId, signal) {
     const id = validateRequest(entityIdSchema, orderId)
-    const order = await client.request({ path: `/orders/${encodeURIComponent(id)}`, schema: orderDtoSchema, signal })
+    const order = await client.request({ path: `/orders/${encodeURIComponent(id)}`, headers: ORDER_CONTRACT_HEADERS, schema: orderDtoSchema, signal })
     return staffReceiptFrom(order)
   },
 })

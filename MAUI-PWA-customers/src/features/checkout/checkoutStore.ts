@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { PaymentMethod } from '@shared/contracts'
 import type { TimeSlot, SubstitutionPref } from '@/types/orderService'
 import type { CartItem as CartStoreItem } from '@/types/cart'
 import type { CartItem as OrderItem } from '@/types/orderService'
@@ -11,6 +12,7 @@ export type DeliveryMode = 'pickup' | 'delivery'
 // ─── State ───────────────────────────────────────────────────────────────────
 
 interface CheckoutState {
+  paymentMethod: PaymentMethod
   deliveryMode: DeliveryMode | null
   timeSlot: TimeSlot | null
   address: string | null
@@ -25,6 +27,7 @@ interface CheckoutState {
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
 interface CheckoutActions {
+  setPaymentMethod: (method: PaymentMethod) => void
   setDeliveryMode: (mode: DeliveryMode) => void
   setTimeSlot: (slot: TimeSlot) => void
   setAddress: (address: string) => void
@@ -41,6 +44,7 @@ type CheckoutStore = CheckoutState & CheckoutActions
 // ─── Initial state ────────────────────────────────────────────────────────────
 
 const initialState: CheckoutState = {
+  paymentMethod: 'cash',
   deliveryMode: null,
   timeSlot: null,
   address: null,
@@ -56,6 +60,7 @@ const initialState: CheckoutState = {
 
 export const useCheckoutStore = create<CheckoutStore>((set) => ({
   ...initialState,
+  setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
 
   setDeliveryMode: (mode) => {
     if (mode === 'pickup') {

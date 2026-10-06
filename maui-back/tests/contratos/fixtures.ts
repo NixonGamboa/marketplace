@@ -43,6 +43,7 @@ export const internalOrder = (overrides: Partial<Order> = {}): Order => ({
   deliveryType: 'delivery',
   deliveryData: { address: 'Calle 8 # 5-32', lat: 3.5402, lng: -74.8965, timeSlot: 'asap' },
   substitutionPreference: 'similar',
+  paymentMethod: 'cash',
   shippingCost: 3000,
   estimatedTotal: 45000,
   createdAt: NOW_ISO,

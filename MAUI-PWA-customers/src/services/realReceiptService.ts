@@ -1,4 +1,4 @@
-import { entityIdSchema, orderDtoSchema, storeDtoSchema } from '@shared/contracts'
+import { CONTRACT_VERSION_HEADER, CURRENT_CONTRACT_VERSION, entityIdSchema, orderDtoSchema, storeDtoSchema } from '@shared/contracts'
 import { customerReceiptFrom, type ReceiptResult } from '@shared/receipts'
 import { apiClient, type ApiClient } from './http/apiClient'
 import { validateRequest } from './http/validateRequest'
@@ -10,7 +10,7 @@ export interface ReceiptService {
 export const createRealReceiptService = (client: ApiClient = apiClient): ReceiptService => ({
   async load(orderId, signal) {
     const id = validateRequest(entityIdSchema, orderId)
-    const order = await client.request({ path: `/orders/${encodeURIComponent(id)}`, schema: orderDtoSchema, signal })
+    const order = await client.request({ path: `/orders/${encodeURIComponent(id)}`, headers: { [CONTRACT_VERSION_HEADER]: CURRENT_CONTRACT_VERSION }, schema: orderDtoSchema, signal })
     try {
       const store = await client.request({ path: '/store', schema: storeDtoSchema, signal })
       return customerReceiptFrom(order, store)

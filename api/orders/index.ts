@@ -1,14 +1,14 @@
 import { withObservability } from '../_lib/observability.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { DEFAULT_STORE_ID } from '../../maui-back/src/domain/orders/Order.js'
-import { toOrderConfirmation, toOrderListResponse } from '../../maui-back/src/domain/orders/orderMappers.js'
+import { toOrderConfirmationFor, toOrderListResponseFor } from '../../maui-back/src/domain/orders/orderMappers.js'
 import { getAuthRuntime, type AuthRuntime } from '../../maui-back/src/infra/auth/factory.js'
 import { getRepositories } from '../../maui-back/src/infra/factory.js'
 import { createOrder } from '../../maui-back/src/usecases/orders/createOrder.js'
 import { recordOrderOutcome } from '../../maui-back/src/shared/observability.js'
 import { listOrdersForActor } from '../../maui-back/src/usecases/orders/listOrders.js'
-import { allowMethods, prepareAuthResponse, readJsonBody } from '../_lib/auth.js'
-import { MAX_ORDER_BODY_BYTES, authorizeOrderRequest, failOrderRequest, listQueryFrom } from '../_lib/orders.js'
+import { allowMethods, readJsonBody } from '../_lib/auth.js'
+import { MAX_ORDER_BODY_BYTES, authorizeOrderRequest, contractVersionOf, failOrderRequest, listQueryFrom, prepareOrderResponse } from '../_lib/orders.js'
 import { ok } from '../_lib/response.js'
 
 /** GET: listado histórico; la sesión fija el alcance. Lectura: no exige Origin (solo las mutaciones). */
@@ -16,7 +16,7 @@ const listOrders = async (req: VercelRequest, res: VercelResponse, runtime: Auth
   const actor = await authorizeOrderRequest(req, runtime, { mutation: false })
   const query = listQueryFrom(req)
   const { orders } = await getRepositories()
-  ok(res, toOrderListResponse(await listOrdersForActor({ orders }, actor, query)))
+  ok(res, toOrderListResponseFor(await listOrdersForActor({ orders }, actor, query), contractVersionOf(req)))
 }
 
 /** POST: solo cliente autenticado; dueño y tienda los fija el servidor. */
@@ -31,7 +31,7 @@ const placeOrder = async (req: VercelRequest, res: VercelResponse, runtime: Auth
     { storeId: DEFAULT_STORE_ID },
     req.headers['idempotency-key'],
   )
-  ok(res, toOrderConfirmation(created), 201)
+  ok(res, toOrderConfirmationFor(created, contractVersionOf(req)), 201)
 }
 
 /**
@@ -39,7 +39,7 @@ const placeOrder = async (req: VercelRequest, res: VercelResponse, runtime: Auth
  * POST crea un pedido propio del cliente.
  */
 async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  prepareAuthResponse(res)
+  prepareOrderResponse(res)
   if (!allowMethods(req, res, ['GET', 'POST'])) return
 
   let runtime: AuthRuntime | undefined

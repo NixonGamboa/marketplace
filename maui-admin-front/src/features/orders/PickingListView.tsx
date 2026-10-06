@@ -4,6 +4,7 @@
  * Botones de imprimir y copiar como texto.
  */
 import { Printer, Clipboard } from 'lucide-react'
+import { orderReferenceLabel } from '@shared/receipts'
 import type { AdminOrder } from '@/types/adminOrder'
 import { formatPhonePretty } from '@/lib/phone'
 import { triggerPrint } from '@/lib/print'
@@ -33,7 +34,7 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
 function buildPlainText(order: AdminOrder, items: ResolvedItem[]): string {
   const lines: string[] = []
   lines.push(`=== Lista de picking ===`)
-  lines.push(`Pedido: ${order.orderId}`)
+  lines.push(orderReferenceLabel(order))
   lines.push(`Fecha: ${dateFormatter.format(new Date(order.createdAt))}`)
   lines.push(`Cliente: ${order.customerName}`)
   if (order.customerPhone) {
@@ -98,7 +99,7 @@ export function PickingListView({ order, items }: PickingListViewProps) {
             <p className="text-sm text-gray-600">{formatPhonePretty(order.customerPhone)}</p>
           )}
           <p className="text-xs text-gray-500 mt-0.5">
-            {order.orderId} · {dateFormatter.format(new Date(order.createdAt))}
+            {orderReferenceLabel(order)} · {dateFormatter.format(new Date(order.createdAt))}
           </p>
         </div>
 

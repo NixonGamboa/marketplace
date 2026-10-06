@@ -37,4 +37,5 @@ export const createOrderRequestFrom = (payload: OrderPayload): CreateOrderReques
   deliveryData: payload.deliveryData,
   customerName: payload.customerName,
   customerPhone: payload.customerPhone,
+  ...(payload.paymentMethod && payload.paymentMethod !== 'cash' ? { paymentMethod: payload.paymentMethod } : {}),
 })

@@ -122,7 +122,7 @@ describe('runCli', () => {
   it('seed exige que el ledger de migraciones esté completo antes de escribir', async () => {
     const world = await startSeedWorld()
     try {
-      for (const entries of [null, 7]) {
+      for (const entries of [null, 8]) {
         if (entries !== null) await createLedger(world, entries)
         const output = capture()
         expect(await runCli(['seed'], envFor(), output.io, { connect: async () => runtimeFor(world) })).toBe(1)
@@ -139,7 +139,7 @@ describe('runCli', () => {
     const world = await startSeedWorld()
     const passwords = testCredentials()
     try {
-      await createLedger(world, 8)
+      await createLedger(world, 9)
       const connect = async () => runtimeFor(world)
 
       const dry = capture()
@@ -168,7 +168,7 @@ describe('runCli', () => {
   it('seed sin contraseñas para cuentas nuevas falla sin escribir y nombra solo las variables', async () => {
     const world = await startSeedWorld()
     try {
-      await createLedger(world, 8)
+      await createLedger(world, 9)
       const output = capture()
       const env = envFor({ SEED_OWNER_PASSWORD: undefined, SEED_OPERATOR_PASSWORD: undefined, SEED_CUSTOMER_PASSWORD: undefined })
       expect(await runCli(['seed'], env, output.io, { connect: async () => runtimeFor(world) })).toBe(1)
@@ -183,7 +183,7 @@ describe('runCli', () => {
   it('seed con una colisión sale con código 1 y lista los conflictos sin escribir', async () => {
     const world = await startSeedWorld()
     try {
-      await createLedger(world, 8)
+      await createLedger(world, 9)
       await world.embedded.pg.query(
         `insert into orders (id, store_id, customer_id, customer_name, customer_phone, items, total, status, delivery_mode,
            substitution_preference, created_at, updated_at) values ($1, 'otra', 'otro', 'Ajeno', '573000000099', '[]'::jsonb,
@@ -200,7 +200,7 @@ describe('runCli', () => {
   it('reset: dry-run devuelve el token y la ejecución con ese token borra los fixtures', async () => {
     const world = await startSeedWorld()
     try {
-      await createLedger(world, 8)
+      await createLedger(world, 9)
       const connect = async () => runtimeFor(world)
       expect(await runCli(['seed'], envFor(), capture().io, { connect })).toBe(0)
 

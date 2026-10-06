@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
-  authSessionResponseSchema, calculateOrderTotals, orderDtoSchema, publicCatalogResponseSchema, storeDtoSchema,
+  authSessionResponseSchema, calculateOrderTotals, formatOrderReference, orderDtoSchema, publicCatalogResponseSchema, storeDtoSchema,
   type OrderDto, type ProductDto,
 } from '../../shared/contracts/index.js'
 import { apiHeaders, expectSessionClosed, openActor, sanitizedShot, type Actor } from '../support/actors.js'
@@ -28,6 +28,7 @@ interface Scenario {
   estimatedTotal: number
   finalTotal: number
   contactPhone: string | null
+  reference: string
 }
 
 test.describe.serial('smoke pedido cliente → admin @smoke', () => {
@@ -102,7 +103,15 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     await addProduct(page, fixedName)
     await addProduct(page, variableName, VARIABLE_KILOS)
     scenario.orderId = await placePickupOrder(page, credentials.customer.phone)
-    runtime.orders = runtime.orders.map((order) => order.orderId ? order : { ...order, orderId: scenario.orderId! })
+    runtime.smokeOrderId = scenario.orderId
+    saveRuntime(runtime, 'smoke-created')
+    const created = await readOrder(page, dest, scenario.orderId)
+    expect(created.paymentMethod, 'Efectivo preseleccionado persiste').toBe('cash')
+    expect(created.reference).toBeGreaterThan(0)
+    scenario.reference = formatOrderReference(created.reference!)
+    await expect(page.getByRole('heading', { name: scenario.reference, exact: true })).toBeVisible()
+    await expect(page.locator('body')).not.toContainText(scenario.orderId)
+    await expect.poll(() => runtime.orders.some((order) => order.orderId === scenario.orderId), { message: 'pedido smoke asociado a su clave real' }).toBe(true)
     saveRuntime(runtime, 'created')
 
     const expected = calculateOrderTotals([
@@ -127,7 +136,8 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     await adminOpenOrderFromList(page, scenario.orderId!)
     await expectAmount(page.getByText(/Total estimado/), scenario.estimatedTotal!, 'total estimado en el admin')
     await page.getByRole('button', { name: 'Confirmar pedido' }).click()
-    await expect(page.getByRole('button', { name: 'Marcar como preparando' })).toBeVisible()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Comenzar preparación' })).toBeVisible()
     await sanitizedShot(page, '02-pedido-confirmado-admin')
   })
 
@@ -137,14 +147,21 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
 
   test('el admin prepara, registra el peso real y marca listo', async () => {
     const { page } = admin
-    await page.getByRole('button', { name: 'Marcar como preparando' }).click()
-    const weight = page.getByLabel('Peso real')
+    await page.getByRole('button', { name: 'Comenzar preparación' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    const checklist = page.getByRole('region', { name: 'Lista de preparación' })
+    const weight = checklist.getByLabel(`Peso real de ${scenario.variable!.name}`)
     await expect(weight).toBeEnabled()
     await weight.fill(String(REAL_KILOS))
-    await page.getByRole('button', { name: 'Guardar pesos' }).click()
-    await expect(page.getByText('Pesos guardados')).toBeVisible()
+    await weight.press('Tab')
+    await expect(checklist.getByRole('checkbox', { name: scenario.variable!.name, exact: true })).toBeChecked()
+    await checklist.getByRole('checkbox', { name: scenario.fixed!.name, exact: true }).click()
+    await expect(checklist.getByRole('status')).toContainText('2 de 2 alistados')
     await page.getByRole('button', { name: 'Marcar como listo' }).click()
-    await expect(page.getByRole('button', { name: 'Marcar como entregado' })).toBeVisible()
+    const confirmation = page.getByRole('dialog', { name: 'Marcar pedido como listo' })
+    await expect(page.getByRole('dialog')).toHaveCount(1)
+    await confirmation.getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Cliente recogió' })).toBeVisible()
     await expectAmount(page.getByText(/Total final/), scenario.finalTotal!, 'total final en el admin')
   })
 
@@ -163,8 +180,11 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
   })
 
   test('el admin entrega y el cliente detecta «Entregado» con ambos totales persistentes', async () => {
-    await admin.page.getByRole('button', { name: 'Marcar como entregado' }).click()
-    await expect(admin.page.getByRole('button', { name: 'Marcar como entregado' })).toHaveCount(0)
+    await admin.page.getByRole('button', { name: 'Cliente recogió' }).click()
+    await expect(admin.page.getByRole('dialog')).toHaveCount(1)
+    await admin.page.getByRole('dialog', { name: 'Confirmar recogida' }).getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await expect(admin.page.getByRole('dialog')).toHaveCount(0)
+    await expect(admin.page.getByRole('button', { name: 'Cliente recogió' })).toHaveCount(0)
     await expect(customerStatusStep(customer.page, 'Entregado')).toContainText(/En curso|Completado/, { timeout: POLL_TIMEOUT })
     await customer.page.reload()
     await expectAmount(customer.page.getByRole('region', { name: 'Resumen del pedido' }).getByText(/Total final/), scenario.finalTotal!, 'total final tras entrega')
@@ -177,13 +197,16 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
     const { page } = customer
     await page.getByRole('button', { name: 'Ver comprobante' }).click()
     const receipt = page.getByRole('region', { name: 'Comprobante del pedido' })
-    await expect(receipt).toContainText(scenario.orderId!)
+    await expect(receipt).toContainText(scenario.reference!)
+    await expect(receipt).not.toContainText(scenario.orderId!)
+    await expect(receipt).toContainText('Efectivo')
     const contact = receipt.getByRole('link')
     if (scenario.contactPhone) {
       const href = (await contact.getAttribute('href')) ?? ''
       const url = new URL(href)
       expect(`${url.origin}${url.pathname}`).toBe(`https://wa.me/${scenario.contactPhone}`)
-      expect(url.searchParams.get('text') ?? '').toContain(scenario.orderId!)
+      expect(url.searchParams.get('text') ?? '').toContain(scenario.reference!)
+      expect(url.searchParams.get('text') ?? '').not.toContain(scenario.orderId!)
     } else {
       // El seed deja el contacto del negocio en null: sin número real no hay enlace verificable.
       await expect(contact).toHaveCount(0)
@@ -197,10 +220,10 @@ test.describe.serial('smoke pedido cliente → admin @smoke', () => {
       const url = new URL((await adminLink.getAttribute('href')) ?? '')
       expect(url.hostname).toBe('wa.me')
       expect(url.pathname).toMatch(/^\/57\d{10}$/)
-      expect(url.searchParams.get('text') ?? '').toContain(scenario.orderId!)
+      expect(url.searchParams.get('text') ?? '').toContain(scenario.reference!)
     }
     await admin.page.getByRole('tab', { name: 'Comprobante' }).click()
-    await expect(admin.page.getByRole('region', { name: 'Comprobante del pedido' })).toContainText(scenario.orderId!)
+    await expect(admin.page.getByRole('region', { name: 'Comprobante del pedido' })).toContainText(scenario.reference!)
 
     const actions = (await owner.orderAudit(scenario.orderId!)).map((event) => event.action)
     expect(actions, 'la auditoría registra el ciclo del pedido').toContain('status_changed')

@@ -42,9 +42,10 @@ describe('HistoricoPage (modo real, fuente simulada)', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('carga el rango por defecto en el servidor y muestra el total final cuando existe', async () => {
-    mocks.loadPage.mockResolvedValue({ items: [order('ord-1', { finalTotal: 7000 })], nextCursor: null })
+    mocks.loadPage.mockResolvedValue({ items: [order('ord-1', { finalTotal: 7000, reference: 1248 })], nextCursor: null })
     render(<MemoryRouter><HistoricoPage /></MemoryRouter>)
-    expect(await screen.findByText('ord-1')).toBeInTheDocument()
+    expect(await screen.findByText('Pedido #001248')).toBeInTheDocument()
+    expect(screen.queryByText('ord-1')).not.toBeInTheDocument()
     expect(screen.getByText(/7\.000/)).toBeInTheDocument()
     const [filter] = mocks.loadPage.mock.calls[0] as [{ from: string; to: string }]
     expect(filter.from).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -91,12 +92,12 @@ describe('HistoricoPage (modo real, fuente simulada)', () => {
   })
 
   it('pagina con «Cargar más» usando el cursor', async () => {
-    mocks.loadPage.mockResolvedValueOnce({ items: [order('ord-1')], nextCursor: 'cur1' })
-      .mockResolvedValueOnce({ items: [order('ord-2')], nextCursor: null })
+    mocks.loadPage.mockResolvedValueOnce({ items: [order('ord-1', { reference: 1 })], nextCursor: 'cur1' })
+      .mockResolvedValueOnce({ items: [order('ord-2', { reference: 2 })], nextCursor: null })
     render(<MemoryRouter><HistoricoPage /></MemoryRouter>)
-    await screen.findByText('ord-1')
+    await screen.findByText('Pedido #000001')
     fireEvent.click(screen.getByRole('button', { name: 'Cargar más' }))
-    expect(await screen.findByText('ord-2')).toBeInTheDocument()
+    expect(await screen.findByText('Pedido #000002')).toBeInTheDocument()
     expect(mocks.loadPage).toHaveBeenLastCalledWith(expect.anything(), { cursor: 'cur1' }, expect.anything())
   })
 
@@ -112,7 +113,7 @@ describe('DashboardPage (modo real, fuente simulada)', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('pide solo el día de la tienda al servidor y cuenta por estado sin refiltrar en el navegador', async () => {
-    const received = order('ord-r', { status: 'received', createdAt: new Date(Date.now() - 10 * 60_000).toISOString() })
+    const received = order('ord-r', { reference: 77, status: 'received', createdAt: new Date(Date.now() - 10 * 60_000).toISOString() })
     mocks.list.mockResolvedValue([received, order('ord-d', { finalTotal: 9000 })])
     render(<MemoryRouter><DashboardPage /></MemoryRouter>)
     expect(await screen.findByText('Dashboard del día')).toBeInTheDocument()
@@ -120,7 +121,8 @@ describe('DashboardPage (modo real, fuente simulada)', () => {
     expect(filter.from).toBe(filter.to)
     expect(filter.from).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(screen.getByText(/9\.000/)).toBeInTheDocument()
-    expect(screen.getByText('ord-r')).toBeInTheDocument()
+    expect(screen.getByText('Pedido #000077')).toBeInTheDocument()
+    expect(screen.queryByText('ord-r')).not.toBeInTheDocument()
   })
 
   it('un fallo se avisa y permite reintentar', async () => {

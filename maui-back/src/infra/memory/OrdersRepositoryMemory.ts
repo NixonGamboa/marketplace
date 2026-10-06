@@ -25,13 +25,14 @@ const compareDesc = (a: OrderListPosition, b: OrderListPosition): number =>
 
 /** Un cambio de ciclo de vida solo aporta campos mutables; el resto se conserva de la fila guardada. */
 const keepImmutable = (stored: Order, next: Order): Order => {
-  const { customerPhone: _phone, shippingCost: _shipping, processingNotice: _notice, timeSlotDate: _slotDate, ...mutable } = next
+  const { customerPhone: _phone, shippingCost: _shipping, processingNotice: _notice, timeSlotDate: _slotDate, reference: _reference, ...mutable } = next
   return {
     ...mutable,
     id: stored.id, storeId: stored.storeId, customerId: stored.customerId, customerName: stored.customerName,
     deliveryType: stored.deliveryType, deliveryData: stored.deliveryData,
     substitutionPreference: stored.substitutionPreference, estimatedTotal: stored.estimatedTotal,
-    createdAt: stored.createdAt,
+    createdAt: stored.createdAt, paymentMethod: stored.paymentMethod,
+    ...(stored.reference !== undefined ? { reference: stored.reference } : {}),
     ...(stored.customerPhone !== undefined ? { customerPhone: stored.customerPhone } : {}),
     ...(stored.shippingCost !== undefined ? { shippingCost: stored.shippingCost } : {}),
     ...(stored.processingNotice !== undefined ? { processingNotice: stored.processingNotice } : {}),
@@ -44,6 +45,15 @@ export class OrdersRepositoryMemory implements OrdersRepository {
   private readonly store = new Map<string, Order>()
   private readonly creations = new Map<string, StoredOrderCreation>()
   private readonly quotas = new Map<string, { start: number; count: number }>()
+  /** Último número por tienda, como `order_reference_counters`: nunca baja ni se reutiliza. */
+  private readonly references = new Map<string, number>()
+
+  /** Igual que el trigger de PostgreSQL: el siguiente número de la tienda, nunca uno del llamador. */
+  private withReference(order: Order): Order {
+    const reference = (this.references.get(order.storeId) ?? 0) + 1
+    this.references.set(order.storeId, reference)
+    return { ...order, reference }
+  }
 
   private creationKey(identity: OrderCreationIdentity): string {
     return JSON.stringify([identity.customerId, identity.storeId, identity.keyHash])
@@ -68,9 +78,10 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     if (quota.count >= input.quota.limit) return {
       kind: 'limited', retryAfterSeconds: Math.max(1, Math.ceil((quota.start + input.quota.windowSeconds * 1000 - now) / 1000)),
     }
-    const creation = { fingerprint: input.fingerprint, order: structuredClone(input.order) }
+    const order = this.withReference(input.order)
+    const creation = { fingerprint: input.fingerprint, order: structuredClone(order) }
     this.audit.append('order', 'created', input.storeId, input.order.id, { actor: { kind: 'account', id: input.customerId }, metadata: { version: 1, status: input.order.status, estimatedTotal: input.order.estimatedTotal } })
-    this.store.set(input.order.id, structuredClone(input.order))
+    this.store.set(input.order.id, structuredClone(order))
     this.creations.set(key, creation)
     this.quotas.set(input.quota.bucket, { ...quota, count: quota.count + 1 })
     return { kind: 'created', creation: structuredClone(creation) }
@@ -82,9 +93,10 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     if (this.store.has(order.id)) {
       throw new ConflictError(`Order ${order.id} already exists`)
     }
+    const stored = this.withReference(order)
     this.audit.append('order', 'created', order.storeId, order.id, auditVersion(undefined, order.version))
-    this.store.set(order.id, order)
-    return order
+    this.store.set(order.id, stored)
+    return stored
   }
 
   async findById(id: string): Promise<Order | null> {
@@ -128,5 +140,6 @@ export class OrdersRepositoryMemory implements OrdersRepository {
     this.store.clear()
     this.creations.clear()
     this.quotas.clear()
+    this.references.clear()
   }
 }

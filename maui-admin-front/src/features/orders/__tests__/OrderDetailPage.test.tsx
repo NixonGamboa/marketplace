@@ -113,30 +113,48 @@ describe('OrderDetailPage', () => {
     })
   })
 
-  it('AC-2: WeightInput precargado con kilosRequested para items variables', async () => {
+  it('AC-2: la fila de peso variable muestra el peso pedido y su campo de peso real', async () => {
     const { orderRepo } = await import('@/services')
     vi.mocked(orderRepo.getById).mockResolvedValue(mockOrder)
 
     renderDetail('MAUI-TEST')
 
-    await waitFor(() => {
-      // El hint del WeightInput muestra el kilosRequested
-      expect(screen.getByText(/Pedido: 0\.5 kg/)).toBeInTheDocument()
-    })
+    expect(await screen.findByText(/Pedido: 0,5 kg/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Peso real de Queso campesino')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guardar pesos' })).not.toBeInTheDocument()
   })
 
-  it('AC-3: botón Marcar como listo disabled cuando no hay kilosReal', async () => {
+  it('AC-3: «Marcar como listo» queda deshabilitado y dice qué falta, sin depender de un tooltip', async () => {
     const { orderRepo } = await import('@/services')
     vi.mocked(orderRepo.getById).mockResolvedValue(mockOrder)
 
     renderDetail('MAUI-TEST')
 
-    await waitFor(() => {
-      const btn = screen.queryByText('Marcar como listo')
-      if (btn) {
-        expect(btn).toBeDisabled()
-      }
-    })
+    const button = await screen.findByRole('button', { name: 'Marcar como listo' })
+    expect(button).toBeDisabled()
+    expect(screen.getByText('Faltan 2: Leche entera, Queso campesino')).toBeInTheDocument()
+    expect(button).not.toHaveAttribute('title')
+  })
+
+  it('ME-04: el pedido demo sin referencia no inventa un número ni muestra su identificador interno', async () => {
+    const { orderRepo } = await import('@/services')
+    vi.mocked(orderRepo.getById).mockResolvedValue(mockOrder)
+
+    renderDetail('MAUI-TEST')
+
+    expect(await screen.findByRole('heading', { name: 'Pedido' })).toBeInTheDocument()
+    expect(screen.queryByText(/MAUI-TEST/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/#\d/)).not.toBeInTheDocument()
+  })
+
+  it('el modo demo no ofrece quitar ni sustituir productos', async () => {
+    const { orderRepo } = await import('@/services')
+    vi.mocked(orderRepo.getById).mockResolvedValue(mockOrder)
+
+    renderDetail('MAUI-TEST')
+
+    await screen.findByText('Leche entera')
+    expect(screen.queryByRole('button', { name: /^Falta (Leche entera|Queso campesino)$/ })).not.toBeInTheDocument()
   })
 
   it('AC-9: pedido sin teléfono muestra hint y oculta CTAs de contacto', async () => {

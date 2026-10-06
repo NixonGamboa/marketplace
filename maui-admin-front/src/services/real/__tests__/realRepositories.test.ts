@@ -421,3 +421,60 @@ describe('auditoría real', () => {
     expect(await rejection(createRealAuditRepository(client).listPage())).toMatchObject({ kind, status })
   })
 })
+
+describe('negociación del contrato v2 en pedidos', () => {
+  const CONTRACT = { 'X-Maui-Contract': '2' }
+  const v2Order = () => orderDto({
+    status: 'preparing', version: 5, reference: 1248, paymentMethod: 'qr',
+    items: [{ id: 'prod-leche', name: 'Leche entera', qty: 2, priceAtMoment: 5000, unit: '1 L', picked: true }],
+  })
+
+  it('envía X-Maui-Contract: 2 en TODA petición de pedidos, sin que el transporte lo pise', async () => {
+    const order = v2Order()
+    const { client, fetchImpl } = clientWith(
+      json({ items: [order], nextCursor: null }), json(order), json({ orderId: 'ord-9', status: 'received', estimatedTotal: 10000, reference: 7 }, 201),
+      json(order), json(order), json(order), json(order),
+    )
+    const repo = createRealOrderRepository(client)
+    await repo.listPage()
+    await repo.getById('ord-1')
+    await repo.submit({
+      userId: 'usr-cli', items: [{ id: 'prod-leche', qty: 2 }], substitutionPreference: 'call_me',
+      deliveryType: 'pickup', deliveryData: {}, customerName: 'Cliente Demo', customerPhone: '573105550101',
+    }, 'clave-idempotente-0001')
+    await repo.updateStatus('ord-1', 'ready', 'x', 5)
+    await repo.cancel('ord-1', 'Sin stock', 'x', 5)
+    await repo.changeItems('ord-1', [{ type: 'pick', itemId: 'prod-leche', picked: true }], 5)
+    await repo.setRealWeights('ord-1', [{ itemId: 'prod-leche', kilos: 1.2 }], 'x', 5)
+    expect(fetchImpl).toHaveBeenCalledTimes(7)
+    for (let index = 0; index < 7; index += 1) {
+      expect(requestAt(fetchImpl, index).headers).toMatchObject(CONTRACT)
+    }
+    expect(requestAt(fetchImpl, 2).headers).toMatchObject({ 'Idempotency-Key': 'clave-idempotente-0001' })
+  })
+
+  it('lee referencia, método de pago y marcas de la respuesta v2 sin perder campos', async () => {
+    const order = v2Order()
+    const { client } = clientWith(json(order))
+    expect(await createRealOrderRepository(client).getById('ord-1')).toEqual(order)
+  })
+
+  it('marca, desmarca, borra el peso y reabre con la forma exacta del contrato', async () => {
+    const { client, fetchImpl } = clientWith(json(v2Order()), json(v2Order()), json(v2Order()), json(orderDto({ status: 'preparing', version: 7 })))
+    const repo = createRealOrderRepository(client)
+    await repo.changeItems('ord-1', [{ type: 'pick', itemId: 'prod-leche', picked: false }], 5)
+    await repo.changeItems('ord-1', [{ type: 'weight', itemId: 'prod-queso', kilosReal: null }], 5)
+    await repo.changeItems('ord-1', [{ type: 'pick', itemId: 'prod-leche', picked: true }], 5)
+    await repo.updateStatus('ord-1', 'preparing', 'x', 6)
+    expect(requestAt(fetchImpl, 0).body).toEqual({ expectedVersion: 5, changes: [{ type: 'pick', itemId: 'prod-leche', picked: false }] })
+    expect(requestAt(fetchImpl, 1).body).toEqual({ expectedVersion: 5, changes: [{ type: 'weight', itemId: 'prod-queso', kilosReal: null }] })
+    expect(requestAt(fetchImpl, 3)).toMatchObject({ url: '/api/orders/ord-1/status', body: { status: 'preparing', expectedVersion: 6 } })
+  })
+
+  it('cambiar ítems sin versión no toca la red', async () => {
+    const { client, fetchImpl } = clientWith()
+    expect(await rejection(createRealOrderRepository(client).changeItems('ord-1', [{ type: 'pick', itemId: 'prod-leche', picked: true }], undefined)))
+      .toMatchObject({ kind: 'invalid_request' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+})

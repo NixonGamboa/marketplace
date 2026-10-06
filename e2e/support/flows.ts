@@ -102,11 +102,10 @@ export function customerStatusStep(page: Page, label: string): Locator {
   return page.getByRole('list', { name: 'Estado del pedido' }).getByRole('listitem').filter({ hasText: label })
 }
 
-/** Abre el pedido desde la lista de recepción del admin (filtro por inicio del ID). */
+/** Usa el ID solo en el enlace interno; la fila y el detalle muestran la referencia comercial. */
 export async function adminOpenOrderFromList(page: Page, orderId: string): Promise<void> {
   await page.goto('/admin/pedidos')
   await page.getByRole('tab', { name: 'Recibidos' }).click()
-  await page.getByLabel('Buscar pedidos').fill(orderId.slice(0, 12))
-  await page.getByRole('link', { name: new RegExp(`^Pedido ${orderId} de `) }).click()
-  await expect(page.getByRole('article', { name: `Detalle del pedido ${orderId}` })).toBeVisible()
+  await page.locator(`a[href="/admin/pedidos/${encodeURIComponent(orderId)}"]`).click()
+  await expect(page.getByRole('article', { name: /^Detalle del pedido/ })).toBeVisible()
 }

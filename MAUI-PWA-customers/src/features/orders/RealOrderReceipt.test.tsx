@@ -7,6 +7,15 @@ const result: ReceiptResult = {
   contact: null,
 }
 describe('componente de comprobante real', () => {
+  it('refresca el comprobante abierto con el reloj del seguimiento', async () => {
+    const service = { load: vi.fn().mockResolvedValueOnce({ ...result, receipt: { ...result.receipt, rows: ['mañana a primera hora'] } }).mockResolvedValue({ ...result, receipt: { ...result.receipt, rows: ['hoy desde las 8 a. m.'] } }) }
+    const view = render(<RealOrderReceipt orderId="pedido" service={service} refreshToken={1} />)
+    await screen.findByText('mañana a primera hora')
+    view.rerender(<RealOrderReceipt orderId="pedido" service={service} refreshToken={2} />)
+    await screen.findByText('hoy desde las 8 a. m.')
+    expect(screen.queryByText('mañana a primera hora')).toBeNull()
+    expect(service.load).toHaveBeenCalledTimes(2)
+  })
   it('presenta carga, error y reintento sin enlazar datos locales', async () => {
     const load = vi.fn().mockRejectedValueOnce(new Error('privado')).mockResolvedValue(result)
     render(<RealOrderReceipt orderId="pedido" service={{ load }} />)

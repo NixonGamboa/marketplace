@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
-  MAX_COP_AMOUNT, OrderStatus, calculateOrderTotals, createOrderRequestSchema,
+  DEFAULT_PAYMENT_METHOD, MAX_COP_AMOUNT, OrderStatus, calculateOrderTotals, createOrderRequestSchema,
   idempotencyKeySchema, issuesFromZodError, orderItemSchema,
 } from '../../../../shared/contracts/index.js'
 import { AuthorizationError, RateLimitedError } from '../../domain/auth/errors.js'
@@ -35,7 +35,10 @@ export const idempotencyKeyHash = hash
 /** Orden por unidades de código UTF-16: independiente del locale del runtime. */
 const byIdCodeUnits = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 type OrderIntent = ReturnType<typeof createOrderRequestSchema.parse>
-/** Huella canónica de la intención de compra: campos legacy ignorados no la cambian. */
+/**
+ * Huella canónica de la intención de compra: campos legacy ignorados no la cambian. El efectivo (por
+ * defecto) no entra, así la huella de un cliente anterior sin método sigue igual; otro método sí la cambia.
+ */
 export const orderIntentFingerprint = (data: OrderIntent): string => hash(JSON.stringify({
   items: data.items.map(({ id, qty, kilosRequested }) => ({ id, qty, kilosRequested }))
     .sort(byIdCodeUnits),
@@ -43,6 +46,7 @@ export const orderIntentFingerprint = (data: OrderIntent): string => hash(JSON.s
   deliveryData: { address: data.deliveryData.address, lat: data.deliveryData.lat,
     lng: data.deliveryData.lng, timeSlot: data.deliveryData.timeSlot },
   customerName: data.customerName, customerPhone: data.customerPhone,
+  paymentMethod: data.paymentMethod === DEFAULT_PAYMENT_METHOD ? undefined : data.paymentMethod,
 }))
 /** El observador no decide el resultado: su fallo no altera la creación ni activa la recuperación. */
 const notifyOutcome = (deps: CreateOrderDeps, outcome: 'created' | 'replayed'): void => {
@@ -97,7 +101,8 @@ export const createOrder = async (
       id: (deps.newOrderId ?? newId)(), storeId: context.storeId, customerId: actor.id,
       customerName: data.customerName, customerPhone: data.customerPhone, items,
       status: OrderStatus.RECEIVED, deliveryType: data.deliveryType, deliveryData: data.deliveryData,
-      substitutionPreference: data.substitutionPreference, shippingCost, estimatedTotal,
+      substitutionPreference: data.substitutionPreference, paymentMethod: data.paymentMethod ?? DEFAULT_PAYMENT_METHOD,
+      shippingCost, estimatedTotal,
       createdAt: now, updatedAt: now, version: 1,
       ...(processingNotice !== undefined ? { processingNotice } : {}),
       ...(timeSlotDate !== undefined ? { timeSlotDate } : {}),

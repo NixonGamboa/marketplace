@@ -21,11 +21,15 @@ export interface EmbeddedPostgres {
  * HTTP de Neon: Drizzle y los adapters de producción generan SQL; PostgreSQL ejecuta
  * restricciones, joins y upserts. No contacta Neon ni usa credenciales; no acredita el smoke cloud.
  */
-export async function startEmbeddedPostgres(): Promise<EmbeddedPostgres> {
+export async function startEmbeddedPostgres(
+  options: { beforeMigration?: Readonly<Record<string, (pg: PGlite) => Promise<void>>> } = {},
+): Promise<EmbeddedPostgres> {
   const pg = await PGlite.create()
   const migrations = new URL('../../src/infra/postgres/migrations/', import.meta.url)
   const journal = journalSchema.parse(JSON.parse(readFileSync(new URL('meta/_journal.json', migrations), 'utf8')))
   for (const entry of journal.entries) {
+    // Datos previos a una migración concreta (p. ej. filas legacy para probar su backfill).
+    await options.beforeMigration?.[entry.tag]?.(pg)
     await pg.exec(readFileSync(new URL(`${entry.tag}.sql`, migrations), 'utf8'))
   }
 

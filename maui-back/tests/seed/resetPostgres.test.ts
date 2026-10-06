@@ -157,7 +157,7 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
       select (jsonb_populate_record(null::auth_accounts, to_jsonb(a) || '{"id":"acc_carrera","email":"carrera@seed.maui.invalid"}'::jsonb)).*
       from auth_accounts a where id = 'acc_seed_owner'`],
     ['pedido nuevo', `insert into orders
-      select (jsonb_populate_record(null::orders, to_jsonb(o) || '{"id":"ord_carrera"}'::jsonb)).*
+      select (jsonb_populate_record(null::orders, to_jsonb(o) || '{"id":"ord_carrera","reference_number":null}'::jsonb)).*
       from orders o where id = 'legacy-order-1'`],
     ['producto ajeno nuevo', `insert into catalog_products
       select (jsonb_populate_record(null::catalog_products, to_jsonb(p) || '{"id":"prod_carrera"}'::jsonb)).*
@@ -299,12 +299,17 @@ describe('reset de fixtures sobre PostgreSQL embebido', () => {
       await runSeed(world.deps, testCredentials())
       const restored = await dumpSeededState(world)
       // Lo ajeno (pedido legacy y otra tienda) se compara aparte; aquí solo lo sembrado.
+      const ownOrders = (state: Record<string, unknown[]>) =>
+        (state.orders ?? []).filter(row => (row as { id: string }).id !== LEGACY_ORDER) as { reference_number: number }[]
+      // ME-04: el contador por tienda nunca baja; los pedidos resembrados reciben números nuevos, sin reutilizar los borrados.
       const seededOnly = (state: Record<string, unknown[]>): Record<string, unknown[]> => ({
         ...state,
-        orders: (state.orders ?? []).filter(row => (row as { id: string }).id !== LEGACY_ORDER),
+        orders: ownOrders(state).map(({ reference_number: _reference, ...row }) => row),
         audit: (state.audit ?? []).filter(row => (row as { store_id: string }).store_id === SEED_STORE),
       })
       expect(seededOnly(restored)).toEqual(seededOnly(seeded))
+      const previous = ownOrders(seeded).map(row => row.reference_number)
+      expect(Math.min(...ownOrders(restored).map(row => row.reference_number))).toBeGreaterThan(Math.max(...previous))
       expect(await bystanderDigest(world)).toBe(bystanders)
     } finally {
       await world.close()

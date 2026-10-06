@@ -1,6 +1,7 @@
 import type { OrderDto, OrderItemDto } from '../contracts/orders.js'
 import type { OrderProcessingNoticeDto, StoreDto } from '../contracts/store.js'
-import type { TimeSlot } from '../contracts/orderEnums.js'
+import type { TimeSlot, PaymentMethod, DeliveryType } from '../contracts/orderEnums.js'
+import { formatOrderReference } from '../contracts/orders.js'
 import { PLACEHOLDER_CONTACT_PHONE, STORE_TIME_ZONE } from '../contracts/store.js'
 import { normalizeColombianMobile } from '../contracts/common.js'
 import { itemEstimatedTotal, itemFinalTotal } from '../contracts/orderPricing.js'
@@ -17,9 +18,6 @@ const date = (iso: string): string => new Intl.DateTimeFormat('es-CO', {
   timeZone: STORE_TIME_ZONE, dateStyle: 'medium', timeStyle: 'short',
 }).format(new Date(iso))
 
-const processingDay = new Intl.DateTimeFormat('es-CO', {
-  timeZone: STORE_TIME_ZONE, weekday: 'long', day: 'numeric', month: 'long',
-})
 const processingTime = new Intl.DateTimeFormat('es-CO', {
   timeZone: STORE_TIME_ZONE, hour: 'numeric', minute: '2-digit', hour12: true,
 })
@@ -45,16 +43,31 @@ export const describeTimeSlot = (slot: TimeSlot, timeSlotDate?: string): string 
  * Aviso mostrado tras persistir un pedido recibido fuera de atención. Informa cuándo empieza el
  * procesamiento (nunca una hora de entrega o recogida) y no inventa una hora si no se conoce.
  */
-export const processingNoticeMessage = (notice: OrderProcessingNoticeDto): string => {
-  const intro = notice.reason === 'delivery_cutoff'
-    ? '¡Recibimos tu pedido! Ya pasó la hora de corte de los domicilios de hoy.'
-    : '¡Recibimos tu pedido! En este momento estamos descansando para darte un mejor servicio.'
-  if (notice.kind === 'unscheduled') return `${intro} Lo procesaremos cuando retomemos la atención.`
-  const startsAt = new Date(notice.startsAt)
-  const time = plainSpaces(processingTime.format(startsAt))
-  // «a. m.» ya termina en punto: no se duplica al cerrar la frase.
-  return plainSpaces(`${intro} Comenzaremos a procesarlo el ${processingDay.format(startsAt)} a las ${time}${time.endsWith('.') ? '' : '.'}`)
+export const processingNoticeMessage = (notice: OrderProcessingNoticeDto, status: OrderStatus = 'received', now: Date = new Date()): string => {
+  if (status !== 'received') return STATUS_LABELS[status]
+  let when = 'en nuestro próximo horario de atención'
+  if (notice.kind === 'scheduled') {
+    const startsAt = new Date(notice.startsAt)
+    if (Number.isFinite(startsAt.getTime())) {
+      if (startsAt.getTime() <= now.getTime()) return 'Tu pedido está pendiente de preparación. Puedes consultar aquí su estado.'
+      const civilDay = (value: Date) => {
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: STORE_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value)
+        const part = (type: string) => Number(parts.find((entry) => entry.type === type)!.value)
+        return Date.UTC(part('year'), part('month') - 1, part('day'))
+      }
+      const days = (civilDay(startsAt) - civilDay(now)) / 86_400_000
+      const time = plainSpaces(processingTime.format(startsAt)).replace(':00', '')
+      if (days === 0) when = `hoy desde las ${time}`
+      else if (days === 1) when = `mañana a primera hora, desde las ${time}`
+    }
+  }
+  return `¡Recibimos tu pedido! En este momento estamos descansando. Comenzaremos a prepararlo ${when}${when.endsWith('.') ? '' : '.'} Puedes ver su estado aquí.`
 }
+
+/** La demo sin referencia conserva una etiqueta neutra; nunca fabrica una numeración. */
+export const orderReferenceLabel = (order: Pick<OrderDto, 'reference'>): string => order.reference === undefined ? 'Pedido' : formatOrderReference(order.reference)
+export const paymentMethodLabel = (method: PaymentMethod = 'cash'): string => ({ cash: 'Efectivo', qr: 'Código QR', bre_b: 'Transferencia Bre-B' })[method]
+export const paymentOnReceiptMessage = (mode: DeliveryType): string => `Pagas el total final al ${mode === 'pickup' ? 'recoger' : 'recibir'} tu pedido.`
 
 export interface ReceiptLine {
   id: string
@@ -83,14 +96,14 @@ export interface ReceiptResult {
 }
 
 const lineFrom = (item: OrderItemDto, final: boolean): ReceiptLine => {
-  const name = item.name ?? `Producto ${item.id}`
+  const name = item.name ?? 'Producto'
   const measure = item.is_variable_weight
     ? `${quantity(item.kilosRequested!)} kg solicitados${final ? `; ${item.kilosReal === undefined ? 'peso real pendiente' : `${quantity(item.kilosReal)} kg reales`}` : ''}`
     : `${item.qty} × ${item.unit ?? 'unidad no registrada'}`
   const amount = final ? itemFinalTotal(item) : itemEstimatedTotal(item)
   return {
     id: item.id,
-    description: `${name}: ${measure}; ${formatReceiptMoney(item.priceAtMoment)}${item.is_variable_weight ? '/kg' : ' por unidad'}${item.substitutedFor ? `; sustituye producto ${item.substitutedFor}` : ''}`,
+    description: `${name}: ${measure}; ${formatReceiptMoney(item.priceAtMoment)}${item.is_variable_weight ? '/kg' : ' por unidad'}${item.substitutedFor ? '; producto sustituto' : ''}`,
     ...(amount !== undefined ? { amount } : {}),
   }
 }
@@ -98,17 +111,18 @@ const lineText = (line: ReceiptLine): string =>
   `${line.description} — ${line.amount === undefined ? 'importe pendiente' : formatReceiptMoney(line.amount)}`
 
 /** Solo refleja importes y estado del DTO. La estimación conserva siempre los ítems originales. */
-export const buildOrderReceipt = (order: OrderDto): OrderReceipt => {
+export const buildOrderReceipt = (order: OrderDto, now: Date = new Date()): OrderReceipt => {
   const originalLines = (order.originalItems ?? order.items).map((item) => lineFrom(item, false))
   const currentLines = order.items.map((item) => lineFrom(item, true))
   const rows = [
-    `Pedido ${order.orderId}`, `Estado: ${STATUS_LABELS[order.status]}`,
+    orderReferenceLabel(order), `Estado: ${STATUS_LABELS[order.status]}`,
+    `Pago: ${paymentMethodLabel(order.paymentMethod)}`,
     `Creado: ${date(order.createdAt)} (Colombia)`,
     ...(order.updatedAt ? [`Actualizado: ${date(order.updatedAt)} (Colombia)`] : []),
     `Modalidad: ${order.deliveryType === 'pickup' ? 'Recogida en tienda' : 'Domicilio'}`,
     ...(order.deliveryData.timeSlot ? [`Franja de recogida: ${describeTimeSlot(order.deliveryData.timeSlot, order.timeSlotDate)}`] : []),
     // El aviso es del momento de la recepción: deja de aplicar cuando el personal ya actuó sobre el pedido.
-    ...(order.processingNotice && order.status === 'received' ? [processingNoticeMessage(order.processingNotice)] : []),
+    ...(order.processingNotice && order.status === 'received' ? [processingNoticeMessage(order.processingNotice, order.status, now)] : []),
     'Estimación original:', ...originalLines.map(lineText),
     ...(order.shippingCost === undefined ? ['Envío: no registrado'] : [
       `Subtotal estimado original: ${formatReceiptMoney(order.estimatedTotal - order.shippingCost)}`,

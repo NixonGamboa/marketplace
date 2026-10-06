@@ -4,11 +4,13 @@
  * siempre, incluso si el escenario falla. Ninguna respuesta de negocio se simula.
  */
 import { expect } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
 import type { StaffProductDto, StoreDto, UpdateProductRequest, UpdateStoreSettingsRequest } from '../../shared/contracts/index.js'
 import { saveRuntime, type FixtureRecord, type RuntimeRecord } from './runtime.js'
 
 /** Operaciones owner mínimas; el runner las implementa con la API real y los selftests con un doble en memoria. */
 export interface FixtureApi {
+  actorId?: string
   readStaffStore(): Promise<StoreDto>
   /** Producto de personal con su `version` real: el DTO público no la incluye. */
   readStaffProduct(id: string): Promise<StaffProductDto>
@@ -79,6 +81,7 @@ export class TechnicalFixtures {
       if (fixture.applied && !sameValues(current, fixture.applied)) {
         this.runtime.findings.push(`Fixture ${fixture.kind} ${fixture.id}: otro actor cambió ${Object.keys(fixture.applied).join(', ')}; no se pisa`)
         fixture.restored = true
+        fixture.restoreDisposition = 'skipped'
         this.persist(this.runtime, 'fixture-skipped')
         return
       }
@@ -90,11 +93,14 @@ export class TechnicalFixtures {
       }
       fixture.restored = true
     }
+    fixture.restoreDisposition = 'verified'
+    fixture.restoredAt = new Date().toISOString()
     this.persist(this.runtime, 'fixtures-restored')
   }
 
   private register(entry: Omit<FixtureRecord, 'restored'>): FixtureRecord {
-    const record: FixtureRecord = { ...entry, restored: false }
+    const record: FixtureRecord = { ...entry, fixtureId: randomUUID(), startedAt: new Date().toISOString(),
+      ...(process.env.E2E_RUN_ID && this.runtime.readyStamp && this.api.actorId ? { runId: process.env.E2E_RUN_ID, readyStamp: this.runtime.readyStamp, actorId: this.api.actorId } : {}), restored: false }
     this.runtime.fixtures ??= []
     this.runtime.fixtures.push(record)
     this.persist(this.runtime, `fixture-prepared:${record.kind}`)

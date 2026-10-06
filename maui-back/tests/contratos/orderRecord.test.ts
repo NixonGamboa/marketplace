@@ -39,6 +39,9 @@ const legacyRecord = (overrides: Partial<StoredOrderRecord> = {}): StoredOrderRe
   itemAdjustments: null,
   cancellationReason: null,
   cancelledAt: null,
+  // Columnas de 0008 tal como quedan en filas previas: efectivo y número asignado por la migración.
+  paymentMethod: 'cash',
+  referenceNumber: 7,
   ...overrides,
 })
 
@@ -151,10 +154,12 @@ describe('persistencia del modelo canónico', () => {
 
 describe('DTO público vs modelo interno (privacidad)', () => {
   it('proyecta con lista blanca: sin storeId, actor ni nombres internos', () => {
-    const dto = toOrderDto(internalOrder({ updatedBy: 'acc_operador_interno' }))
+    const dto = toOrderDto(internalOrder({ updatedBy: 'acc_operador_interno', reference: 1248 }))
 
     expect(Object.keys(dto).sort()).toEqual(
       [
+        'reference',
+        'paymentMethod',
         'orderId',
         'userId',
         'status',
